@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+.env
+venv/
+env/
+
+# Runtime screenshots, history, logs
+screenshots/
+src/screenshots/
+logs_error/
+scratch/
+history/*.csv
+history/*.json
+*.log
+
+# Root level images / debug dumps
+/*.png
+/*.jpg
+
+# OS / Editor
+Thumbs.db
+.DS_Store
+.vscode/
+.idea/

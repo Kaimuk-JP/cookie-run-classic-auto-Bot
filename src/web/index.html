@@ -1,0 +1,2320 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CookieRun Classic Bot - Web Dashboard</title>
+  <link rel="icon" type="image/x-icon" href="/bot_icon.ico">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Prompt:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Prompt', 'sans-serif'],
+            display: ['Outfit', 'Prompt', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            brand: {
+              50: '#f5f3ff',
+              100: '#ede9fe',
+              200: '#ddd6fe',
+              300: '#c4b5fd',
+              400: '#a78bfa',
+              500: '#8b5cf6',
+              600: '#7c3aed',
+              700: '#6d28d9',
+              800: '#5b21b6',
+              900: '#4c1d95',
+            },
+            pastel: {
+              bg: '#f6f4fa',
+              card: '#ffffff',
+              cardSubtle: '#f9f8fc',
+              border: '#eeebf5',
+              borderSubtle: '#f3f0f8',
+              purple: '#7c3aed',
+              purpleLight: '#f3e8ff',
+              yellow: '#f59e0b',
+              yellowLight: '#fef3c7',
+              blue: '#3b82f6',
+              blueLight: '#dbeafe',
+              green: '#10b981',
+              greenLight: '#d1fae5',
+              pink: '#ec4899',
+              pinkLight: '#fce7f3',
+              textDark: '#1e1b4b',
+              textMuted: '#6b7280',
+            }
+          },
+          boxShadow: {
+            'soft': '0 4px 20px -2px rgba(124, 58, 237, 0.06), 0 2px 6px -1px rgba(0, 0, 0, 0.02)',
+            'card': '0 10px 30px -4px rgba(124, 58, 237, 0.08), 0 4px 12px -2px rgba(0, 0, 0, 0.03)',
+            'btn': '0 6px 20px -2px rgba(124, 58, 237, 0.35)',
+            'btn-pink': '0 6px 20px -2px rgba(236, 72, 153, 0.35)',
+            'glow': '0 0 25px rgba(124, 58, 237, 0.25)',
+          },
+          borderRadius: {
+            '2xl': '18px',
+            '3xl': '24px',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      background: radial-gradient(circle at 10% 20%, rgba(243, 232, 255, 0.6) 0%, rgba(246, 244, 250, 1) 40%, rgba(253, 242, 248, 0.4) 100%);
+      min-height: 100vh;
+      color: #1e1b4b;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #e2d9f3;
+      border-radius: 9999px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: #c4b5fd;
+    }
+
+    .tap-ripple {
+      position: absolute;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: rgba(124, 58, 237, 0.55);
+      transform: translate(-50%, -50%) scale(0);
+      animation: ripple 0.5s cubic-bezier(0, 0.2, 0.8, 1) forwards;
+      pointer-events: none;
+    }
+
+    @keyframes ripple {
+      to {
+        transform: translate(-50%, -50%) scale(2.8);
+        opacity: 0;
+      }
+    }
+
+    .toggle-switch {
+      position: relative;
+      width: 42px;
+      height: 24px;
+    }
+
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #e2e8f0;
+      transition: .25s ease;
+      border-radius: 24px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .25s cubic-bezier(0.4, 0, 0.2, 1);
+      border-radius: 50%;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+    }
+
+    input:checked+.slider {
+      background-color: #10b981;
+    }
+
+    input:checked+.slider:before {
+      transform: translateX(18px);
+    }
+
+    .glass-pill {
+      background: rgba(255, 255, 255, 0.8);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(238, 235, 245, 0.9);
+    }
+  </style>
+</head>
+
+<body class="font-sans antialiased text-slate-800 selection:bg-brand-500 selection:text-white pb-10">
+
+  <!-- ==================== TOP HEADER ==================== -->
+  <header
+    class="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-purple-100/80 px-4 sm:px-6 lg:px-8 py-3">
+    <div class="max-w-[1600px] mx-auto flex items-center justify-between gap-4">
+
+      <!-- Brand & Title -->
+      <div class="flex items-center gap-3">
+        <div
+          class="w-11 h-11 rounded-2xl bg-gradient-to-tr from-amber-400 to-orange-400 flex items-center justify-center shadow-md shadow-orange-500/20 border-2 border-white shrink-0 overflow-hidden">
+          <img src="/bot_icon.ico" alt="CookieRun Bot" class="w-9 h-9 object-contain">
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-lg sm:text-xl font-display font-bold text-slate-900 tracking-tight flex items-center gap-2">
+              CookieRun Classic
+            </h1>
+            <span
+              class="text-xs font-semibold px-2.5 py-0.5 rounded-lg bg-gradient-to-r from-brand-600 to-brand-500 text-white shadow-sm">
+              Bot Dashboard
+            </span>
+          </div>
+          <p class="text-xs text-slate-500 hidden sm:block">ระบบควบคุม สตรีมมิ่ง และตรวจจับกล่องปริศนาแยกเกรด</p>
+        </div>
+      </div>
+
+      <!-- Top Right Status & Profile -->
+      <div class="flex items-center gap-3 sm:gap-4">
+        <!-- Status Pill -->
+        <div id="status-pill"
+          class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200/80 text-xs font-semibold text-emerald-700">
+          <span id="status-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span id="status-text">Running</span>
+        </div>
+
+        <!-- Uptime Pill -->
+        <div
+          class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 border border-slate-200/80 text-xs font-mono font-medium text-slate-700">
+          <span>⏱️</span>
+          <span id="uptime-display">00:00:00</span>
+        </div>
+
+        <!-- Notification & Settings Icons -->
+        <div class="hidden md:flex items-center gap-1">
+          <button onclick="switchTab('tab-logs')"
+            class="w-9 h-9 rounded-full bg-white hover:bg-slate-100 border border-purple-100 flex items-center justify-center text-slate-600 hover:text-brand-600 transition shadow-sm"
+            title="การแจ้งเตือน">
+            🔔
+          </button>
+        </div>
+
+        <!-- User Profile Pill -->
+        <div class="flex items-center gap-2.5 pl-2 pr-3 py-1 rounded-full bg-white border border-purple-100 shadow-sm">
+          <div
+            class="w-7 h-7 rounded-full bg-amber-100 border border-amber-300 flex items-center justify-center text-sm overflow-hidden">
+            🧑‍🍳
+          </div>
+          <div class="text-left hidden lg:block">
+            <div class="text-xs font-bold text-slate-800 leading-tight">CookieBot</div>
+            <div class="text-[10px] text-emerald-600 font-medium leading-none flex items-center gap-1">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Online
+            </div>
+          </div>
+        </div>
+
+        <!-- Mascot Avatar Decoration -->
+        <div class="hidden xl:flex items-center text-2xl" title="GingerBrave">
+          🍭
+        </div>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- ==================== MAIN 3-COLUMN LAYOUT ==================== -->
+  <div class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-8 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+    <!-- ==================== LEFT COLUMN: SIDEBAR (2.2 cols) ==================== -->
+    <aside class="lg:col-span-3 xl:col-span-2 space-y-4">
+
+      <!-- Navigation Menu -->
+      <nav class="bg-white border border-purple-100 rounded-3xl p-3 shadow-card space-y-1">
+        <button onclick="switchTab('tab-dashboard')" id="nav-tab-dashboard"
+          class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-brand-600 text-white font-semibold text-sm shadow-btn transition">
+          <span class="text-lg">🏠</span>
+          <span>หน้าหลัก</span>
+        </button>
+
+        <button onclick="switchTab('tab-emulators')" id="nav-tab-emulators"
+          class="w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl text-slate-600 hover:text-brand-600 hover:bg-brand-50 font-medium text-sm transition">
+          <span class="text-lg">🖥️</span>
+          <span>จอจำลอง (Emulator)</span>
+        </button>
+
+        <button onclick="switchTab('tab-stats')" id="nav-tab-stats"
+          class="w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl text-slate-600 hover:text-brand-600 hover:bg-brand-50 font-medium text-sm transition">
+          <span class="text-lg">📊</span>
+          <span>สถิติ & ผลลัพธ์</span>
+        </button>
+
+        <button onclick="scrollToLiveView()"
+          class="w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl text-slate-600 hover:text-brand-600 hover:bg-brand-50 font-medium text-sm transition">
+          <span class="text-lg">📺</span>
+          <span>Live View</span>
+        </button>
+
+        <button onclick="switchTab('tab-settings')" id="nav-tab-settings"
+          class="w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl text-slate-600 hover:text-brand-600 hover:bg-brand-50 font-medium text-sm transition">
+          <span class="text-lg">⚙️</span>
+          <span>ตั้งค่าบอท</span>
+        </button>
+
+        <button onclick="switchTab('tab-farmer')" id="nav-tab-farmer"
+          class="w-full flex items-center justify-between px-4 py-2.5 rounded-2xl text-slate-600 hover:text-pink-600 hover:bg-pink-50 font-medium text-sm transition">
+          <div class="flex items-center gap-3">
+            <span class="text-lg">💖</span>
+            <span>Heart Farmer</span>
+          </div>
+          <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-pink-500 text-white shadow-xs">NEW</span>
+        </button>
+
+        <button onclick="switchTab('tab-discord')" id="nav-tab-discord"
+          class="w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 font-medium text-sm transition">
+          <span class="text-lg">💬</span>
+          <span>Discord</span>
+        </button>
+
+        <button onclick="switchTab('tab-logs')" id="nav-tab-logs"
+          class="w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl text-slate-600 hover:text-brand-600 hover:bg-brand-50 font-medium text-sm transition">
+          <span class="text-lg">📋</span>
+          <span>บันทึกการทำงาน</span>
+        </button>
+      </nav>
+
+      <!-- Bottom Cute Mascot Promo Card -->
+      <div
+        class="relative overflow-hidden rounded-3xl p-5 bg-gradient-to-br from-brand-600 via-brand-500 to-indigo-600 text-white shadow-card">
+        <!-- Floating bubbles decoration -->
+        <div class="absolute -right-4 -bottom-6 w-28 h-28 rounded-full bg-white/10 blur-xl"></div>
+        <div class="absolute top-2 right-2 text-2xl opacity-40">✨</div>
+
+        <div class="relative z-10 space-y-2">
+          <div
+            class="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-2xl shadow-sm">
+            🍪
+          </div>
+          <h3 class="font-display font-bold text-base leading-tight">CookieRun Classic Bot</h3>
+          <p class="text-xs text-brand-100 leading-relaxed">ให้การเล่นเกมเป็นเรื่องง่าย ด้วยระบบอัตโนมัติเต็มรูปแบบ</p>
+          <div class="pt-2 flex items-center justify-between">
+            <span
+              class="text-[11px] font-mono font-semibold px-2.5 py-1 rounded-full bg-white/20 backdrop-blur border border-white/30">
+              v2.0.0
+            </span>
+            <span class="text-xs text-yellow-300">✨ Pro Edition</span>
+          </div>
+        </div>
+      </div>
+
+    </aside>
+
+
+    <!-- ==================== CENTER CONTENT CANVAS (7 cols) ==================== -->
+    <main class="lg:col-span-9 xl:col-span-7 space-y-6">
+
+      <!-- Top 4 Quick Metric Cards -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+
+
+        <!-- 2. Rounds Played -->
+        <div
+          class="bg-white border border-purple-100/90 rounded-3xl p-4 shadow-card hover:shadow-lg transition flex items-center justify-between">
+          <div class="space-y-1">
+            <p class="text-xs font-medium text-slate-400">รอบที่เล่นแล้ว</p>
+            <h4 id="stat-rounds" class="text-xl sm:text-2xl font-display font-bold text-slate-800">0</h4>
+            <span id="stat-rounds-trend" class="text-[11px] font-semibold text-emerald-600 flex items-center gap-0.5">
+              ↑ +0 รอบ
+            </span>
+          </div>
+          <div
+            class="w-12 h-12 rounded-2xl bg-amber-50 flex items-center justify-center shrink-0 shadow-sm overflow-hidden">
+            <img src="/templates/BOOST_DOUBLE_COINS_1.png" alt="coins" class="w-10 h-10 object-contain drop-shadow">
+          </div>
+        </div>
+
+        <!-- 3. Mystery Boxes -->
+        <div
+          class="bg-white border border-purple-100/90 rounded-3xl p-4 shadow-card hover:shadow-lg transition flex items-center justify-between">
+          <div class="space-y-1">
+            <p class="text-xs font-medium text-slate-400">กล่องปริศนา</p>
+            <h4 id="stat-boxes" class="text-xl sm:text-2xl font-display font-bold text-slate-800">0</h4>
+            <span id="stat-boxes-trend" class="text-[11px] font-semibold text-emerald-600 flex items-center gap-0.5">
+              ↑ +0 กล่อง
+            </span>
+          </div>
+          <div
+            class="w-12 h-12 rounded-2xl bg-sky-50 flex items-center justify-center shrink-0 shadow-sm overflow-hidden">
+            <img src="/templates/MYSTERY_BOX_1.png" alt="mystery box" class="w-10 h-10 object-contain drop-shadow">
+          </div>
+        </div>
+
+        <!-- 4. Total Uptime -->
+        <div
+          class="bg-white border border-purple-100/90 rounded-3xl p-4 shadow-card hover:shadow-lg transition flex items-center justify-between">
+          <div class="space-y-1">
+            <p class="text-xs font-medium text-slate-400">เวลาทำงานรวม</p>
+            <h4 id="stat-uptime" class="text-lg sm:text-xl font-mono font-bold text-slate-800">00:00:00</h4>
+            <span class="text-[11px] font-semibold text-emerald-600 flex items-center gap-1">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> ทำงานปกติ
+            </span>
+          </div>
+          <div
+            class="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center text-2xl shrink-0 shadow-sm">
+            ⏱️
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ==================== EMULATOR DEVICE SELECTOR BAR ==================== -->
+      <section class="bg-white border border-purple-100 rounded-3xl p-5 shadow-card space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-purple-50">
+          <div class="flex items-center gap-3">
+            <div
+              class="w-10 h-10 rounded-2xl bg-brand-50 text-brand-600 flex items-center justify-center text-xl shrink-0">
+              🖥️
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <h2 class="text-base font-bold text-slate-900">เลือกจอจำลอง (Emulator Device)</h2>
+                <span id="device-count-badge"
+                  class="text-xs bg-brand-50 text-brand-700 font-semibold px-2.5 py-0.5 rounded-full border border-brand-200/60">
+                  0 จอ
+                </span>
+              </div>
+              <p class="text-xs text-slate-400">เลือกจอที่ต้องการสั่งเริ่ม/หยุด หรือปรับแต่งการตั้งค่า
+                (แต่ละจอแยกอิสระจากกัน)</p>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Emulator Cards Grid Container -->
+        <div id="device-tabs-container" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3.5 pt-1">
+          <div class="p-4 rounded-2xl border border-dashed border-purple-200 text-center text-xs text-slate-400 italic">
+            กำลังสแกนหาจอจำลองในเครื่อง...
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== LIVE SCREEN + CONTROLS ==================== -->
+      <section id="live-view-section" class="bg-white border border-purple-100 rounded-3xl p-5 shadow-card space-y-4">
+
+        <!-- Live Screen Top Bar -->
+        <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-purple-50">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-xl bg-purple-100 text-brand-600 flex items-center justify-center text-sm">
+              📺
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <h3 id="current-screen-title" class="text-sm font-bold text-slate-900">จอภาพ - Device 1</h3>
+                <span id="screen-conn-pill"
+                  class="text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Connected
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <!-- 60 FPS / 30 FPS / Eco Mode Buttons -->
+            <div
+              class="flex items-center bg-slate-100 rounded-xl p-1 border border-slate-200 text-xs font-mono font-medium">
+              <button id="fps-btn-60" onclick="setStreamFps(60)"
+                class="px-2.5 py-1 rounded-lg bg-brand-600 text-white font-bold transition shadow-xs">60 FPS</button>
+              <button id="fps-btn-30" onclick="setStreamFps(30)"
+                class="px-2.5 py-1 rounded-lg text-slate-500 hover:text-slate-900 transition">30 FPS</button>
+              <button id="fps-btn-15" onclick="setStreamFps(15)"
+                class="px-2.5 py-1 rounded-lg text-slate-500 hover:text-slate-900 transition">Eco</button>
+            </div>
+
+            <span
+              class="text-xs text-slate-500 bg-slate-100 px-2.5 py-1.5 rounded-xl border border-slate-200 font-mono hidden sm:inline-block">
+              1280 × 720
+            </span>
+
+            <button onclick="reloadStream()" title="รีเฟรชสตรีม"
+              class="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition">
+              🔄
+            </button>
+            <button onclick="toggleFullscreen()" title="ขยายเต็มจอ"
+              class="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition">
+              ⛶
+            </button>
+          </div>
+        </div>
+
+        <!-- Video Container + Side Control Info Split Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
+
+          <!-- Screen Stream Container (8 cols) -->
+          <div class="md:col-span-8 space-y-2">
+            <div
+              class="relative bg-slate-950 aspect-video rounded-2xl overflow-hidden shadow-inner group cursor-crosshair select-none flex items-center justify-center border border-slate-800"
+              id="stream-container">
+              <img id="stream-img" src="/api/stream?fps=60" alt="Live Screen Stream"
+                class="w-full h-full object-contain pointer-events-auto" />
+
+              <!-- FPS Live Badge -->
+              <div id="stream-fps-badge"
+                class="absolute top-3 right-3 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-xl border border-emerald-500/30 text-xs font-mono text-emerald-400 flex items-center gap-1.5 shadow-md">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span id="overlay-fps-text">60 FPS (Hardware)</span>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between px-2 text-[11px] text-slate-400">
+              <span>💡 คลิกตำแหน่งใดก็ได้บนหน้าจอเพื่อจำลองการแตะ (Tap) บน Emulator</span>
+              <span id="tap-feedback" class="text-brand-600 font-mono font-medium"></span>
+            </div>
+          </div>
+
+          <!-- Bot Control Buttons & Connection Info (4 cols) -->
+          <div class="md:col-span-4 space-y-3.5 flex flex-col justify-between">
+
+            <!-- Quick Action Buttons -->
+            <div class="bg-purple-50/60 border border-purple-100 rounded-2xl p-4 space-y-2.5">
+              <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                <span>🎮</span> ควบคุมบอท
+              </h4>
+
+              <button onclick="startBot()" id="btn-start"
+                class="w-full py-3 rounded-xl bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 text-white font-bold text-sm shadow-btn transition flex items-center justify-center gap-2 active:scale-98">
+                <span>▶️</span>
+                <span>เริ่มบอท</span>
+              </button>
+
+              <button onclick="stopBot()" id="btn-stop"
+                class="w-full py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 font-bold text-sm transition flex items-center justify-center gap-2 active:scale-98">
+                <span>⏹️</span>
+                <span>หยุดบอท</span>
+              </button>
+
+            </div>
+
+            <!-- Connection Info Card -->
+            <div class="bg-white border border-purple-100 rounded-2xl p-4 space-y-2 text-xs">
+              <h4 class="font-bold text-slate-700 text-xs uppercase tracking-wider pb-1 border-b border-purple-50">
+                ข้อมูลการเชื่อมต่อ
+              </h4>
+
+              <div class="flex items-center justify-between">
+                <span class="text-slate-500">ADB Target:</span>
+                <span id="info-adb-target" class="font-mono font-semibold text-slate-800 flex items-center gap-1">
+                  127.0.0.1:16480 <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                </span>
+              </div>
+
+              <div class="flex items-center justify-between">
+                <span class="text-slate-500">Port:</span>
+                <span id="info-adb-port" class="font-mono font-semibold text-slate-800 flex items-center gap-1">
+                  16480 <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                </span>
+              </div>
+
+              <div class="flex items-center justify-between">
+                <span class="text-slate-500">สถานะ:</span>
+                <span id="info-adb-status" class="font-semibold text-emerald-600 flex items-center gap-1">
+                  เชื่อมต่อแล้ว <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                </span>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- ==================== RECENT ROUND HISTORY TABLE ==================== -->
+      <section class="bg-white border border-purple-100 rounded-3xl p-5 shadow-card space-y-3">
+        <div class="flex items-center justify-between pb-2 border-b border-purple-50">
+          <div class="flex items-center gap-2">
+            <span class="text-lg">📜</span>
+            <h3 class="text-sm font-bold text-slate-900">ประวัติล่าสุด (Round History)</h3>
+          </div>
+          <button onclick="openHistoryModal()"
+            class="text-xs font-bold text-brand-600 hover:text-brand-700 flex items-center gap-1">
+            <span>ดูทั้งหมด</span>
+            <span>&gt;</span>
+          </button>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead>
+              <tr class="text-slate-400 font-semibold border-b border-purple-50">
+                <th class="py-2.5 px-3">ลำดับ</th>
+                <th class="py-2.5 px-3">เวลา</th>
+                <th class="py-2.5 px-3">รอบที่</th>
+                <th class="py-2.5 px-3">เหรียญ</th>
+                <th class="py-2.5 px-3">EXP</th>
+                <th class="py-2.5 px-3">กล่องปริศนา</th>
+                <th class="py-2.5 px-3">ผลลัพธ์</th>
+              </tr>
+            </thead>
+            <tbody id="recent-history-tbody" class="divide-y divide-purple-50 font-medium text-slate-700">
+              <tr>
+                <td colspan="7" class="py-6 text-center text-slate-400 italic">
+                  ยังไม่มีประวัติการเล่นในเซสชันนี้
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ==================== EXTENDED TABS CONTAINER (Settings, Stats, Farmer, etc.) ==================== -->
+      <div id="tab-content-container" class="space-y-6">
+        <!-- Will be shown/hidden when switching tabs -->
+      </div>
+
+    </main>
+
+
+    <!-- ==================== RIGHT COLUMN: CONTROL PANEL (3 cols) ==================== -->
+    <aside
+      class="lg:col-span-12 xl:col-span-3 space-y-4 sticky top-4 max-h-[calc(100vh-5.5rem)] overflow-y-auto overflow-x-hidden custom-scrollbar pb-2 pr-0.5">
+
+      <!-- 2. Heart Farmer Card (Pink Gradient Theme) -->
+      <section
+        class="bg-gradient-to-br from-pink-50 via-white to-pink-50/50 border border-pink-200/80 rounded-3xl p-5 shadow-card space-y-3.5 relative overflow-hidden">
+        <!-- Floating mascot deco -->
+        <div class="absolute -right-2 top-2 text-4xl opacity-20 pointer-events-none">💖</div>
+
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="text-lg text-pink-500">💖</span>
+            <div>
+              <div class="flex items-center gap-2">
+                <h3 class="text-sm font-bold text-slate-900">Heart Farmer</h3>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-pink-500 text-white">NEW</span>
+              </div>
+              <p class="text-[11px] text-slate-500">ระบบฟาร์มหัวใจอัตโนมัติ</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="space-y-2 text-xs">
+          <div class="flex items-center justify-between">
+            <span class="text-slate-500">สถานะ:</span>
+            <span id="farmer-status-text" class="font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md">
+              ยังไม่ได้เริ่ม
+            </span>
+          </div>
+
+          <div class="flex items-center justify-between">
+            <span class="text-slate-500">รอบที่ฟาร์มได้:</span>
+            <span id="farmer-rounds-display" class="font-mono font-bold text-pink-600">0 รอบ</span>
+          </div>
+        </div>
+
+        <!-- Target Emulator Selector -->
+        <div class="space-y-1 text-xs pt-0.5">
+          <label class="text-slate-700 font-bold flex items-center gap-1">
+            <span>📱</span> เลือกจอจำลอง (Emulator)
+          </label>
+          <select id="farmer-device-select" onchange="onFarmerDeviceChange()"
+            class="w-full px-3 py-2 rounded-xl bg-white border border-pink-200 text-xs font-semibold focus:ring-2 focus:ring-pink-500 outline-none shadow-xs text-slate-800">
+          </select>
+        </div>
+
+        <!-- Heart Farmer Invite Link Input -->
+        <div class="space-y-1 text-xs pt-0.5">
+          <div class="flex items-center justify-between">
+            <label class="text-slate-700 font-bold flex items-center gap-1">
+              <span>🔗</span> ลิงก์เชิญเพื่อน (Invite URL)
+            </label>
+            <button onclick="pasteInviteUrl()" type="button"
+              class="text-[10px] text-pink-600 hover:text-pink-700 font-semibold underline">
+              วางลิงก์
+            </button>
+          </div>
+          <input type="text" id="farmer-invite-input" placeholder="https://cookierunglobal.onelink.me/..."
+            value="ลิงก์เชิญเพื่อน"
+            class="w-full px-3 py-2 rounded-xl bg-white border border-pink-200 text-[11px] font-mono focus:ring-2 focus:ring-pink-500 outline-none shadow-xs text-slate-800 placeholder-slate-400" />
+        </div>
+
+        <button onclick="startHeartFarmer()" id="btn-farmer-toggle"
+          class="w-full py-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white font-bold text-xs shadow-btn-pink transition flex items-center justify-center gap-2 active:scale-98">
+          <span>เริ่มใช้งาน</span>
+        </button>
+      </section>
+
+      <!-- 3. Level 1 Friend Cleaner Card (Teal Theme) -->
+      <section
+        class="bg-gradient-to-br from-teal-50 via-white to-emerald-50/50 border border-teal-200/80 rounded-3xl p-5 shadow-card space-y-3.5 relative overflow-hidden">
+        <div class="absolute -right-2 top-2 text-4xl opacity-20 pointer-events-none">💌</div>
+
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="text-lg text-teal-600">💌</span>
+            <div>
+              <div class="flex items-center gap-2">
+                <h3 class="text-sm font-bold text-slate-900">รับใจ & ลบเพื่อนเวล 1</h3>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-600 text-white">AUTO</span>
+              </div>
+              <p class="text-[11px] text-slate-500">รับหัวใจในกล่องข้อความ & ลบเพื่อนเวล 1 อัตโนมัติ</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="space-y-2 text-xs">
+          <div class="flex items-center justify-between">
+            <span class="text-slate-500">สถานะ:</span>
+            <span id="cleaner-status-text" class="font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md">
+              ยังไม่ได้เริ่ม
+            </span>
+          </div>
+
+          <div class="flex items-center justify-between">
+            <span class="text-slate-500">รอบถัดไปใน:</span>
+            <span id="cleaner-next-run-display" class="font-mono font-bold text-teal-600">-</span>
+          </div>
+        </div>
+
+        <!-- Target Emulator Selector -->
+        <div class="space-y-1 text-xs pt-0.5">
+          <label class="text-slate-700 font-bold flex items-center gap-1">
+            <span>📱</span> เลือกจอจำลอง (Emulator)
+          </label>
+          <select id="cleaner-device-select"
+            class="w-full px-3 py-2 rounded-xl bg-white border border-teal-200 text-xs font-semibold focus:ring-2 focus:ring-teal-500 outline-none shadow-xs text-slate-800">
+          </select>
+        </div>
+
+        <!-- Repeat Interval (Minutes) -->
+        <div class="space-y-1 text-xs">
+          <label class="text-slate-700 font-bold flex items-center gap-1">
+            <span>⏱️</span> ทำซ้ำทุกๆ (นาที)
+          </label>
+          <div class="flex items-center gap-2">
+            <input type="number" id="cleaner-interval-input" min="1" max="1440" value="30"
+              class="w-full px-3 py-2 rounded-xl bg-white border border-teal-200 text-xs font-bold font-mono focus:ring-2 focus:ring-teal-500 outline-none shadow-xs text-slate-800" />
+            <span class="text-slate-500 text-xs shrink-0 font-medium">นาที</span>
+          </div>
+        </div>
+
+        <!-- Buttons: Run Once & Toggle Scheduler -->
+        <div class="grid grid-cols-2 gap-2 pt-1">
+          <button onclick="runFriendCleanerOnce()" id="btn-cleaner-run-once"
+            class="py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs shadow-sm transition flex items-center justify-center gap-1.5 active:scale-98"
+            title="รับหัวใจและลบเพื่อนเลเวล 1 ทันที 1 รอบ">
+            <span>⚡</span>
+            <span>รับใจ & ลบทันที</span>
+          </button>
+          <button onclick="toggleFriendCleanerScheduler()" id="btn-cleaner-toggle"
+            class="py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm transition flex items-center justify-center gap-1.5 active:scale-98"
+            title="เริ่มลูปทำงานอัตโนมัติตามเวลาที่ตั้งไว้">
+            <span>▶️</span>
+            <span>เริ่มลูปเวลา</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- 1. Quick Bot Settings Card -->
+
+      <section class="bg-white border border-purple-100 rounded-3xl p-4 shadow-card space-y-3">
+        <div class="flex items-center justify-between pb-2 border-b border-purple-50">
+          <div class="flex items-center gap-2">
+            <span class="text-lg">⚙️</span>
+            <h3 class="text-sm font-bold text-slate-900">การตั้งค่าบอท</h3>
+          </div>
+          <button onclick="switchTab('tab-settings')" class="text-xs font-bold text-brand-600 hover:text-brand-700">
+            ดูทั้งหมด &gt;
+          </button>
+        </div>
+
+        <!-- Quick Toggles -->
+        <div class="space-y-1.5">
+
+          <!-- Fast Start -->
+          <div class="flex items-center justify-between p-2 rounded-2xl hover:bg-slate-50 transition">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-xl bg-amber-50 flex items-center justify-center overflow-hidden">
+                <img src="/templates/BOOST_ITEM_EXTENSION_1.png" alt="fast start" class="w-7 h-7 object-contain">
+              </div>
+              <div>
+                <h4 class="text-xs font-bold text-slate-800">Fast Start</h4>
+                <p class="text-[11px] text-slate-400">เริ่มไวขึ้น ลดเวลารอ</p>
+              </div>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="quick-cfg-fast-start" onchange="syncSetting('use_fast_start', this.checked)">
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <!-- Double XP -->
+          <div class="flex items-center justify-between p-2 rounded-2xl hover:bg-slate-50 transition">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-xl bg-orange-50 flex items-center justify-center overflow-hidden">
+                <img src="/templates/BOOST_DOUBLE_XP_1.png" alt="double xp" class="w-7 h-7 object-contain">
+              </div>
+              <div>
+                <h4 class="text-xs font-bold text-slate-800">Double XP</h4>
+                <p class="text-[11px] text-slate-400">รับ EXP x2</p>
+              </div>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="quick-cfg-double-xp" onchange="syncSetting('use_double_xp', this.checked)">
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <!-- Cookie Relay -->
+          <div class="flex items-center justify-between p-2 rounded-2xl hover:bg-slate-50 transition">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-xl bg-rose-50 flex items-center justify-center overflow-hidden">
+                <img src="/templates/GAME_RELAY_1.png" alt="cookie relay" class="w-7 h-7 object-contain">
+              </div>
+              <div>
+                <h4 class="text-xs font-bold text-slate-800">Cookie Relay</h4>
+                <p class="text-[11px] text-slate-400">ใช้คุกกี้ตัวช่วยอัตโนมัติ</p>
+              </div>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="quick-cfg-cookie-relay"
+                onchange="syncSetting('use_cookie_relay', this.checked)">
+              <span class="slider"></span>
+            </label>
+          </div>
+
+
+          <!-- Desired Random Boost (สุ่มบูสต์จนกว่าจะได้ที่ต้องการ) -->
+          <div
+            class="p-2.5 rounded-2xl hover:bg-purple-50/50 transition border border-transparent hover:border-purple-100 space-y-2.5">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div
+                  class="w-8 h-8 rounded-xl bg-gradient-to-tr from-purple-100 to-indigo-100 text-brand-600 flex items-center justify-center text-sm shadow-xs border border-purple-200">
+                  🎯
+                </div>
+                <div>
+                  <h4 class="text-xs font-bold text-slate-800">สุ่มบูสต์จนกว่าจะได้ที่ต้องการ</h4>
+                  <p class="text-[11px] text-slate-400">สุ่มหาบัฟที่เลือกอัตโนมัติ</p>
+                </div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="quick-cfg-desired-boost"
+                  onchange="syncSetting('use_desired_random_boost', this.checked); toggleQuickBoostSelect(this.checked)">
+                <span class="slider"></span>
+              </label>
+            </div>
+
+            <!-- Boost Selector Dropdown (Shown when toggle is active) -->
+            <div id="quick-boost-select-wrap" class="hidden pl-11 pr-1">
+              <select id="quick-cfg-desired-boost-id" onchange="syncSetting('desired_boost_id', this.value)"
+                class="w-full px-3 py-2 text-xs font-semibold text-slate-700 bg-purple-50/80 hover:bg-purple-50 border border-purple-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:bg-white outline-none cursor-pointer transition shadow-xs">
+                <option value="double_coins">Double Coins 2x</option>
+                <option value="coin_magic">Gold Coin Magic</option>
+                <option value="score_15">15% Score Bonus</option>
+                <option value="hp_drain_15">-15% HP Drain</option>
+                <option value="revive_80">Revive Once 80HP</option>
+                <option value="crush_70">70% Crush Chance</option>
+                <option value="speed_17">17% Base Speed</option>
+                <option value="damage_30">-30% Collision Damage</option>
+                <option value="potions_20">+20% HP from Potions</option>
+                <option value="magnetic">Magnetic Aura</option>
+                <option value="pit_lifts_2">2 Pit Lifts</option>
+              </select>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+
+
+      <!-- 3. Discord Integration Card -->
+      <section class="bg-white border border-purple-100 rounded-3xl p-5 shadow-card space-y-3">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-lg">
+              💬
+            </div>
+            <div>
+              <h3 class="text-sm font-bold text-slate-900">Discord</h3>
+              <p class="text-[11px] text-slate-400">เชื่อมต่อ Discord เพื่อรับการแจ้งเตือน</p>
+            </div>
+          </div>
+          <span id="discord-conn-badge"
+            class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+            ● เชื่อมต่อแล้ว
+          </span>
+        </div>
+
+        <button onclick="switchTab('tab-discord')"
+          class="w-full py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm">
+          <span>⚙️ ตั้งค่า Discord</span>
+          <span>&gt;</span>
+        </button>
+      </section>
+
+      <!-- 4. Mini Console Live Log -->
+      <section class="bg-slate-900 border border-slate-800 rounded-3xl p-4 shadow-card space-y-2.5 text-white">
+        <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+          <div class="flex items-center gap-2">
+            <span class="text-sm">💻</span>
+            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-200">คอนโซล (Live Log)</h3>
+          </div>
+          <span
+            class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+            Connected
+          </span>
+        </div>
+
+        <!-- Scrollable Log Window -->
+        <div id="logs-container" class="h-36 overflow-y-auto font-mono text-[11px] space-y-1.5 custom-scrollbar pr-1">
+          <div class="text-slate-500 italic">[กำลังเชื่อมต่อ WebSocket...]</div>
+        </div>
+
+        <div class="flex items-center justify-between pt-1 text-[10px] text-slate-400 border-t border-slate-800">
+          <label class="flex items-center gap-1.5 cursor-pointer">
+            <input type="checkbox" id="autoscroll-toggle" checked class="rounded bg-slate-800 text-brand-500">
+            <span>เลื่อนอัตโนมัติ</span>
+          </label>
+          <button onclick="clearLogs()" class="hover:text-white transition">ล้างจอ</button>
+        </div>
+      </section>
+
+    </aside>
+
+  </div>
+
+
+  <!-- ==================== POPUP MODAL: SETTINGS ==================== -->
+  <div id="settings-modal"
+    class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div
+      class="bg-white rounded-3xl max-w-2xl w-full p-6 space-y-5 shadow-2xl border border-purple-100 max-h-[90vh] overflow-y-auto custom-scrollbar">
+      <div class="flex items-center justify-between pb-3 border-b border-purple-100">
+        <div class="flex items-center gap-2.5">
+          <div class="w-10 h-10 rounded-2xl bg-brand-50 text-brand-600 flex items-center justify-center text-xl">
+            ⚙️
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-slate-900">ตั้งค่าบอท (Bot Settings)</h3>
+            <p class="text-xs text-slate-500">ปรับแต่งการทำงานของอุปกรณ์ที่เลือก</p>
+          </div>
+        </div>
+        <button onclick="closeSettingsModal()"
+          class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 font-bold transition">
+          ✕
+        </button>
+      </div>
+
+      <!-- Settings Form -->
+      <div class="space-y-4 text-xs">
+
+        <!-- Connection Settings -->
+        <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200/70 space-y-3">
+          <h4 class="font-bold text-slate-800 flex items-center gap-1.5">
+            <span>🌐</span> การเชื่อมต่อ Emulator
+          </h4>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="text-slate-500 font-medium">IP Address</label>
+              <input type="text" id="cfg-ip" value="127.0.0.1"
+                class="mt-1 w-full px-3 py-2 rounded-xl bg-white border border-slate-200 font-mono text-xs focus:ring-2 focus:ring-brand-500 outline-none">
+            </div>
+            <div>
+              <label class="text-slate-500 font-medium">Port</label>
+              <input type="number" id="cfg-port" value="7555"
+                class="mt-1 w-full px-3 py-2 rounded-xl bg-white border border-slate-200 font-mono text-xs focus:ring-2 focus:ring-brand-500 outline-none">
+            </div>
+          </div>
+        </div>
+
+        <!-- Boost Items -->
+        <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200/70 space-y-3">
+          <h4 class="font-bold text-slate-800 flex items-center gap-1.5">
+            <span>⚡</span> ไอเทมบูสต์ (Boost Items)
+          </h4>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <label
+              class="flex items-center justify-between p-2 rounded-xl bg-white border border-slate-200 cursor-pointer">
+              <span>❤️ เลือดลดช้า (HP Boost)</span>
+              <input type="checkbox" id="cfg-hp-boost" class="rounded text-brand-600">
+            </label>
+            <label
+              class="flex items-center justify-between p-2 rounded-xl bg-white border border-slate-200 cursor-pointer">
+              <span>⏱️ ขยายเวลาไอเทม (Item Ext)</span>
+              <input type="checkbox" id="cfg-item-extension" class="rounded text-brand-600">
+            </label>
+            <label
+              class="flex items-center justify-between p-2 rounded-xl bg-white border border-slate-200 cursor-pointer">
+              <span>⭐ EXP 2 เท่า (Double XP)</span>
+              <input type="checkbox" id="cfg-double-xp" class="rounded text-brand-600">
+            </label>
+            <label
+              class="flex items-center justify-between p-2 rounded-xl bg-white border border-slate-200 cursor-pointer">
+              <span>🚀 เริ่มไว (Fast Start)</span>
+              <input type="checkbox" id="cfg-fast-start" class="rounded text-brand-600">
+            </label>
+            <label
+              class="flex items-center justify-between p-2 rounded-xl bg-white border border-slate-200 cursor-pointer">
+              <span>🍪 ผลัดคุกกี้ (Cookie Relay)</span>
+              <input type="checkbox" id="cfg-cookie-relay" class="rounded text-brand-600">
+            </label>
+            <label
+              class="flex items-center justify-between p-2 rounded-xl bg-white border border-slate-200 cursor-pointer">
+              <span>🪆 ตรวจจับกล่อง/สมบัติ</span>
+              <input type="checkbox" id="cfg-relic" checked class="rounded text-brand-600">
+            </label>
+          </div>
+        </div>
+
+        <!-- Random Boost Option -->
+        <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200/70 space-y-3">
+          <div class="flex items-center justify-between">
+            <label class="flex items-center gap-2 cursor-pointer font-bold text-slate-800">
+              <input type="checkbox" id="cfg-desired-boost" class="rounded text-brand-600">
+              <span>🎯 สุ่มบูสต์จนกว่าจะได้ที่ต้องการ</span>
+            </label>
+          </div>
+          <select id="cfg-desired-boost-id"
+            class="w-full px-3 py-2.5 rounded-xl bg-white border border-slate-200 text-xs font-semibold focus:ring-2 focus:ring-brand-500 outline-none shadow-xs">
+            <option value="double_coins">เหรียญ 2 เท่า (Double Coins 2x) ⭐ แนะนำ</option>
+            <option value="coin_magic">เหรียญทองเวทมนตร์ (Gold Coin Magic)</option>
+            <option value="score_15">คะแนนเพิ่ม 15% (+15% Score Bonus)</option>
+            <option value="hp_drain_15">เลือดลดช้าลง 15% (-15% HP Drain)</option>
+            <option value="revive_80">ฟื้นคืนชีพ 1 ครั้งด้วยเลือด 80 (Revive Once with 80HP)</option>
+            <option value="crush_70">ชนทำลายสิ่งกีดขวาง 70% (70% Crush Chance)</option>
+            <option value="speed_17">ความเร็วพื้นฐาน +17% (+17% Base Speed)</option>
+            <option value="damage_30">ลดดาเมจชนสิ่งกีดขวาง 30% (-30% Collision Damage)</option>
+            <option value="potions_20">ขวดยาเพิ่มเลือด +20% (+20% HP from Potions)</option>
+            <option value="magnetic">ออร่าแม่เหล็กดูดเหรียญ (Magnetic Aura)</option>
+            <option value="pit_lifts_2">ช่วยตกเหว 2 ครั้ง (2 Pit Lifts)</option>
+          </select>
+        </div>
+
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex items-center justify-between pt-3 border-t border-purple-100">
+        <button onclick="resetSettings()"
+          class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold text-xs transition">
+          รีเซ็ตค่าเริ่มต้น
+        </button>
+        <div class="flex items-center gap-2">
+          <button onclick="closeSettingsModal()"
+            class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold text-xs transition">
+            ยกเลิก
+          </button>
+          <button onclick="saveFullSettings()"
+            class="px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs shadow-btn transition">
+            บันทึกการตั้งค่า
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ==================== POPUP MODAL: DISCORD SETTINGS ==================== -->
+  <div id="discord-modal"
+    class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-2xl border border-purple-100">
+      <div class="flex items-center justify-between pb-3 border-b border-purple-100">
+        <div class="flex items-center gap-2.5">
+          <div class="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-xl">
+            💬
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-slate-900">ตั้งค่า Discord Webhook</h3>
+            <p class="text-xs text-slate-500">แจ้งเตือนสถานะ เหรียญ และกล่องผ่าน Discord</p>
+          </div>
+        </div>
+        <button onclick="closeDiscordModal()"
+          class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 font-bold transition">
+          ✕
+        </button>
+      </div>
+
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="text-slate-600 font-bold block mb-1">Webhook URL</label>
+          <input type="text" id="discord-webhook-url" placeholder="https://discord.com/api/webhooks/..."
+            class="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 font-mono text-xs focus:ring-2 focus:ring-indigo-500 outline-none">
+        </div>
+
+        <label class="flex items-center gap-2 cursor-pointer p-2 rounded-xl bg-indigo-50/50 border border-indigo-100">
+          <input type="checkbox" id="discord-enabled" class="rounded text-indigo-600">
+          <span class="font-bold text-indigo-900">เปิดใช้งานการแจ้งเตือน Discord</span>
+        </label>
+
+        <div class="space-y-2 pt-2">
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" id="discord-notify-boxes" checked class="rounded text-indigo-600">
+            <span class="text-slate-700">แจ้งเตือนเมื่อเจอกล่องปริศนา</span>
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" id="discord-notify-rounds" checked class="rounded text-indigo-600">
+            <span class="text-slate-700">แจ้งเตือนสรุปผลทุกจบรอบ</span>
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" id="discord-attach-screen" checked class="rounded text-indigo-600">
+            <span class="text-slate-700">แนบภาพสกรีนช็อตในแจ้งเตือน</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-between pt-3 border-t border-purple-100">
+        <button onclick="testDiscordWebhook()"
+          class="px-4 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs transition">
+          🔔 ทดสอบส่ง
+        </button>
+        <button onclick="saveDiscordSettings()"
+          class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-sm transition">
+          บันทึก Discord
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ==================== POPUP MODAL: STATS & MYSTERY BOXES ==================== -->
+  <div id="stats-modal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-xl w-full p-6 space-y-4 shadow-2xl border border-purple-100">
+      <div class="flex items-center justify-between pb-3 border-b border-purple-100">
+        <div class="flex items-center gap-2.5">
+          <div class="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl">
+            📊
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-slate-900">สถิติสะสม (Accumulated Stats)</h3>
+            <p class="text-xs text-slate-500">ยอดเหรียญ EXP และกล่องปริศนาแยกเกรด</p>
+          </div>
+        </div>
+        <button onclick="closeStatsModal()"
+          class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 font-bold transition">
+          ✕
+        </button>
+      </div>
+
+      <!-- 4-Tier Mystery Box Cards -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center text-xs">
+        <div class="p-3 rounded-2xl bg-amber-50 border border-amber-200 space-y-1">
+          <img src="/templates/BOX_WOOD.png" alt="กล่องไม้" class="w-10 h-10 mx-auto object-contain drop-shadow-sm">
+          <div class="font-bold text-amber-900">กล่องไม้</div>
+          <div id="box-wood-num" class="text-lg font-bold font-mono text-amber-700">0</div>
+        </div>
+        <div class="p-3 rounded-2xl bg-slate-100 border border-slate-200 space-y-1">
+          <img src="/templates/BOX_SILVER.png" alt="กล่องเงิน" class="w-10 h-10 mx-auto object-contain drop-shadow-sm">
+          <div class="font-bold text-slate-900">กล่องเงิน</div>
+          <div id="box-silver-num" class="text-lg font-bold font-mono text-slate-700">0</div>
+        </div>
+        <div class="p-3 rounded-2xl bg-yellow-50 border border-yellow-200 space-y-1">
+          <img src="/templates/BOX_GOLD.png" alt="กล่องทอง" class="w-10 h-10 mx-auto object-contain drop-shadow-sm">
+          <div class="font-bold text-yellow-900">กล่องทอง</div>
+          <div id="box-gold-num" class="text-lg font-bold font-mono text-yellow-600">0</div>
+        </div>
+        <div class="p-3 rounded-2xl bg-gradient-to-tr from-pink-50 to-purple-50 border border-pink-200 space-y-1">
+          <img src="/templates/BOX_RAINBOW.png" alt="กล่องรุ้ง" class="w-10 h-10 mx-auto object-contain drop-shadow-sm">
+          <div class="font-bold text-purple-900">กล่องรุ้ง</div>
+          <div id="box-rainbow-num" class="text-lg font-bold font-mono text-purple-600">0</div>
+        </div>
+      </div>
+
+      <!-- Total Coins & EXP -->
+      <div class="grid grid-cols-2 gap-3 text-xs">
+        <div class="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between">
+          <div>
+            <span class="text-slate-500">เหรียญสะสมทั้งหมด</span>
+            <div id="modal-coins-total" class="text-lg font-bold font-mono text-amber-600 mt-0.5">+0 🪙</div>
+          </div>
+          <span class="text-2xl">💰</span>
+        </div>
+        <div class="p-3.5 rounded-2xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-between">
+          <div>
+            <span class="text-slate-500">EXP สะสมทั้งหมด</span>
+            <div id="modal-xp-total" class="text-lg font-bold font-mono text-sky-600 mt-0.5">+0 EXP</div>
+          </div>
+          <span class="text-2xl">🌟</span>
+        </div>
+      </div>
+
+      <div class="pt-2 text-right">
+        <button onclick="closeStatsModal()"
+          class="px-5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition">
+          ปิดหน้าต่าง
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ==================== POPUP MODAL: DETAILED ROUND HISTORY ==================== -->
+  <div id="round-modal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div
+      class="bg-white rounded-3xl max-w-4xl w-full p-6 space-y-4 shadow-2xl border border-purple-100 max-h-[90vh] overflow-y-auto custom-scrollbar">
+      <div class="flex items-center justify-between pb-3 border-b border-purple-100">
+        <div class="flex items-center gap-2">
+          <span class="text-2xl">📜</span>
+          <div>
+            <h3 class="text-base font-bold text-slate-900">ประวัติการเล่นย้อนหลัง 50 รอบ</h3>
+            <p class="text-xs text-slate-500">คลิกที่แต่ละรอบเพื่อดูภาพสกรีนช็อตสรุปผล</p>
+          </div>
+        </div>
+        <button onclick="closeHistoryModal()"
+          class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 font-bold transition">
+          ✕
+        </button>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
+        <!-- History list (7 cols) -->
+        <div class="md:col-span-7 space-y-2 max-h-[420px] overflow-y-auto custom-scrollbar pr-2"
+          id="modal-history-list">
+          <!-- Populated by JS -->
+        </div>
+
+        <!-- Screenshot Preview (5 cols) -->
+        <div class="md:col-span-5 space-y-2">
+          <h4 class="text-xs font-bold text-slate-700">ภาพสกรีนช็อตจบเกม</h4>
+          <div
+            class="bg-slate-900 rounded-2xl aspect-video overflow-hidden border border-purple-100 flex items-center justify-center shadow-inner">
+            <img id="modal-screenshot-img" src="" alt="Screenshot" class="w-full h-full object-contain" />
+          </div>
+          <p id="modal-screenshot-caption" class="text-xs text-slate-500 text-center italic"></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ==================== JAVASCRIPT LOGIC & API INTEGRATION ==================== -->
+  <script>
+    // State
+    let currentDeviceSerial = null;
+    let allDevices = [];
+    let currentFpsMode = 60;
+    let currentSettings = {};
+    let ws = null;
+    let wsReconnectTimer = null;
+    let statusPollTimer = null;
+    let roundHistoryData = [];
+
+    // Elements
+    const streamContainer = document.getElementById('stream-container');
+    const streamImg = document.getElementById('stream-img');
+    const logsContainer = document.getElementById('logs-container');
+
+    // ==================== STREAMING & TAP EMULATION ====================
+    function setStreamFps(fps) {
+      currentFpsMode = fps;
+      ['60', '30', '15'].forEach(val => {
+        const btn = document.getElementById(`fps-btn-${val}`);
+        if (!btn) return;
+        if (parseInt(val) === fps) {
+          btn.className = 'px-2.5 py-1 rounded-lg bg-brand-600 text-white font-bold transition shadow-xs';
+        } else {
+          btn.className = 'px-2.5 py-1 rounded-lg text-slate-500 hover:text-slate-900 transition';
+        }
+      });
+      reloadStream();
+    }
+
+    function reloadStream() {
+      const devParam = currentDeviceSerial ? `device=${encodeURIComponent(currentDeviceSerial)}&` : '';
+      streamImg.src = `/api/stream?${devParam}fps=${currentFpsMode}&t=${Date.now()}`;
+    }
+
+    async function pollStreamFps() {
+      try {
+        const devParam = currentDeviceSerial ? `?device=${encodeURIComponent(currentDeviceSerial)}` : '';
+        const res = await fetch(`/api/stream-stats${devParam}`);
+        if (res.ok) {
+          const data = await res.json();
+          const fpsBadge = document.getElementById('overlay-fps-text');
+          if (fpsBadge) {
+            if (data.is_scrcpy) {
+              const displayFps = data.fps > 0 ? data.fps : currentFpsMode;
+              fpsBadge.textContent = `${displayFps} FPS (Hardware)`;
+              fpsBadge.parentElement.className = "absolute top-3 right-3 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-xl border border-emerald-500/30 text-xs font-mono text-emerald-400 flex items-center gap-1.5 shadow-md";
+            } else {
+              fpsBadge.textContent = `ADB screencap`;
+              fpsBadge.parentElement.className = "absolute top-3 right-3 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-xl border border-slate-700 text-xs font-mono text-slate-400 flex items-center gap-1.5 shadow-md";
+            }
+          }
+        }
+      } catch (e) { }
+    }
+    setInterval(pollStreamFps, 3000);
+
+    // Tap on screen
+    streamContainer.addEventListener('click', async (e) => {
+      const rect = streamImg.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const clickY = e.clientY - rect.top;
+
+      if (clickX < 0 || clickY < 0 || clickX > rect.width || clickY > rect.height) return;
+
+      // Ripple animation
+      const ripple = document.createElement('div');
+      ripple.className = 'tap-ripple';
+      ripple.style.left = `${e.clientX - streamContainer.getBoundingClientRect().left}px`;
+      ripple.style.top = `${e.clientY - streamContainer.getBoundingClientRect().top}px`;
+      streamContainer.appendChild(ripple);
+      setTimeout(() => ripple.remove(), 600);
+
+      const targetX = Math.round((clickX / rect.width) * 1280);
+      const targetY = Math.round((clickY / rect.height) * 720);
+
+      const fb = document.getElementById('tap-feedback');
+      if (fb) fb.textContent = `แตะ: (${targetX}, ${targetY})`;
+      appendLog({ level: 'adb', message: `Tap ${targetX},${targetY}`, device: currentDeviceSerial });
+
+      try {
+        await fetch('/api/tap', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            x: targetX,
+            y: targetY,
+            device_serial: currentDeviceSerial
+          })
+        });
+      } catch (err) {
+        console.error("Tap error:", err);
+      }
+    });
+
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        streamContainer.requestFullscreen().catch(err => alert(err.message));
+      } else {
+        document.exitFullscreen();
+      }
+    }
+
+    function scrollToLiveView() {
+      document.getElementById('live-view-section')?.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    // ==================== DEVICE MANAGEMENT ====================
+    async function scanDevices(force = false) {
+      const spinner = document.getElementById('scan-spinner');
+      if (spinner) spinner.classList.add('animate-spin');
+      if (force) appendLog({ level: 'sys', message: `กำลังสแกนหาจอ Emulator ในระบบ...` });
+
+      try {
+        const res = await fetch('/api/devices');
+        if (res.ok) {
+          allDevices = await res.json();
+          renderDeviceCards();
+          if (force) appendLog({ level: 'sys', message: `สแกนเสร็จสิ้น พบทั้งหมด ${allDevices.length} จอ` });
+
+          if (!currentDeviceSerial && allDevices.length > 0) {
+            switchDevice(allDevices[0].serial);
+          }
+        }
+      } catch (e) {
+        appendLog({ level: 'error', message: `สแกนจอผิดพลาด: ${e.message}` });
+        console.error("Scan error", e);
+      } finally {
+        if (spinner) spinner.classList.remove('animate-spin');
+      }
+    }
+
+    function renderDeviceCards() {
+      const container = document.getElementById('device-tabs-container');
+      const countBadge = document.getElementById('device-count-badge');
+      if (countBadge) countBadge.textContent = `${allDevices.length} จอ`;
+
+      if (!container) return;
+      container.innerHTML = '';
+
+      if (allDevices.length === 0) {
+        container.innerHTML = `<div class="col-span-full p-4 rounded-2xl border border-dashed border-purple-200 text-center text-xs text-slate-400 italic">ไม่พบจอ Emulator ใดๆ โปรดเปิด Emulator แล้วกด "สแกนจอ"</div>`;
+        return;
+      }
+
+      allDevices.forEach((dev, idx) => {
+        const isActive = dev.serial === currentDeviceSerial;
+        const isRunning = dev.is_running;
+        const name = dev.name || dev.emu_name || `Device ${idx + 1}`;
+
+        const card = document.createElement('div');
+        card.className = `p-3.5 rounded-2xl border transition cursor-pointer flex flex-col justify-between space-y-2.5 ${isActive
+          ? 'bg-purple-50/70 border-brand-500 shadow-md ring-2 ring-brand-500/20'
+          : 'bg-white border-purple-100 hover:border-purple-300 shadow-xs'
+          }`;
+        card.onclick = () => switchDevice(dev.serial);
+
+        card.innerHTML = `
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-purple-100 to-brand-100 border border-purple-200 flex items-center justify-center text-lg overflow-hidden shrink-0 shadow-xs">
+                🎮
+              </div>
+              <div>
+                <h4 class="text-xs font-bold text-slate-800 leading-tight">${name}</h4>
+                <p class="text-[10px] text-slate-400 font-mono">${dev.serial}</p>
+              </div>
+            </div>
+            <span class="w-2.5 h-2.5 rounded-full ${isRunning ? 'bg-emerald-500 shadow-sm shadow-emerald-500/50 animate-pulse' : 'bg-slate-300'}"></span>
+          </div>
+
+          <div class="flex items-center justify-between text-[11px] pt-1 border-t border-purple-50">
+            <span class="font-semibold ${isRunning ? 'text-emerald-600' : 'text-slate-400'} flex items-center gap-1">
+              <span class="w-1.5 h-1.5 rounded-full ${isRunning ? 'bg-emerald-500' : 'bg-slate-400'}"></span>
+              ${isRunning ? 'กำลังทำงาน' : 'หยุดทำงาน'}
+            </span>
+
+            <div class="flex items-center gap-1" onclick="event.stopPropagation()">
+              <button onclick="startBotForDevice('${dev.serial}')" class="p-1 rounded-lg bg-brand-100 hover:bg-brand-200 text-brand-700 transition" title="เริ่มบอท">
+                ▶️
+              </button>
+              <button onclick="stopBotForDevice('${dev.serial}')" class="p-1 rounded-lg bg-rose-100 hover:bg-rose-200 text-rose-700 transition" title="หยุดบอท">
+                ⏸️
+              </button>
+            </div>
+          </div>
+        `;
+
+        container.appendChild(card);
+      });
+      updateCleanerDeviceOptions();
+      updateFarmerDeviceOptions();
+    }
+
+    function switchDevice(serial) {
+      currentDeviceSerial = serial;
+      renderDeviceCards();
+      updateCleanerDeviceOptions();
+      updateFarmerDeviceOptions();
+
+      const title = document.getElementById('current-screen-title');
+      if (title) title.textContent = `จอภาพ - ${serial}`;
+
+
+      const adbTarget = document.getElementById('info-adb-target');
+      if (adbTarget) adbTarget.textContent = serial;
+
+      appendLog({ level: 'sys', message: `เลือกควบคุมจอ: ${serial}`, device: serial });
+
+      reloadStream();
+      loadSettings();
+      fetchStats();
+    }
+
+    // ==================== BOT CONTROL ====================
+    async function startBot() {
+      if (!currentDeviceSerial) {
+        if (allDevices.length > 0) {
+          currentDeviceSerial = allDevices[0].serial;
+        } else {
+          await scanDevices(true);
+          if (allDevices.length > 0) {
+            currentDeviceSerial = allDevices[0].serial;
+          } else {
+            return alert("ไม่พบจอจำลอง Emulator ในระบบ โปรดเปิด Emulator (เช่น MuMu, LDPlayer) ก่อนเริ่มบอท");
+          }
+        }
+      }
+      await startBotForDevice(currentDeviceSerial);
+    }
+
+    async function startBotForDevice(serial) {
+      if (!serial) return;
+      const btnStart = document.getElementById('btn-start');
+      if (btnStart) {
+        btnStart.disabled = true;
+        btnStart.innerHTML = `<span class="inline-block animate-spin mr-1">⏳</span><span>กำลังเริ่มบอท...</span>`;
+      }
+      appendLog({ level: 'bot', message: `▶️ สั่งเริ่มการทำงานบอท...`, device: serial });
+      try {
+        const payload = {
+          ...currentSettings,
+          device_serial: serial,
+          device_ip: serial.includes(':') ? serial.split(':')[0] : serial,
+          device_port: serial.includes(':') ? parseInt(serial.split(':')[1]) : 5555
+        };
+        const res = await fetch(`/api/start?device=${encodeURIComponent(serial)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          appendLog({ level: 'bot', message: `✅ บอทเริ่มทำงานสำเร็จแล้วบนจอ ${serial}`, device: serial });
+          await scanDevices();
+          await fetchStats();
+        } else {
+          const errMsg = data.detail || data.message || "เกิดข้อผิดพลาดในการเริ่มบอท";
+          appendLog({ level: 'error', message: `เริ่มบอทไม่สำเร็จ: ${errMsg}`, device: serial });
+          alert(`เริ่มบอทไม่สำเร็จ: ${errMsg}`);
+        }
+      } catch (e) {
+        appendLog({ level: 'error', message: `เริ่มบอทไม่สำเร็จ: ${e.message}`, device: serial });
+        alert("เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ: " + e.message);
+      } finally {
+        if (btnStart) btnStart.disabled = false;
+        fetchStats();
+      }
+    }
+
+    async function stopBot() {
+      if (!currentDeviceSerial) {
+        if (allDevices.length > 0) {
+          currentDeviceSerial = allDevices[0].serial;
+        } else {
+          // If no serial selected, send stop to all
+          await stopBotForDevice(null);
+          return;
+        }
+      }
+      await stopBotForDevice(currentDeviceSerial);
+    }
+
+    async function stopBotForDevice(serial) {
+      const btnStop = document.getElementById('btn-stop');
+      if (btnStop) {
+        btnStop.disabled = true;
+        btnStop.innerHTML = `<span class="inline-block animate-spin mr-1">⏳</span><span>กำลังหยุดบอท...</span>`;
+      }
+      appendLog({ level: 'bot', message: `⏹️ สั่งหยุดการทำงานบอท...`, device: serial || 'ทุกจอ' });
+      try {
+        const res = await fetch(`/api/stop${serial ? `?device=${encodeURIComponent(serial)}` : ''}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(serial ? { device_serial: serial } : {})
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          appendLog({ level: 'bot', message: `⏹️ บอทหยุดการทำงานเรียบร้อยแล้ว`, device: serial || 'ทุกจอ' });
+          await scanDevices();
+          await fetchStats();
+        } else {
+          const errMsg = data.detail || data.message || "เกิดข้อผิดพลาดในการหยุดบอท";
+          appendLog({ level: 'error', message: `หยุดบอทไม่สำเร็จ: ${errMsg}`, device: serial || 'ทุกจอ' });
+        }
+      } catch (e) {
+        appendLog({ level: 'error', message: `หยุดบอทไม่สำเร็จ: ${e.message}`, device: serial || 'ทุกจอ' });
+        console.error("Stop error", e);
+      } finally {
+        if (btnStop) btnStop.disabled = false;
+        fetchStats();
+      }
+    }
+
+    // ==================== STATS & STATUS POLLING ====================
+    async function fetchStats() {
+      if (!currentDeviceSerial && allDevices.length > 0) {
+        currentDeviceSerial = allDevices[0].serial;
+      }
+      try {
+        const res = await fetch(`/api/devices`);
+        if (res.ok) {
+          const list = await res.json();
+          allDevices = list;
+          renderDeviceCards();
+          const current = list.find(d => d.serial === currentDeviceSerial) || list[0];
+          if (current) {
+            updateDashboardStats(current);
+          }
+        }
+      } catch (e) { }
+    }
+
+    function updateDashboardStats(dev) {
+      if (!dev) return;
+      const isRunning = !!dev.is_running;
+
+      // 1. Start / Stop Button Visual Styling
+      const btnStart = document.getElementById('btn-start');
+      const btnStop = document.getElementById('btn-stop');
+
+      if (btnStart) {
+        if (isRunning) {
+          btnStart.className = "w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-md shadow-emerald-500/30 transition flex items-center justify-center gap-2 active:scale-98 ring-2 ring-emerald-400/40 cursor-default";
+          btnStart.innerHTML = `<span class="w-2.5 h-2.5 rounded-full bg-white animate-ping mr-1"></span><span>🟢 กำลังทำงาน...</span>`;
+        } else {
+          btnStart.className = "w-full py-3 rounded-xl bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 text-white font-bold text-sm shadow-btn transition flex items-center justify-center gap-2 active:scale-98 cursor-pointer";
+          btnStart.innerHTML = `<span>▶️</span><span>เริ่มบอท</span>`;
+        }
+      }
+
+      if (btnStop) {
+        if (isRunning) {
+          btnStop.className = "w-full py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-sm shadow-md shadow-rose-600/30 transition flex items-center justify-center gap-2 active:scale-98 animate-pulse cursor-pointer";
+          btnStop.innerHTML = `<span>⏹️</span><span>หยุดบอท</span>`;
+        } else {
+          btnStop.className = "w-full py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-500 border border-rose-200 font-bold text-sm transition flex items-center justify-center gap-2 active:scale-98 cursor-pointer";
+          btnStop.innerHTML = `<span>⏹️</span><span>หยุดบอท</span>`;
+        }
+      }
+
+      // 2. Stage & Status indicators
+      const stageEl = document.getElementById('stat-stage');
+      const overlayStage = document.getElementById('overlay-stage');
+      const stageText = dev.current_stage || (isRunning ? "กำลังทำงาน..." : "IDLE");
+      if (stageEl) stageEl.textContent = stageText;
+      if (overlayStage) overlayStage.textContent = stageText;
+
+      const stageBadge = document.getElementById('stat-stage-badge');
+      if (stageBadge) {
+        stageBadge.textContent = isRunning ? "RUNNING" : "IDLE";
+        stageBadge.className = isRunning
+          ? "inline-block text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-700"
+          : "inline-block text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-500";
+      }
+
+      const statusText = document.getElementById('status-text');
+      const statusDot = document.getElementById('status-dot');
+      if (statusText) statusText.textContent = isRunning ? "Running" : "Idle";
+      if (statusDot) {
+        statusDot.className = isRunning ? "w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" : "w-2.5 h-2.5 rounded-full bg-slate-400";
+      }
+
+      // 3. Stats Metrics Cards (Rounds, Boxes, Uptime)
+      const roundsEl = document.getElementById('stat-rounds');
+      if (roundsEl) roundsEl.textContent = dev.rounds_played ?? 0;
+
+      const boxesEl = document.getElementById('stat-boxes');
+      if (boxesEl) boxesEl.textContent = dev.mystery_boxes ?? 0;
+
+      const uptimeEl = document.getElementById('stat-uptime');
+      if (uptimeEl) uptimeEl.textContent = dev.uptime || "00:00:00";
+
+      // 4. Connection Info Card
+      const adbTarget = document.getElementById('info-adb-target');
+      if (adbTarget && dev.serial) {
+        adbTarget.innerHTML = `${dev.serial} <span class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>`;
+      }
+      const adbPort = document.getElementById('info-adb-port');
+      if (adbPort && dev.serial) {
+        const portStr = dev.serial.includes(':') ? dev.serial.split(':')[1] : (dev.port || '5555');
+        adbPort.innerHTML = `${portStr} <span class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>`;
+      }
+      const adbStatus = document.getElementById('info-adb-status');
+      if (adbStatus) {
+        adbStatus.innerHTML = `เชื่อมต่อแล้ว <span class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>`;
+      }
+
+      // 5. Render Round History table
+      if (dev.round_history && Array.isArray(dev.round_history)) {
+        renderRoundHistoryTable(dev.round_history);
+      }
+    }
+
+    function renderRoundHistoryTable(history) {
+      const tbody = document.getElementById('recent-history-tbody');
+      if (!tbody) return;
+      if (!history || history.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="py-6 text-center text-slate-400 italic">ยังไม่มีประวัติการเล่นในเซสชันนี้</td></tr>`;
+        return;
+      }
+      const recent = [...history].reverse().slice(0, 5);
+      tbody.innerHTML = recent.map((r, i) => `
+        <tr class="hover:bg-purple-50/40 transition">
+          <td class="py-2.5 px-3 text-slate-500 font-mono">${i + 1}</td>
+          <td class="py-2.5 px-3 text-slate-500 font-mono">${r.time || '-'}</td>
+          <td class="py-2.5 px-3 font-bold text-brand-700">รอบที่ ${r.round || '-'}</td>
+          <td class="py-2.5 px-3 text-amber-600 font-semibold font-mono">🪙 ${r.coins || 0}</td>
+          <td class="py-2.5 px-3 text-indigo-600 font-semibold font-mono">⭐ ${r.xp || 0}</td>
+          <td class="py-2.5 px-3 text-purple-600 font-semibold">🎁 ${r.boxes || 0}</td>
+          <td class="py-2.5 px-3">
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">สำเร็จ</span>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    setInterval(fetchStats, 2000);
+
+    // ==================== SETTINGS MANAGEMENT ====================
+    async function loadSettings() {
+      if (!currentDeviceSerial) return;
+      try {
+        const res = await fetch(`/api/settings?device=${encodeURIComponent(currentDeviceSerial)}`);
+        if (res.ok) {
+          currentSettings = await res.json();
+          applySettingsToToggles(currentSettings);
+        }
+      } catch (e) { }
+    }
+
+    function applySettingsToToggles(cfg) {
+      const fast = document.getElementById('quick-cfg-fast-start');
+      if (fast) fast.checked = !!cfg.use_fast_start;
+
+      const xp = document.getElementById('quick-cfg-double-xp');
+      if (xp) xp.checked = !!cfg.use_double_xp;
+
+      const relay = document.getElementById('quick-cfg-cookie-relay');
+      if (relay) relay.checked = !!cfg.use_cookie_relay;
+
+      const relic = document.getElementById('quick-cfg-relic');
+      if (relic) relic.checked = !!cfg.detect_relic;
+
+      const quickBoost = document.getElementById('quick-cfg-desired-boost');
+      if (quickBoost) quickBoost.checked = !!cfg.use_desired_random_boost;
+
+      const quickBoostId = document.getElementById('quick-cfg-desired-boost-id');
+      if (quickBoostId && cfg.desired_boost_id) {
+        quickBoostId.value = cfg.desired_boost_id;
+      }
+
+      toggleQuickBoostSelect(!!cfg.use_desired_random_boost);
+
+      const farmerInvite = document.getElementById('farmer-invite-input');
+      if (farmerInvite && cfg.heart_farmer_invite && cfg.heart_farmer_invite !== "ใส่ลิงก์เชิญเพื่อนของคุณ") {
+        farmerInvite.value = cfg.heart_farmer_invite;
+      }
+    }
+
+    function toggleQuickBoostSelect(enabled) {
+      const wrap = document.getElementById('quick-boost-select-wrap');
+      if (wrap) {
+        if (enabled) {
+          wrap.classList.remove('hidden');
+        } else {
+          wrap.classList.add('hidden');
+        }
+      }
+      const modalChk = document.getElementById('cfg-desired-boost');
+      if (modalChk && modalChk.checked !== enabled) {
+        modalChk.checked = enabled;
+      }
+    }
+
+    async function syncSetting(key, val) {
+      currentSettings[key] = val;
+      if (key === 'use_desired_random_boost') {
+        const qb = document.getElementById('quick-cfg-desired-boost');
+        if (qb) qb.checked = !!val;
+        const mb = document.getElementById('cfg-desired-boost');
+        if (mb) mb.checked = !!val;
+        toggleQuickBoostSelect(!!val);
+      } else if (key === 'desired_boost_id') {
+        const qs = document.getElementById('quick-cfg-desired-boost-id');
+        if (qs) qs.value = val;
+        const ms = document.getElementById('cfg-desired-boost-id');
+        if (ms) ms.value = val;
+      }
+      appendLog({ level: 'sys', message: `ปรับการตั้งค่า ${key} ➜ ${val}`, device: currentDeviceSerial });
+      if (!currentDeviceSerial) return;
+      try {
+        await fetch(`/api/settings/save?device=${encodeURIComponent(currentDeviceSerial)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(currentSettings)
+        });
+      } catch (e) {
+        console.error("Save setting error", e);
+      }
+    }
+
+    // ==================== HEART FARMER ====================
+    let farmerStatusCache = null;
+
+    async function pollFarmer() {
+      try {
+        const res = await fetch('/api/farmer/status');
+        if (res.ok) {
+          farmerStatusCache = await res.json();
+          updateFarmerStatusUI();
+        }
+      } catch (e) { }
+    }
+    setInterval(pollFarmer, 3000);
+
+    function updateFarmerStatusUI() {
+      if (!farmerStatusCache) return;
+      const data = farmerStatusCache;
+      const badge = document.getElementById('farmer-status-text');
+      const roundsEl = document.getElementById('farmer-rounds-display');
+      const btn = document.getElementById('btn-farmer-toggle');
+      const devSelect = document.getElementById('farmer-device-select');
+      const targetDev = devSelect && devSelect.value ? devSelect.value : '__all__';
+
+      let isRunning = false;
+      let rounds = 0;
+
+      if (targetDev === '__all__') {
+        isRunning = !!data.any_running;
+        rounds = data.total_rounds || 0;
+      } else {
+        const inst = data.instances && data.instances[targetDev];
+        if (inst) {
+          isRunning = !!inst.running;
+          rounds = inst.rounds || 0;
+        } else {
+          isRunning = false;
+          rounds = 0;
+        }
+      }
+
+      if (roundsEl) roundsEl.textContent = `${rounds} รอบ`;
+
+      if (isRunning) {
+        if (badge) {
+          badge.textContent = "กำลังทำงาน";
+          badge.className = "font-semibold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-md";
+        }
+        if (btn) {
+          btn.innerHTML = targetDev === '__all__' ? "<span>หยุดทำงาน (ทุกจอ)</span>" : "<span>หยุดทำงาน</span>";
+          btn.className = "w-full py-2.5 rounded-xl bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 text-white font-bold text-xs shadow-btn-pink transition flex items-center justify-center gap-2 active:scale-98";
+        }
+      } else {
+        if (badge) {
+          badge.textContent = "ยังไม่ได้เริ่ม";
+          badge.className = "font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md";
+        }
+        if (btn) {
+          btn.innerHTML = targetDev === '__all__' ? "<span>เริ่มใช้งาน (ทุกจอ)</span>" : "<span>เริ่มใช้งาน</span>";
+          btn.className = "w-full py-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white font-bold text-xs shadow-btn-pink transition flex items-center justify-center gap-2 active:scale-98";
+        }
+      }
+    }
+
+    function onFarmerDeviceChange() {
+      updateFarmerStatusUI();
+    }
+
+    function updateFarmerDeviceOptions() {
+      const select = document.getElementById('farmer-device-select');
+      if (!select) return;
+      const currentVal = select.value;
+      select.innerHTML = '';
+
+      if (allDevices.length === 0) {
+        const opt = document.createElement('option');
+        opt.value = currentDeviceSerial || "127.0.0.1:16480";
+        opt.textContent = `จอปัจจุบัน (${currentDeviceSerial || '127.0.0.1:16480'})`;
+        select.appendChild(opt);
+        updateFarmerStatusUI();
+        return;
+      }
+
+      if (allDevices.length > 1) {
+        const allOpt = document.createElement('option');
+        allOpt.value = "__all__";
+        allOpt.textContent = `✨ ทุกจอพร้อมกัน (${allDevices.length} จอ)`;
+        if (currentVal === "__all__") allOpt.selected = true;
+        select.appendChild(allOpt);
+      }
+
+      allDevices.forEach((dev, idx) => {
+        const opt = document.createElement('option');
+        opt.value = dev.serial;
+        const name = dev.name || dev.emu_name || `จอที่ ${idx + 1}`;
+        opt.textContent = `${name} (${dev.serial})`;
+        if (currentVal ? dev.serial === currentVal : dev.serial === currentDeviceSerial) {
+          opt.selected = true;
+        }
+        select.appendChild(opt);
+      });
+
+      updateFarmerStatusUI();
+    }
+
+    async function startHeartFarmer() {
+      const btn = document.getElementById('btn-farmer-toggle');
+      const isStopping = btn && btn.textContent.includes('หยุด');
+      const inviteInput = document.getElementById('farmer-invite-input');
+      const inviteUrl = inviteInput && inviteInput.value.trim() ? inviteInput.value.trim() : "ลิงก์เชิญเพื่อน";
+      const devSelect = document.getElementById('farmer-device-select');
+      const selectedTarget = devSelect ? devSelect.value : (currentDeviceSerial || "127.0.0.1:16480");
+
+      // Save invite link in settings
+      syncSetting('heart_farmer_invite', inviteUrl);
+
+      try {
+        if (isStopping) {
+          if (selectedTarget === '__all__') {
+            await fetch('/api/farmer/stop', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
+            appendLog({ time: new Date().toLocaleTimeString('th-TH', { hour12: false }), level: 'farmer', message: `[FARMER] สั่งหยุดปั้มหัวใจทุกจอ` });
+          } else {
+            await fetch('/api/farmer/stop', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device: selectedTarget }) });
+            appendLog({ time: new Date().toLocaleTimeString('th-TH', { hour12: false }), level: 'farmer', message: `[FARMER] สั่งหยุดปั้มหัวใจบนจอ ${selectedTarget}`, device: selectedTarget });
+          }
+        } else {
+          if (selectedTarget === '__all__') {
+            const devList = allDevices.length > 0 ? allDevices.map(d => d.serial) : [currentDeviceSerial || "127.0.0.1:16480"];
+            await fetch('/api/farmer/start', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                devices: devList,
+                invite_url: inviteUrl
+              })
+            });
+            appendLog({ time: new Date().toLocaleTimeString('th-TH', { hour12: false }), level: 'farmer', message: `[FARMER] สั่งเริ่มปั้มหัวใจทุกจอ (${devList.join(', ')}) (ลิงก์: ${inviteUrl})` });
+          } else {
+            await fetch('/api/farmer/start', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                device: selectedTarget,
+                invite_url: inviteUrl
+              })
+            });
+            appendLog({ time: new Date().toLocaleTimeString('th-TH', { hour12: false }), level: 'farmer', message: `[FARMER] สั่งเริ่มปั้มหัวใจบนจอ ${selectedTarget} (ลิงก์: ${inviteUrl})`, device: selectedTarget });
+          }
+        }
+        await pollFarmer();
+      } catch (e) {
+        alert("Farmer error: " + e.message);
+      }
+    }
+
+    async function pasteInviteUrl() {
+      try {
+        const text = await navigator.clipboard.readText();
+        if (text && text.trim()) {
+          const input = document.getElementById('farmer-invite-input');
+          if (input) {
+            input.value = text.trim();
+            syncSetting('heart_farmer_invite', text.trim());
+          }
+          appendLog({ time: new Date().toLocaleTimeString('th-TH', { hour12: false }), level: 'sys', message: `[SYS] วางลิงก์เชิญเพื่อน: ${text.trim()}` });
+        }
+      } catch (e) {
+        const manual = prompt("วางลิงก์เชิญเพื่อนที่นี่:", document.getElementById('farmer-invite-input')?.value || "");
+        if (manual && manual.trim()) {
+          const input = document.getElementById('farmer-invite-input');
+          if (input) {
+            input.value = manual.trim();
+            syncSetting('heart_farmer_invite', manual.trim());
+          }
+          appendLog({ time: new Date().toLocaleTimeString('th-TH', { hour12: false }), level: 'sys', message: `[SYS] วางลิงก์เชิญเพื่อน: ${manual.trim()}` });
+        }
+      }
+    }
+
+    // ==================== FRIEND CLEANER (LEVEL 1) ====================
+    async function pollCleaner() {
+      try {
+        const res = await fetch('/api/cleaner/status');
+        if (res.ok) {
+          const data = await res.json();
+          const badge = document.getElementById('cleaner-status-text');
+          const nextRunEl = document.getElementById('cleaner-next-run-display');
+          const toggleBtn = document.getElementById('btn-cleaner-toggle');
+
+          if (data.is_running) {
+            if (badge) {
+              badge.textContent = "ทำงานอัตโนมัติ";
+              badge.className = "font-semibold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-md";
+            }
+            if (toggleBtn) {
+              toggleBtn.innerHTML = "<span>⏹️</span><span>หยุดลูป</span>";
+              toggleBtn.className = "py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-sm transition flex items-center justify-center gap-1.5 active:scale-98";
+            }
+            if (nextRunEl) {
+              const secs = data.next_run_seconds || 0;
+              const mins = Math.floor(secs / 60);
+              const remSecs = secs % 60;
+              nextRunEl.textContent = `${mins} นาที ${remSecs} วิ (${data.next_run || '-'})`;
+            }
+          } else {
+            if (badge) {
+              badge.textContent = "ยังไม่ได้เริ่ม";
+              badge.className = "font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md";
+            }
+            if (toggleBtn) {
+              toggleBtn.innerHTML = "<span>▶️</span><span>เริ่มลูปเวลา</span>";
+              toggleBtn.className = "py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm transition flex items-center justify-center gap-1.5 active:scale-98";
+            }
+            if (nextRunEl) nextRunEl.textContent = "-";
+          }
+        }
+      } catch (e) {}
+    }
+    setInterval(pollCleaner, 3000);
+
+    function updateCleanerDeviceOptions() {
+      const select = document.getElementById('cleaner-device-select');
+      if (!select) return;
+      const currentVal = select.value;
+      select.innerHTML = '';
+      if (allDevices.length === 0) {
+        const opt = document.createElement('option');
+        opt.value = currentDeviceSerial || "127.0.0.1:16480";
+        opt.textContent = `จอปัจจุบัน (${currentDeviceSerial || '127.0.0.1:16480'})`;
+        select.appendChild(opt);
+        return;
+      }
+      allDevices.forEach((dev, idx) => {
+        const opt = document.createElement('option');
+        opt.value = dev.serial;
+        const name = dev.name || dev.emu_name || `จอที่ ${idx + 1}`;
+        opt.textContent = `${name} (${dev.serial})`;
+        if (dev.serial === currentDeviceSerial || dev.serial === currentVal) {
+          opt.selected = true;
+        }
+        select.appendChild(opt);
+      });
+    }
+
+    async function runFriendCleanerOnce() {
+      const select = document.getElementById('cleaner-device-select');
+      const targetDev = (select && select.value) ? select.value : (currentDeviceSerial || "127.0.0.1:16480");
+      appendLog({ level: 'cleaner', message: `[CLEANER] สั่งลบเพื่อนเวล 1 ทันทีบนจอ ${targetDev}...`, device: targetDev });
+      try {
+        const res = await fetch('/api/cleaner/run_once', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ device: targetDev })
+        });
+        const data = await res.json();
+        if (data.success) {
+          appendLog({ level: 'cleaner', message: `[CLEANER] กำลังดำเนินการลบเพื่อนเวล 1 บนจอ ${targetDev}...`, device: targetDev });
+        } else {
+          alert(data.message || "เกิดข้อผิดพลาด");
+        }
+      } catch (e) {
+        alert("Cleaner error: " + e.message);
+      }
+    }
+
+    async function toggleFriendCleanerScheduler() {
+      const toggleBtn = document.getElementById('btn-cleaner-toggle');
+      const isStopping = toggleBtn && toggleBtn.textContent.includes('หยุด');
+      const select = document.getElementById('cleaner-device-select');
+      const targetDev = (select && select.value) ? select.value : (currentDeviceSerial || "127.0.0.1:16480");
+      const intervalInput = document.getElementById('cleaner-interval-input');
+      const intervalMin = intervalInput ? Math.max(1, parseInt(intervalInput.value) || 30) : 30;
+
+      try {
+        if (isStopping) {
+          await fetch('/api/cleaner/stop', { method: 'POST' });
+          appendLog({ level: 'cleaner', message: `[CLEANER] สั่งหยุดลูปตั้งเวลาลบเพื่อนเวล 1` });
+        } else {
+          await fetch('/api/cleaner/start', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              devices: [targetDev],
+              interval_minutes: intervalMin,
+              run_immediately: true
+            })
+          });
+          appendLog({ level: 'cleaner', message: `[CLEANER] เริ่มระบบลบเพื่อนเวล 1 อัตโนมัติ (ทำซ้ำทุก ${intervalMin} นาที บนจอ ${targetDev})`, device: targetDev });
+        }
+        pollCleaner();
+      } catch (e) {
+        alert("Cleaner error: " + e.message);
+      }
+    }
+
+    // ==================== WEBSOCKET LIVE LOGS ====================
+    function connectWebSocket() {
+      if (ws) {
+        try { ws.close(); } catch (e) { }
+        ws = null;
+      }
+
+      const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${protocol}//${location.host}/ws/logs?device=all`;
+
+      try {
+        ws = new WebSocket(wsUrl);
+        ws.onopen = () => {
+          const badge = document.getElementById('ws-status-badge');
+          if (badge) {
+            badge.textContent = "Connected";
+            badge.className = "text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
+          }
+        };
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            if (data.type === 'history') {
+              logsContainer.innerHTML = '';
+              (data.logs || []).forEach(appendLog);
+            } else if (data.type === 'log') {
+              appendLog(data.log);
+            }
+          } catch (err) { }
+        };
+        ws.onclose = () => {
+          const badge = document.getElementById('ws-status-badge');
+          if (badge) {
+            badge.textContent = "Disconnected";
+            badge.className = "text-[10px] font-mono px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30";
+          }
+          if (!wsReconnectTimer) {
+            wsReconnectTimer = setTimeout(connectWebSocket, 3000);
+          }
+        };
+      } catch (err) {
+        console.error("WS error", err);
+      }
+    }
+
+    function appendLog(logEntry) {
+      if (!logsContainer) return;
+
+      let timeStr = "";
+      let level = "info";
+      let message = "";
+      let device = "";
+
+      if (typeof logEntry === 'object' && logEntry !== null) {
+        timeStr = logEntry.time || new Date().toLocaleTimeString('th-TH', { hour12: false });
+        level = (logEntry.level || 'info').toLowerCase();
+        message = String(logEntry.message || '');
+        device = logEntry.device || '';
+      } else {
+        timeStr = new Date().toLocaleTimeString('th-TH', { hour12: false });
+        message = String(logEntry || '');
+      }
+
+      if (!message.trim()) return;
+
+      // Determine tag badge
+      let tag = 'INFO';
+      let tagClass = 'text-emerald-400 bg-emerald-950/70 border-emerald-500/40';
+
+      if (message.includes('[BOT]') || level === 'bot') {
+        tag = 'BOT';
+        tagClass = 'text-cyan-400 bg-cyan-950/70 border-cyan-500/40';
+      } else if (message.includes('[ADB]') || level === 'adb' || message.includes('Tap')) {
+        tag = 'ADB';
+        tagClass = 'text-amber-400 bg-amber-950/70 border-amber-500/40';
+      } else if (message.includes('[FARMER]') || level === 'farmer' || message.includes('หัวใจ')) {
+        tag = 'FARM';
+        tagClass = 'text-pink-400 bg-pink-950/70 border-pink-500/40';
+      } else if (message.includes('[ERROR]') || level === 'error' || message.includes('ไม่สำเร็จ') || message.includes('ล้มเหลว')) {
+        tag = 'ERR';
+        tagClass = 'text-rose-400 bg-rose-950/70 border-rose-500/40';
+      } else if (message.includes('[SYS]') || level === 'sys' || message.includes('สแกน') || message.includes('ตั้งค่า')) {
+        tag = 'SYS';
+        tagClass = 'text-purple-400 bg-purple-950/70 border-purple-500/40';
+      } else if (message.includes('[STREAM]')) {
+        tag = 'LIVE';
+        tagClass = 'text-blue-400 bg-blue-950/70 border-blue-500/40';
+      }
+
+      let cleanMsg = message.replace(/\[(BOT|ADB|INFO|ERROR|SYS|FARMER|STREAM)\]/gi, '').trim();
+      let devBadge = device ? `<span class="text-slate-500 text-[10px] font-mono shrink-0">[${device.includes(':') ? device.split(':')[1] : device}]</span>` : '';
+
+      const row = document.createElement('div');
+      row.className = "py-1 px-1.5 rounded hover:bg-white/5 transition space-y-0.5 border-b border-slate-800/50";
+      row.innerHTML = `
+        <div class="flex items-center gap-1.5 font-mono text-[10px]">
+          <span class="text-slate-500 select-none shrink-0">${timeStr}</span>
+          <span class="shrink-0 px-1.5 py-px rounded text-[9px] font-bold border ${tagClass} select-none">${tag}</span>
+          ${devBadge}
+        </div>
+        <div class="text-slate-200 text-[11px] font-mono leading-snug break-all pl-0.5">${cleanMsg}</div>
+      `;
+
+      logsContainer.appendChild(row);
+      if (document.getElementById('autoscroll-toggle')?.checked) {
+        logsContainer.scrollTop = logsContainer.scrollHeight;
+      }
+    }
+
+    function clearLogs() {
+      if (logsContainer) logsContainer.innerHTML = '';
+    }
+
+    // ==================== ROUND HISTORY MODAL ====================
+    function openHistoryModal() {
+      document.getElementById('round-modal')?.classList.remove('hidden');
+      document.getElementById('round-modal')?.classList.add('flex');
+    }
+    function closeHistoryModal() {
+      document.getElementById('round-modal')?.classList.add('hidden');
+      document.getElementById('round-modal')?.classList.remove('flex');
+    }
+
+    // ==================== SETTINGS MODAL ====================
+    function openSettingsModal() {
+      if (currentSettings) {
+        document.getElementById('cfg-ip').value = currentSettings.device_ip || "127.0.0.1";
+        document.getElementById('cfg-port').value = currentSettings.device_port || 7555;
+        document.getElementById('cfg-hp-boost').checked = !!currentSettings.use_hp_boost;
+        document.getElementById('cfg-item-extension').checked = !!currentSettings.use_item_extension;
+        document.getElementById('cfg-double-xp').checked = !!currentSettings.use_double_xp;
+        document.getElementById('cfg-fast-start').checked = !!currentSettings.use_fast_start;
+        document.getElementById('cfg-cookie-relay').checked = !!currentSettings.use_cookie_relay;
+        document.getElementById('cfg-relic').checked = !!currentSettings.detect_relic;
+        document.getElementById('cfg-desired-boost').checked = !!currentSettings.use_desired_random_boost;
+        if (currentSettings.desired_boost_id) {
+          document.getElementById('cfg-desired-boost-id').value = currentSettings.desired_boost_id;
+        }
+      }
+      document.getElementById('settings-modal')?.classList.remove('hidden');
+      document.getElementById('settings-modal')?.classList.add('flex');
+    }
+    function closeSettingsModal() {
+      document.getElementById('settings-modal')?.classList.add('hidden');
+      document.getElementById('settings-modal')?.classList.remove('flex');
+    }
+
+    async function saveFullSettings() {
+      currentSettings.device_ip = document.getElementById('cfg-ip').value;
+      currentSettings.device_port = parseInt(document.getElementById('cfg-port').value) || 7555;
+      currentSettings.use_hp_boost = document.getElementById('cfg-hp-boost').checked;
+      currentSettings.use_item_extension = document.getElementById('cfg-item-extension').checked;
+      currentSettings.use_double_xp = document.getElementById('cfg-double-xp').checked;
+      currentSettings.use_fast_start = document.getElementById('cfg-fast-start').checked;
+      currentSettings.use_cookie_relay = document.getElementById('cfg-cookie-relay').checked;
+      currentSettings.detect_relic = document.getElementById('cfg-relic').checked;
+      currentSettings.use_desired_random_boost = document.getElementById('cfg-desired-boost').checked;
+      currentSettings.desired_boost_id = document.getElementById('cfg-desired-boost-id').value;
+
+      applySettingsToToggles(currentSettings);
+
+      if (!currentDeviceSerial) return closeSettingsModal();
+      try {
+        await fetch(`/api/settings/save?device=${encodeURIComponent(currentDeviceSerial)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(currentSettings)
+        });
+        alert("บันทึกการตั้งค่าเรียบร้อยแล้ว");
+        closeSettingsModal();
+      } catch (e) {
+        alert("บันทึกไม่สำเร็จ: " + e.message);
+      }
+    }
+
+    async function resetSettings() {
+      if (!confirm("ต้องการรีเซ็ตการตั้งค่าเป็นค่าเริ่มต้นหรือไม่?")) return;
+      if (!currentDeviceSerial) return;
+      try {
+        const res = await fetch(`/api/settings/reset?device=${encodeURIComponent(currentDeviceSerial)}`, { method: 'POST' });
+        if (res.ok) {
+          const data = await res.json();
+          currentSettings = data.settings || {};
+          openSettingsModal();
+        }
+      } catch (e) { }
+    }
+
+    // ==================== DISCORD MODAL ====================
+    async function openDiscordModal() {
+      try {
+        const res = await fetch('/api/discord');
+        if (res.ok) {
+          const data = await res.json();
+          document.getElementById('discord-webhook-url').value = data.webhook_url || "";
+          document.getElementById('discord-enabled').checked = !!data.enabled;
+          document.getElementById('discord-notify-boxes').checked = !!data.notify_boxes;
+          document.getElementById('discord-notify-rounds').checked = !!data.notify_rounds;
+          document.getElementById('discord-attach-screen').checked = !!data.attach_screenshot;
+        }
+      } catch (e) { }
+      document.getElementById('discord-modal')?.classList.remove('hidden');
+      document.getElementById('discord-modal')?.classList.add('flex');
+    }
+    function closeDiscordModal() {
+      document.getElementById('discord-modal')?.classList.add('hidden');
+      document.getElementById('discord-modal')?.classList.remove('flex');
+    }
+
+    async function saveDiscordSettings() {
+      const payload = {
+        webhook_url: document.getElementById('discord-webhook-url').value.trim(),
+        enabled: document.getElementById('discord-enabled').checked,
+        notify_boxes: document.getElementById('discord-notify-boxes').checked,
+        notify_rounds: document.getElementById('discord-notify-rounds').checked,
+        notify_antibot: true,
+        notify_status: true,
+        attach_screenshot: document.getElementById('discord-attach-screen').checked
+      };
+      try {
+        await fetch('/api/discord/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        alert("บันทึกการตั้งค่า Discord สำเร็จ");
+        closeDiscordModal();
+      } catch (e) {
+        alert("บันทึกไม่สำเร็จ: " + e.message);
+      }
+    }
+
+    async function testDiscordWebhook() {
+      const url = document.getElementById('discord-webhook-url').value.trim();
+      if (!url) return alert("กรุณาใส่ Webhook URL ก่อน");
+      try {
+        const res = await fetch('/api/discord/test', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ webhook_url: url })
+        });
+        const data = await res.json();
+        alert(data.message || (data.success ? "ส่งข้อความทดสอบสำเร็จ!" : "ส่งข้อความไม่สำเร็จ"));
+      } catch (e) {
+        alert("ทดสอบไม่สำเร็จ: " + e.message);
+      }
+    }
+
+    // ==================== STATS MODAL ====================
+    function openStatsModal() {
+      document.getElementById('stats-modal')?.classList.remove('hidden');
+      document.getElementById('stats-modal')?.classList.add('flex');
+    }
+    function closeStatsModal() {
+      document.getElementById('stats-modal')?.classList.add('hidden');
+      document.getElementById('stats-modal')?.classList.remove('flex');
+    }
+
+    // ==================== TABS SWITCHER ====================
+    function switchTab(tabId) {
+      // Highlight sidebar button
+      ['tab-dashboard', 'tab-emulators', 'tab-stats', 'tab-settings', 'tab-farmer', 'tab-discord', 'tab-logs'].forEach(id => {
+        const btn = document.getElementById(`nav-${id}`);
+        if (!btn) return;
+        if (id === tabId) {
+          btn.className = 'w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-brand-600 text-white font-semibold text-sm shadow-btn transition';
+        } else {
+          btn.className = 'w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl text-slate-600 hover:text-brand-600 hover:bg-brand-50 font-medium text-sm transition';
+        }
+      });
+
+      if (tabId === 'tab-settings') {
+        openSettingsModal();
+      } else if (tabId === 'tab-discord') {
+        openDiscordModal();
+      } else if (tabId === 'tab-stats') {
+        openStatsModal();
+      } else if (tabId === 'tab-emulators') {
+        document.getElementById('device-tabs-container')?.scrollIntoView({ behavior: 'smooth' });
+      } else if (tabId === 'tab-farmer') {
+        document.getElementById('btn-farmer-toggle')?.scrollIntoView({ behavior: 'smooth' });
+      } else if (tabId === 'tab-logs') {
+        logsContainer.scrollIntoView({ behavior: 'smooth' });
+      } else if (tabId === 'tab-dashboard') {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    }
+
+    // Initial launch
+    window.addEventListener('DOMContentLoaded', () => {
+      scanDevices();
+    });
+  </script>
+
+</body>
+
+</html>

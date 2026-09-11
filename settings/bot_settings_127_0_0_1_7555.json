@@ -1,0 +1,23 @@
+{
+  "device_serial": "127.0.0.1:7555",
+  "device_ip": "127.0.0.1",
+  "device_port": 7555,
+  "use_hp_boost": false,
+  "use_item_extension": false,
+  "use_double_xp": false,
+  "use_fast_start": false,
+  "fast_start_min_stock": 10,
+  "use_cookie_relay": false,
+  "cookie_relay_min_stock": 10,
+  "use_desired_random_boost": false,
+  "desired_boost_id": "double_coins",
+  "detect_relic": true,
+  "send_friend_lives": true,
+  "heart_farmer_enabled": true,
+  "heart_farmer_device": "emulator-5560",
+  "heart_farmer_invite": "https://cookierunglobal.onelink.me/Xr0A/haljparo",
+  "stop_goal_rounds_enabled": false,
+  "stop_goal_rounds_target": 50,
+  "stop_goal_time_enabled": false,
+  "stop_goal_time_hours": 2.0
+}

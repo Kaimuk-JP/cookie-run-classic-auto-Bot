@@ -1,0 +1,19 @@
+{
+  "device_ip": "127.0.0.1",
+  "device_port": 7555,
+  "use_hp_boost": true,
+  "use_item_extension": true,
+  "use_double_xp": true,
+  "use_fast_start": true,
+  "fast_start_min_stock": 1,
+  "use_cookie_relay": true,
+  "cookie_relay_min_stock": 1,
+  "use_desired_random_boost": true,
+  "desired_boost_id": "hp_drain_15",
+  "detect_relic": true,
+  "send_friend_lives": true,
+  "stop_goal_rounds_enabled": false,
+  "stop_goal_rounds_target": 50,
+  "stop_goal_time_enabled": false,
+  "stop_goal_time_hours": 2.0
+}

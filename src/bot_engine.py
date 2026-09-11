@@ -4,6 +4,7 @@ from datetime import datetime
 import json
 import os
 import random
+import re
 import threading
 import time
 from typing import Any, Callable, Dict, List, Optional
@@ -139,10 +140,11 @@ def save_round_history_to_file(serial: Optional[str], history_list: list, new_en
             all_csv_path = os.path.join(HISTORY_DIR, "all_play_history.csv")
 
             boxes_str = ";".join(new_entry.get("boxes", [])) if isinstance(new_entry.get("boxes"), list) else str(new_entry.get("boxes", ""))
+            current_round_str = str(new_entry.get("round", ""))
             row = [
                 today_str,
                 new_entry.get("time", ""),
-                str(new_entry.get("round", "")),
+                current_round_str,
                 new_entry.get("duration", ""),
                 str(new_entry.get("score", 0)),
                 str(new_entry.get("coins", 0)),
@@ -152,20 +154,47 @@ def save_round_history_to_file(serial: Optional[str], history_list: list, new_en
                 new_entry.get("screenshot", ""),
             ]
 
-            write_header = not os.path.isfile(csv_path)
-            with open(csv_path, "a", newline="", encoding="utf-8-sig") as f:
-                writer = csv.writer(f)
-                if write_header:
-                    writer.writerow(["Date", "Time", "Round", "Duration", "Score", "Coins", "XP", "Boxes", "BoxCount", "Screenshot"])
-                writer.writerow(row)
+            # Update or append to device CSV
+            rows = []
+            if os.path.isfile(csv_path):
+                try:
+                    with open(csv_path, "r", encoding="utf-8-sig") as f:
+                        rows = list(csv.reader(f))
+                except Exception:
+                    rows = []
+            if not rows:
+                rows = [["Date", "Time", "Round", "Duration", "Score", "Coins", "XP", "Boxes", "BoxCount", "Screenshot"]]
+            
+            if len(rows) > 1 and len(rows[-1]) > 2 and rows[-1][2] == current_round_str:
+                rows[-1] = row
+            else:
+                rows.append(row)
 
-            dev_tag = str(serial or "default")
-            write_all_header = not os.path.isfile(all_csv_path)
-            with open(all_csv_path, "a", newline="", encoding="utf-8-sig") as f:
+            with open(csv_path, "w", newline="", encoding="utf-8-sig") as f:
                 writer = csv.writer(f)
-                if write_all_header:
-                    writer.writerow(["Date", "Time", "Device", "Round", "Duration", "Score", "Coins", "XP", "Boxes", "BoxCount", "Screenshot"])
-                writer.writerow([today_str, new_entry.get("time", ""), dev_tag] + row[2:])
+                writer.writerows(rows)
+
+            # All devices CSV
+            dev_tag = str(serial or "default")
+            all_row = [today_str, new_entry.get("time", ""), dev_tag] + row[2:]
+            all_rows = []
+            if os.path.isfile(all_csv_path):
+                try:
+                    with open(all_csv_path, "r", encoding="utf-8-sig") as f:
+                        all_rows = list(csv.reader(f))
+                except Exception:
+                    all_rows = []
+            if not all_rows:
+                all_rows = [["Date", "Time", "Device", "Round", "Duration", "Score", "Coins", "XP", "Boxes", "BoxCount", "Screenshot"]]
+            
+            if len(all_rows) > 1 and len(all_rows[-1]) > 3 and all_rows[-1][2] == dev_tag and all_rows[-1][3] == current_round_str:
+                all_rows[-1] = all_row
+            else:
+                all_rows.append(all_row)
+
+            with open(all_csv_path, "w", newline="", encoding="utf-8-sig") as f:
+                writer = csv.writer(f)
+                writer.writerows(all_rows)
     except Exception as e:
         print(f"[History] Error saving history: {e}")
 
@@ -297,20 +326,43 @@ class BotEngine:
 
         # 50-Round Detailed History & Screenshots (loaded from history/ directory)
         self.round_history: deque = deque(maxlen=50)
-        past_history = load_round_history_from_file(self.device_serial)
-        if past_history:
-            self.round_history.extend(past_history[:50])
-
         self.round_screenshots: Dict[int, bytes] = {}
         self.current_round_start_time: float = 0
         self.current_round_recorded: bool = False
+        self.current_round_boxes: List[str] = []
+        self.current_round_mystery_box_handled: bool = False
         self.current_round_screen: Optional[np.ndarray] = None
 
-        # Accumulated Coins & EXP Tracking
+        # Accumulated Coins, EXP & Play Time Tracking
         self.session_coins_earned: int = 0
         self.last_round_coins: int = 0
         self.session_xp_earned: int = 0
         self.last_round_xp: int = 0
+        self.accumulated_uptime_seconds: int = 0
+
+        past_history = load_round_history_from_file(self.device_serial)
+        if past_history:
+            self.round_history.extend(past_history[:50])
+            for h in past_history:
+                self.session_coins_earned += int(h.get("coins", 0) or 0)
+                self.session_xp_earned += int(h.get("xp", 0) or 0)
+
+                # Parse duration (e.g. '3m 3s' or '38s')
+                dur = str(h.get("duration", ""))
+                m = re.search(r"(\d+)m", dur)
+                s = re.search(r"(\d+)s", dur)
+                sec = (int(m.group(1)) * 60 if m else 0) + (int(s.group(1)) if s else 0)
+                self.accumulated_uptime_seconds += sec
+
+                boxes = h.get("boxes", [])
+                if isinstance(boxes, list):
+                    for b in boxes:
+                        if b in self.box_counts:
+                            self.box_counts[b] += 1
+                        self.box_counts["total"] += 1
+            self.mystery_boxes = self.box_counts["total"]
+            if self.round_history:
+                self.rounds_played = max(int(h.get("round", 0) or 0) for h in self.round_history)
 
         # Frame buffer for live stream
         self.latest_frame_jpeg: Optional[bytes] = None
@@ -327,9 +379,11 @@ class BotEngine:
         target = self.device_serial or (f"{self.device_ip}:{self.device_port}" if self.device_ip else "")
         log_entry = {
             "time": timestamp,
+            "timestamp": timestamp,
             "message": message,
             "level": level,
             "device": target,
+            "target": target,
         }
         self.logs.append(log_entry)
         dev_tag = f"[{target}] " if target else ""
@@ -378,7 +432,7 @@ class BotEngine:
             if self.is_running:
                 return {"success": False, "message": "Bot is already running"}
 
-            dev_req = user_config.get("device_serial") or user_config.get("device")
+            dev_req = user_config.get("device_serial") or user_config.get("device") or self.device_serial
             if dev_req:
                 self.device_serial = str(dev_req).strip()
                 if ":" in self.device_serial and not self.device_serial.startswith("emulator-"):
@@ -442,12 +496,14 @@ class BotEngine:
             self.is_running = False
             self.current_stage = "IDLE"
             self.log("⏹️ Bot stopped", "info")
-            uptime_sec = int(time.time() - self.start_time) if self.start_time else 0
-            hours, remainder = divmod(uptime_sec, 3600)
+            session_sec = int(time.time() - self.start_time) if self.start_time else 0
+            self.accumulated_uptime_seconds += session_sec
+            self.start_time = None
+            hours, remainder = divmod(session_sec, 3600)
             minutes, seconds = divmod(remainder, 60)
-            uptime_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+            session_uptime_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
             discord_notifier.send_bot_stop(
-                uptime=uptime_str,
+                uptime=session_uptime_str,
                 rounds_played=self.rounds_played,
                 total_boxes=self.mystery_boxes,
                 coins_earned=self.session_coins_earned,
@@ -470,24 +526,44 @@ class BotEngine:
         self.last_round_coins = 0
         self.session_xp_earned = 0
         self.last_round_xp = 0
+        self.accumulated_uptime_seconds = 0
         self.round_history.clear()
         self.round_screenshots.clear()
         self.box_history.clear()
-        self.log("📊 Stats, Mystery Box counts, Coins, and EXP reset to zero", "info")
+        self.current_round_boxes = []
+        self.current_round_mystery_box_handled = False
+
+        # Remove device-specific history files from disk
+        path_json = get_device_history_path(self.device_serial)
+        if os.path.isfile(path_json):
+            try:
+                os.remove(path_json)
+            except Exception:
+                pass
+        path_csv = get_device_history_csv_path(self.device_serial)
+        if os.path.isfile(path_csv):
+            try:
+                os.remove(path_csv)
+            except Exception:
+                pass
+
+        self.log("📊 ล้างข้อมูลสถิติ กล่องปริศนา เหรียญ และ EXP ทั้งหมดเป็น 0 แล้ว", "info")
 
     def get_status(self) -> Dict[str, Any]:
-        uptime_sec = int(time.time() - self.start_time) if self.is_running and self.start_time else 0
-        hours, remainder = divmod(uptime_sec, 3600)
+        session_sec = int(time.time() - self.start_time) if self.is_running and self.start_time else 0
+        total_uptime_sec = self.accumulated_uptime_seconds + session_sec
+        hours, remainder = divmod(total_uptime_sec, 3600)
         minutes, seconds = divmod(remainder, 60)
         uptime_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
 
-        coins_per_hour = int(self.session_coins_earned / max(0.001, uptime_sec / 3600)) if (self.is_running and uptime_sec > 5) else 0
+        coins_per_hour = int(self.session_coins_earned / max(0.001, total_uptime_sec / 3600)) if (total_uptime_sec > 5) else 0
 
         return {
             "is_running": self.is_running,
             "current_stage": self.current_stage,
             "uptime": uptime_str,
-            "uptime_seconds": uptime_sec,
+            "uptime_seconds": total_uptime_sec,
+            "session_uptime_seconds": session_sec,
             "rounds_played": self.rounds_played,
             "mystery_boxes": self.mystery_boxes,
             "box_counts": self.box_counts,
@@ -830,6 +906,8 @@ class BotEngine:
                     self.rounds_played += 1
                     self.current_round_start_time = time.time()
                     self.current_round_recorded = False
+                    self.current_round_boxes = []
+                    self.current_round_mystery_box_handled = False
                     self.current_round_screen = None
                     self.log(f"🏁 Round {self.rounds_played} started!", "success")
                     if self.interruptible_sleep(0.2):
@@ -868,7 +946,7 @@ class BotEngine:
                     round_score = extract_result_score(device_screen) if device_screen is not None else 0
                     round_coins = extract_result_coins(device_screen) if device_screen is not None else 0
                     round_xp = extract_result_xp(device_screen) if device_screen is not None else 0
-                    round_boxes = detect_result_screen_mystery_box(device_screen) if device_screen is not None else []
+                    result_badge_boxes = detect_result_screen_mystery_box(device_screen) if device_screen is not None else []
 
                     # หากตัวเลขยังไม่ขึ้น ลองรออีกครั้งและแคปใหม่
                     if round_coins == 0 and device_screen is not None:
@@ -880,7 +958,7 @@ class BotEngine:
                             round_score = extract_result_score(device_screen)
                             round_coins = extract_result_coins(device_screen)
                             round_xp = extract_result_xp(device_screen)
-                            round_boxes = detect_result_screen_mystery_box(device_screen)
+                            result_badge_boxes = detect_result_screen_mystery_box(device_screen)
 
                     # 4. [ขั้นตอนบันทึก - Save Screenshot] บันทึกไฟล์ภาพลง screenshots/ และ Web Dashboard
                     saved_img_path = None
@@ -908,16 +986,39 @@ class BotEngine:
                         self.session_xp_earned += round_xp
                         self.last_round_xp = round_xp
 
-                    if round_boxes:
-                        for b in round_boxes:
-                            self.box_counts[b] = self.box_counts.get(b, 0) + 1
-                        self.box_counts["total"] += len(round_boxes)
-                        self.mystery_boxes = self.box_counts["total"]
+                    # กำหนดกล่องปริศนาประจำรอบ
+                    if self.current_round_boxes:
+                        round_boxes = list(self.current_round_boxes)
+                    elif result_badge_boxes:
+                        round_boxes = ["wood"]
+                        self.current_round_boxes = list(round_boxes)
+                        if not self.current_round_mystery_box_handled:
+                            for b in round_boxes:
+                                self.box_counts[b] = self.box_counts.get(b, 0) + 1
+                            self.box_counts["total"] += len(round_boxes)
+                            self.mystery_boxes = self.box_counts["total"]
+                    else:
+                        round_boxes = []
 
-                    if not self.current_round_recorded:
-                        dur_sec = int(time.time() - self.current_round_start_time) if self.current_round_start_time else 0
-                        dur_str = f"{dur_sec // 60}m {dur_sec % 60}s" if dur_sec >= 60 else f"{dur_sec}s"
+                    dur_sec = int(time.time() - self.current_round_start_time) if self.current_round_start_time else 0
+                    dur_str = f"{dur_sec // 60}m {dur_sec % 60}s" if dur_sec >= 60 else f"{dur_sec}s"
 
+                    # อัปเดตหรือเพิ่มประวัติรอบ
+                    if self.round_history and self.round_history[0].get("round") == self.rounds_played:
+                        entry = self.round_history[0]
+                        entry["score"] = round_score
+                        entry["coins"] = round_coins
+                        entry["xp"] = round_xp
+                        entry["duration"] = dur_str
+                        if round_boxes:
+                            entry["boxes"] = round_boxes
+                            entry["box_count"] = len(round_boxes)
+                        if saved_img_path:
+                            entry["screenshot"] = saved_img_path
+                            entry["has_screenshot"] = True
+                        self.current_round_recorded = True
+                        save_round_history_to_file(self.device_serial, list(self.round_history), new_entry=entry)
+                    elif not self.current_round_recorded:
                         item = {
                             "round": self.rounds_played,
                             "time": datetime.now().strftime("%H:%M:%S"),
@@ -934,24 +1035,24 @@ class BotEngine:
                         self.current_round_recorded = True
                         save_round_history_to_file(self.device_serial, list(self.round_history), new_entry=item)
 
-                        score_log = f"คะแนน: {round_score:,} | " if round_score > 0 else ""
-                        xp_log = f" | +{round_xp:,} EXP" if round_xp > 0 else ""
-                        box_log = f" | 📦 ได้รับ {len(round_boxes)} กล่อง" if round_boxes else ""
-                        self.log(f"💾 [บันทึกข้อมูลสำเร็จ] รอบที่ #{self.rounds_played}: {score_log}+{round_coins:,} 🪙{xp_log}{box_log}", "success")
-                        if saved_img_path:
-                            self.log(f"   📸 บันทึกรูปภาพผลลัพธ์: {saved_img_path}", "info")
-                        self.log(f"   📁 บันทึกประวัติการเล่นลง: history/ (รอบที่ #{self.rounds_played})", "info")
+                    score_log = f"คะแนน: {round_score:,} | " if round_score > 0 else ""
+                    xp_log = f" | +{round_xp:,} EXP" if round_xp > 0 else ""
+                    box_log = f" | 📦 ได้รับ {len(round_boxes)} กล่อง" if round_boxes else ""
+                    self.log(f"💾 [บันทึกข้อมูลสำเร็จ] รอบที่ #{self.rounds_played}: {score_log}+{round_coins:,} 🪙{xp_log}{box_log}", "success")
+                    if saved_img_path:
+                        self.log(f"   📸 บันทึกรูปภาพผลลัพธ์: {saved_img_path}", "info")
+                    self.log(f"   📁 บันทึกประวัติการเล่นลง: history/ (รอบที่ #{self.rounds_played})", "info")
 
-                        discord_notifier.send_round_summary(
-                            round_num=self.rounds_played,
-                            duration_str=dur_str,
-                            coins_earned=round_coins,
-                            session_coins=self.session_coins_earned,
-                            xp_earned=round_xp,
-                            session_xp=self.session_xp_earned,
-                            boxes=round_boxes,
-                            screen_img=device_screen,
-                        )
+                    discord_notifier.send_round_summary(
+                        round_num=self.rounds_played,
+                        duration_str=dur_str,
+                        coins_earned=round_coins,
+                        session_coins=self.session_coins_earned,
+                        xp_earned=round_xp,
+                        session_xp=self.session_xp_earned,
+                        boxes=round_boxes,
+                        screen_img=device_screen,
+                    )
 
                     # 6. กดปุ่ม OK เพื่อปิดหน้าต่างสรุปผลทันที
                     self.log("👉 กดปุ่ม OK เพื่อดำเนินการต่อ", "info")
@@ -964,16 +1065,25 @@ class BotEngine:
                     clear_system_memory(target, self.device_port, log_func=self.log)
 
                 elif stage == "MYSTERY_BOX":
-                    # Wait briefly for box reveal animation to settle
+                    if self.current_round_mystery_box_handled:
+                        # ได้ตรวจจับและนับเกรดกล่องในรอบนี้ไปแล้ว กดรับและข้ามการสแกนซ้ำ
+                        accept_mystery_box()
+                        if self.interruptible_sleep(1.0):
+                            break
+                        detection_group = "POST_GAME"
+                        last_stage = None
+                        continue
+
+                    # รอแอนิเมชันเปิดกล่องนิ่ง
                     time.sleep(random.uniform(0.8, 1.2))
                     fresh_mb_screen = device_capture_screen(target, self.device_port)
                     if fresh_mb_screen is not None:
                         device_screen = fresh_mb_screen
 
-                    # Detect specific box grades
+                    # ตรวจจับเกรดกล่องที่แท้จริง
                     detected_grades = detect_mystery_box_grades(device_screen)
                     if not detected_grades:
-                        # Fallback: In MYSTERY_BOX stage, at least 1 box was dropped
+                        # Fallback: หน้า MYSTERY_BOX มีกล่องอย่างน้อย 1 กล่อง
                         detected_grades = ["wood"]
 
                     box_names_th = {
@@ -983,6 +1093,16 @@ class BotEngine:
                         "rainbow": "🌈 รุ้ง",
                     }
                     grade_str = ", ".join([box_names_th.get(g, g) for g in detected_grades])
+
+                    # หากก่อนหน้านี้ GAME_COMPLETE นับเป็น wood ไปก่อน ให้หักลบออกเพื่อไม่ให้ยอดเบิ้ล
+                    if self.current_round_boxes and not self.current_round_mystery_box_handled:
+                        for old_b in self.current_round_boxes:
+                            if old_b in self.box_counts and self.box_counts[old_b] > 0:
+                                self.box_counts[old_b] -= 1
+                                self.box_counts["total"] = max(0, self.box_counts["total"] - 1)
+
+                    self.current_round_boxes = list(detected_grades)
+                    self.current_round_mystery_box_handled = True
 
                     for g in detected_grades:
                         self.box_counts[g] = self.box_counts.get(g, 0) + 1
@@ -1002,11 +1122,11 @@ class BotEngine:
                         except Exception:
                             pass
 
-                    # Update or append round history record in history/ directory
-                    if self.round_history and self.round_history[0]["round"] == self.rounds_played:
-                        self.round_history[0]["boxes"] = detected_grades
+                    # อัปเดตข้อมูลกล่องในรอบปัจจุบัน
+                    if self.round_history and self.round_history[0].get("round") == self.rounds_played:
+                        self.round_history[0]["boxes"] = list(detected_grades)
                         self.round_history[0]["box_count"] = len(detected_grades)
-                        save_round_history_to_file(self.device_serial, list(self.round_history))
+                        save_round_history_to_file(self.device_serial, list(self.round_history), new_entry=self.round_history[0])
                     else:
                         round_coins = extract_result_coins(device_screen) if device_screen is not None else 0
                         round_xp = extract_result_xp(device_screen) if device_screen is not None else 0
@@ -1023,7 +1143,7 @@ class BotEngine:
                             "duration": dur_str,
                             "coins": round_coins,
                             "xp": round_xp,
-                            "boxes": detected_grades,
+                            "boxes": list(detected_grades),
                             "box_count": len(detected_grades),
                             "has_screenshot": True,
                             "screenshot": "",

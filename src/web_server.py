@@ -22,6 +22,7 @@ from adb import (
     device_tap,
     get_adb_path,
     scan_adb_devices,
+    clear_system_memory,
 )
 from bot_engine import (
     BOOST_OPTIONS,
@@ -99,6 +100,15 @@ templates_path = os.path.join(os.path.dirname(__file__), "templates")
 if os.path.isdir(templates_path):
     app.mount("/templates", StaticFiles(directory=templates_path), name="templates")
 
+screenshots_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "screenshots")
+if os.path.isdir(screenshots_path):
+    app.mount("/screenshots", StaticFiles(directory=screenshots_path), name="screenshots")
+
+frontend_dist_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend", "dist")
+frontend_assets_path = os.path.join(frontend_dist_path, "assets")
+if os.path.isdir(frontend_assets_path):
+    app.mount("/assets", StaticFiles(directory=frontend_assets_path), name="assets")
+
 _bot_icon_path = os.path.join(os.path.dirname(__file__), "bot_icon.ico")
 
 @app.get("/bot_icon.ico", include_in_schema=False)
@@ -110,36 +120,37 @@ async def serve_favicon():
     return Response(status_code=404)
 
 
-# Models
 class StartBotRequest(BaseModel):
+    device: Optional[str] = None
     device_serial: Optional[str] = None
-    device_ip: str = "127.0.0.1"
-    device_port: int = 7555
-    use_hp_boost: bool = False
-    use_item_extension: bool = False
-    use_double_xp: bool = False
-    use_fast_start: bool = False
-    fast_start_min_stock: int = 10
-    use_cookie_relay: bool = False
-    cookie_relay_min_stock: int = 10
-    use_desired_random_boost: bool = False
-    desired_boost_id: str = "double_coins"
-    detect_relic: bool = True
-    send_friend_lives: bool = True
-    heart_farmer_enabled: bool = False
-    heart_farmer_device: str = "emulator-5562"
-    heart_farmer_devices: List[str] = []
-    heart_farmer_invite: str = "ใส่ลิงก์เชิญเพื่อนของคุณ"
-    stop_goal_rounds_enabled: bool = False
-    stop_goal_rounds_target: int = 50
-    stop_goal_time_enabled: bool = False
-    stop_goal_time_hours: float = 2.0
+    device_ip: Optional[str] = None
+    device_port: Optional[int] = None
+    use_hp_boost: Optional[bool] = None
+    use_item_extension: Optional[bool] = None
+    use_double_xp: Optional[bool] = None
+    use_fast_start: Optional[bool] = None
+    fast_start_min_stock: Optional[int] = None
+    use_cookie_relay: Optional[bool] = None
+    cookie_relay_min_stock: Optional[int] = None
+    use_desired_random_boost: Optional[bool] = None
+    desired_boost_id: Optional[str] = None
+    detect_relic: Optional[bool] = None
+    send_friend_lives: Optional[bool] = None
+    heart_farmer_enabled: Optional[bool] = None
+    heart_farmer_device: Optional[str] = None
+    heart_farmer_devices: Optional[List[str]] = None
+    heart_farmer_invite: Optional[str] = None
+    stop_goal_rounds_enabled: Optional[bool] = None
+    stop_goal_rounds_target: Optional[int] = None
+    stop_goal_time_enabled: Optional[bool] = None
+    stop_goal_time_hours: Optional[float] = None
 
 
 BotSettings = StartBotRequest
 
 
 class StopBotRequest(BaseModel):
+    device: Optional[str] = None
     device_serial: Optional[str] = None
 
 
@@ -306,24 +317,16 @@ def get_devices():
     device_map = {}
     for d in scanned:
         serial = d["serial"]
-        engine = all_engines.get(serial)
-        d["is_running"] = engine.is_running if engine else False
-        d["current_stage"] = engine.current_stage if engine else "IDLE"
-        if engine:
-            st = engine.get_status()
-            d["rounds_played"] = st.get("rounds_played", 0)
-            d["mystery_boxes"] = st.get("mystery_boxes", 0)
-            d["uptime"] = st.get("uptime", "00:00:00")
-            d["box_counts"] = st.get("box_counts", {})
-            d["coin_stats"] = st.get("coin_stats", {})
-            d["round_history"] = st.get("round_history", [])
-        else:
-            d["rounds_played"] = 0
-            d["mystery_boxes"] = 0
-            d["uptime"] = "00:00:00"
-            d["box_counts"] = {"wood": 0, "silver": 0, "gold": 0, "rainbow": 0, "total": 0}
-            d["coin_stats"] = {"session_earned": 0, "session_xp_earned": 0, "coins_per_hour": 0, "last_round": 0, "last_round_xp": 0}
-            d["round_history"] = []
+        engine = engine_manager.get_or_create_engine(serial)
+        d["is_running"] = engine.is_running
+        d["current_stage"] = engine.current_stage
+        st = engine.get_status()
+        d["rounds_played"] = st.get("rounds_played", 0)
+        d["mystery_boxes"] = st.get("mystery_boxes", 0)
+        d["uptime"] = st.get("uptime", "00:00:00")
+        d["box_counts"] = st.get("box_counts", {})
+        d["coin_stats"] = st.get("coin_stats", {})
+        d["round_history"] = st.get("round_history", [])
         device_map[serial] = d
 
     # Also include any active engine serials that may not be in scanned (only if currently running)
@@ -381,23 +384,45 @@ def reset_settings(device: Optional[str] = None):
 
 @app.post("/api/start")
 def start_bot(req: BotSettings, device: Optional[str] = None):
-    dev = (req.device_serial if req.device_serial else None) or device
+    dev = (req.device_serial if req.device_serial else None) or (req.device if req.device else None) or device
     if not dev or not str(dev).strip():
         scanned = scan_adb_devices()
         if scanned:
             dev = scanned[0]["serial"]
         else:
             dev = f"{config.DEVICE_IP}:{config.DEVICE_PORT}"
+    dev = str(dev).strip()
     eng = get_engine_for_device(dev)
     eng.log(f"[BOT] สั่งเริ่มการทำงานบอทสำหรับจอ {dev}", "bot")
-    res = eng.start(req.model_dump())
+
+    # Load saved settings for this specific device as base config
+    merged_settings = load_bot_settings(dev)
+    # Merge any non-None fields passed in the request
+    req_dict = {k: v for k, v in req.model_dump().items() if v is not None}
+    merged_settings.update(req_dict)
+
+    # CRITICAL: Always ensure device_serial explicitly points to the chosen device!
+    merged_settings["device_serial"] = dev
+    if ":" in dev and not dev.startswith("emulator-"):
+        parts = dev.split(":", 1)
+        merged_settings["device_ip"] = parts[0]
+        try:
+            merged_settings["device_port"] = int(parts[1])
+        except Exception:
+            merged_settings["device_port"] = 5555
+    else:
+        merged_settings["device_ip"] = dev
+        merged_settings["device_port"] = 5555
+
+    res = eng.start(merged_settings)
     if not res["success"]:
         raise HTTPException(status_code=400, detail=res["message"])
 
     # --- Launch Heart Farmer thread if enabled ---
-    if req.heart_farmer_enabled and _HeartFarmer is not None:
-        farmer_invite = req.heart_farmer_invite.strip() or "ลิงก์เชิญเพื่อน"
-        target_devs = [d.strip() for d in req.heart_farmer_devices if d and d.strip()] if req.heart_farmer_devices else ([req.heart_farmer_device.strip()] if req.heart_farmer_device else [dev])
+    if merged_settings.get("heart_farmer_enabled") and _HeartFarmer is not None:
+        farmer_invite = str(merged_settings.get("heart_farmer_invite", "")).strip() or "ลิงก์เชิญเพื่อน"
+        farmer_devs = merged_settings.get("heart_farmer_devices")
+        target_devs = [d.strip() for d in farmer_devs if d and d.strip()] if farmer_devs else ([merged_settings.get("heart_farmer_device", "").strip()] if merged_settings.get("heart_farmer_device") else [dev])
         for fdev in target_devs:
             if fdev:
                 _start_heart_farmer(fdev, farmer_invite)
@@ -562,7 +587,7 @@ def api_cleaner_run_once(req: Optional[FriendCleanerRunOnceRequest] = None, devi
 
 @app.post("/api/stop")
 def stop_bot(req: Optional[StopBotRequest] = None, device: Optional[str] = None):
-    dev = (req.device_serial if req and req.device_serial else None) or device
+    dev = (req.device_serial if req and req.device_serial else None) or (req.device if req and req.device else None) or device
     if not dev or not str(dev).strip():
         running_engines = [e for e in engine_manager.get_all_engines().values() if e.is_running]
         if running_engines:
@@ -582,11 +607,78 @@ def stop_bot(req: Optional[StopBotRequest] = None, device: Optional[str] = None)
     return res
 
 
+@app.post("/api/start-all")
+def api_start_all():
+    """Start bot on all scanned online devices."""
+    devices = scan_adb_devices()
+    started = []
+    errors = []
+    for d in devices:
+        serial = d.get("serial")
+        if not serial:
+            continue
+        eng = get_engine_for_device(serial)
+        if not eng.is_running:
+            settings = load_bot_settings(serial)
+            res = eng.start(settings)
+            if res.get("success", False):
+                started.append(serial)
+            else:
+                errors.append(f"{serial}: {res.get('message', 'Failed')}")
+        else:
+            started.append(serial)
+    return {
+        "success": len(errors) == 0,
+        "started": started,
+        "errors": errors,
+        "message": f"เริ่มบอทแล้ว {len(started)} จอ" + (f" (พบปัญหา: {', '.join(errors)})" if errors else "")
+    }
+
+
+@app.post("/api/stop-all")
+def api_stop_all():
+    """Stop bot on all devices."""
+    stopped = []
+    for serial, eng in engine_manager.get_all_engines().items():
+        if eng.is_running:
+            eng.stop()
+            stopped.append(serial)
+    if bot_engine.is_running:
+        bot_engine.stop()
+        stopped.append("default")
+    return {"success": True, "stopped": stopped, "message": f"สั่งหยุดบอทแล้ว {len(stopped)} จอ"}
+
+
+@app.post("/api/clear-ram")
+def api_clear_ram(device: Optional[str] = None):
+    """Manually trigger 3-level RAM clearance."""
+    dev = device.strip() if device and device.strip() else None
+    eng = get_engine_for_device(dev)
+    clear_system_memory(dev, log_func=eng.log)
+    return {"success": True, "message": f"🧹 เคลียร์ RAM สำเร็จ ({dev or 'Host PC'})"}
+
+
+
 @app.post("/api/reset-stats")
 def reset_stats(device: Optional[str] = None):
+    if not device or device == "all":
+        for serial, eng in engine_manager.get_all_engines().items():
+            eng.reset_stats()
+        bot_engine.reset_stats()
+        # Clean all history directory files
+        if os.path.isdir(HISTORY_DIR):
+            for f in os.listdir(HISTORY_DIR):
+                fp = os.path.join(HISTORY_DIR, f)
+                if os.path.isfile(fp):
+                    try:
+                        os.remove(fp)
+                    except Exception:
+                        pass
+        return {"success": True, "message": "ลบสถิติทั้งหมดของทุกจอเรียบร้อยแล้ว"}
+
     eng = get_engine_for_device(device)
     eng.reset_stats()
-    return {"success": True}
+    return {"success": True, "message": f"ลบสถิติของจอ {device} เรียบร้อยแล้ว"}
 
 
 @app.post("/api/test-connection")
@@ -756,6 +848,18 @@ def get_round_screenshot(round_num: int, device: Optional[str] = None):
     jpeg_bytes = eng.round_screenshots.get(round_num)
     if jpeg_bytes is not None:
         return Response(content=jpeg_bytes, media_type="image/jpeg")
+
+    # Check disk for saved screenshot
+    import glob
+    pattern = os.path.join(screenshots_path, f"round_{round_num}_*.png")
+    matches = glob.glob(pattern)
+    if matches:
+        try:
+            with open(matches[0], "rb") as f:
+                return Response(content=f.read(), media_type="image/png")
+        except Exception:
+            pass
+
     blank = np.zeros((480, 854, 3), dtype=np.uint8)
     blank[:] = (20, 24, 35)
     cv2.putText(blank, f"No screenshot for Round #{round_num}", (220, 240), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (180, 180, 190), 2, cv2.LINE_AA)
@@ -812,8 +916,13 @@ async def websocket_logs(websocket: WebSocket, device: Optional[str] = None):
 
 @app.get("/", response_class=HTMLResponse)
 def get_index():
+    react_index_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend", "dist", "index.html")
+    if os.path.isfile(react_index_path):
+        with open(react_index_path, "r", encoding="utf-8") as f:
+            return f.read()
+
     index_path = os.path.join(os.path.dirname(__file__), "web", "index.html")
     if os.path.isfile(index_path):
         with open(index_path, "r", encoding="utf-8") as f:
             return f.read()
-    return "<h1>Web Dashboard UI file not found in web/index.html</h1>"
+    return "<h1>Web Dashboard UI file not found</h1>"

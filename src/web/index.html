@@ -370,10 +370,10 @@
         <div
           class="bg-white border border-purple-100/90 rounded-3xl p-4 shadow-card hover:shadow-lg transition flex items-center justify-between">
           <div class="space-y-1">
-            <p class="text-xs font-medium text-slate-400">เวลาทำงานรวม</p>
+            <p class="text-xs font-medium text-slate-400">เวลาการทำงานบอท</p>
             <h4 id="stat-uptime" class="text-lg sm:text-xl font-mono font-bold text-slate-800">00:00:00</h4>
-            <span class="text-[11px] font-semibold text-emerald-600 flex items-center gap-1">
-              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> ทำงานปกติ
+            <span id="stat-uptime-status" class="text-[11px] font-semibold text-slate-500 flex items-center gap-1">
+              <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span> พร้อมทำงาน
             </span>
           </div>
           <div
@@ -400,11 +400,31 @@
                   0 จอ
                 </span>
               </div>
-              <p class="text-xs text-slate-400">เลือกจอที่ต้องการสั่งเริ่ม/หยุด หรือปรับแต่งการตั้งค่า
-                (แต่ละจอแยกอิสระจากกัน)</p>
+              <p class="text-xs text-slate-400">เลือกจอที่ต้องการสั่งเริ่ม/หยุด หรือปรับแต่งการตั้งค่า (แต่ละจอแยกอิสระจากกัน)</p>
             </div>
           </div>
 
+          <!-- Multi-Device Batch Actions -->
+          <div class="flex items-center gap-2 shrink-0">
+            <button onclick="startAllBots()" id="btn-start-all"
+              class="px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white font-bold text-xs shadow-sm transition flex items-center gap-1.5 active:scale-95 cursor-pointer"
+              title="สั่งเริ่มบอทบนทุกจอที่ออนไลน์พร้อมกัน">
+              <span>🚀</span>
+              <span>เริ่มทุกจอ</span>
+            </button>
+            <button onclick="stopAllBots()" id="btn-stop-all"
+              class="px-3.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 font-bold text-xs transition flex items-center gap-1.5 active:scale-95 cursor-pointer"
+              title="สั่งหยุดบอททุกจอที่ทำงานอยู่">
+              <span>⏹️</span>
+              <span>หยุดทุกจอ</span>
+            </button>
+            <button onclick="scanDevices(true)"
+              class="px-3.5 py-2 rounded-xl bg-purple-50 hover:bg-purple-100 text-brand-700 border border-purple-200 font-bold text-xs transition flex items-center gap-1.5 active:scale-95 cursor-pointer"
+              title="สแกนหา Emulator ใหม่">
+              <span>🔄</span>
+              <span>สแกนจอ</span>
+            </button>
+          </div>
         </div>
 
         <!-- Emulator Cards Grid Container -->
@@ -508,6 +528,37 @@
                 <span>⏹️</span>
                 <span>หยุดบอท</span>
               </button>
+
+              <!-- Quick Tool Actions -->
+              <div class="grid grid-cols-2 gap-2 pt-2 border-t border-purple-100/80">
+                <button onclick="clearRam()" id="btn-clear-ram"
+                  class="p-2 rounded-xl bg-white hover:bg-purple-100/70 border border-purple-200 text-brand-700 font-semibold text-xs transition flex items-center justify-center gap-1.5 shadow-xs active:scale-95 cursor-pointer"
+                  title="คืนหน่วยความจำ Python, Windows RAM และ Android Cache ทันที">
+                  <span>🧹</span>
+                  <span>เคลียร์ RAM</span>
+                </button>
+
+                <button onclick="resetApp()" id="btn-reset-app"
+                  class="p-2 rounded-xl bg-white hover:bg-amber-100/70 border border-amber-200 text-amber-800 font-semibold text-xs transition flex items-center justify-center gap-1.5 shadow-xs active:scale-95 cursor-pointer"
+                  title="สั่งบังคับปิดและเปิดแอปเกม CookieRun ใหม่">
+                  <span>🔄</span>
+                  <span>รีสตาร์ทเกม</span>
+                </button>
+
+                <button onclick="testConnection()" id="btn-test-conn"
+                  class="p-2 rounded-xl bg-white hover:bg-indigo-100/70 border border-indigo-200 text-indigo-700 font-semibold text-xs transition flex items-center justify-center gap-1.5 shadow-xs active:scale-95 cursor-pointer"
+                  title="ทดสอบส่งคำสั่ง ping ไปยัง ADB">
+                  <span>🔌</span>
+                  <span>เช็ค ADB</span>
+                </button>
+
+                <button onclick="captureScreenshot()" id="btn-screenshot"
+                  class="p-2 rounded-xl bg-white hover:bg-emerald-100/70 border border-emerald-200 text-emerald-800 font-semibold text-xs transition flex items-center justify-center gap-1.5 shadow-xs active:scale-95 cursor-pointer"
+                  title="เปิดดูภาพหน้าจอปัจจุบัน">
+                  <span>📸</span>
+                  <span>แคปหน้าจอ</span>
+                </button>
+              </div>
 
             </div>
 
@@ -1008,6 +1059,67 @@
           </select>
         </div>
 
+        <!-- Auto-Stop Goals -->
+        <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200/70 space-y-3">
+          <h4 class="font-bold text-slate-800 flex items-center gap-1.5">
+            <span>🎯</span> เป้าหมายการหยุดบอทอัตโนมัติ (Auto-Stop Goals)
+          </h4>
+          <div class="space-y-2.5">
+            <div class="flex items-center justify-between p-2.5 rounded-xl bg-white border border-slate-200">
+              <label class="flex items-center gap-2 cursor-pointer font-medium text-slate-700">
+                <input type="checkbox" id="cfg-stop-goal-rounds" class="rounded text-brand-600">
+                <span>หยุดเมื่อวิ่งครบตามเป้าหมายรอบ</span>
+              </label>
+              <div class="flex items-center gap-1.5">
+                <input type="number" id="cfg-stop-goal-rounds-target" value="50" min="1" max="9999"
+                  class="w-20 px-2 py-1 text-center font-mono font-bold rounded-lg border border-slate-200 text-xs focus:ring-2 focus:ring-brand-500 outline-none">
+                <span class="text-slate-500 font-medium">รอบ</span>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between p-2.5 rounded-xl bg-white border border-slate-200">
+              <label class="flex items-center gap-2 cursor-pointer font-medium text-slate-700">
+                <input type="checkbox" id="cfg-stop-goal-time" class="rounded text-brand-600">
+                <span>หยุดเมื่อปล่อยบอทครบเวลา</span>
+              </label>
+              <div class="flex items-center gap-1.5">
+                <input type="number" id="cfg-stop-goal-time-hours" value="2.0" step="0.5" min="0.5" max="24"
+                  class="w-20 px-2 py-1 text-center font-mono font-bold rounded-lg border border-slate-200 text-xs focus:ring-2 focus:ring-brand-500 outline-none">
+                <span class="text-slate-500 font-medium">ชั่วโมง</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Item Stock & Social Settings -->
+        <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200/70 space-y-3">
+          <h4 class="font-bold text-slate-800 flex items-center gap-1.5">
+            <span>📦</span> จัดการสต็อกไอเทม & เพื่อน
+          </h4>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="text-slate-500 font-medium block">ซื้อ Fast Start เมื่อเหลือน้อยกว่า</label>
+              <div class="flex items-center gap-1.5 mt-1">
+                <input type="number" id="cfg-fast-start-min-stock" value="10" min="1" max="99"
+                  class="w-full px-2.5 py-1.5 font-mono font-bold rounded-xl bg-white border border-slate-200 text-xs focus:ring-2 focus:ring-brand-500 outline-none">
+                <span class="text-slate-500 shrink-0">ชิ้น</span>
+              </div>
+            </div>
+            <div>
+              <label class="text-slate-500 font-medium block">ซื้อ Cookie Relay เมื่อเหลือน้อยกว่า</label>
+              <div class="flex items-center gap-1.5 mt-1">
+                <input type="number" id="cfg-cookie-relay-min-stock" value="10" min="1" max="99"
+                  class="w-full px-2.5 py-1.5 font-mono font-bold rounded-xl bg-white border border-slate-200 text-xs focus:ring-2 focus:ring-brand-500 outline-none">
+                <span class="text-slate-500 shrink-0">ชิ้น</span>
+              </div>
+            </div>
+          </div>
+          <label class="flex items-center justify-between p-2.5 rounded-xl bg-white border border-slate-200 cursor-pointer">
+            <span class="font-medium text-slate-700">💌 ส่งหัวใจให้เพื่อนทุกคนตามรอบอัตโนมัติ</span>
+            <input type="checkbox" id="cfg-send-friend-lives" checked class="rounded text-brand-600">
+          </label>
+        </div>
+
       </div>
 
       <!-- Action Buttons -->
@@ -1326,14 +1438,7 @@
           if (force) appendLog({ level: 'sys', message: `สแกนเสร็จสิ้น พบทั้งหมด ${allDevices.length} จอ` });
 
           if (!currentDeviceSerial && allDevices.length > 0) {
-            const urlParams = new URLSearchParams(window.location.search);
-            const targetDev = urlParams.get('device');
-            const found = targetDev ? allDevices.find(d => d.serial === targetDev || d.serial.includes(targetDev)) : null;
-            if (found) {
-              switchDevice(found.serial);
-            } else {
-              switchDevice(allDevices[0].serial);
-            }
+            switchDevice(allDevices[0].serial);
           }
         }
       } catch (e) {
@@ -1526,6 +1631,162 @@
       }
     }
 
+    // ==================== BATCH MULTI-DEVICE ACTIONS ====================
+    async function startAllBots() {
+      const btn = document.getElementById('btn-start-all');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<span>⏳</span><span>กำลังเริ่ม...</span>`;
+      }
+      appendLog({ level: 'bot', message: `🚀 สั่งเริ่มการทำงานบอทบนทุกจอที่เชื่อมต่อ...` });
+      try {
+        const res = await fetch('/api/start-all', { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+          appendLog({ level: 'bot', message: `✅ ${data.message}` });
+        } else {
+          appendLog({ level: 'error', message: `⚠️ ${data.message}` });
+        }
+        await scanDevices();
+        await fetchStats();
+      } catch (e) {
+        appendLog({ level: 'error', message: `เริ่มบอททุกจอไม่สำเร็จ: ${e.message}` });
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = `<span>🚀</span><span>เริ่มทุกจอ</span>`;
+        }
+      }
+    }
+
+    async function stopAllBots() {
+      const btn = document.getElementById('btn-stop-all');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<span>⏳</span><span>กำลังหยุด...</span>`;
+      }
+      appendLog({ level: 'bot', message: `⏹️ สั่งหยุดการทำงานบอททุกจอ...` });
+      try {
+        const res = await fetch('/api/stop-all', { method: 'POST' });
+        const data = await res.json();
+        appendLog({ level: 'bot', message: `✅ ${data.message}` });
+        await scanDevices();
+        await fetchStats();
+      } catch (e) {
+        appendLog({ level: 'error', message: `หยุดบอทไม่สำเร็จ: ${e.message}` });
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = `<span>⏹️</span><span>หยุดทุกจอ</span>`;
+        }
+      }
+    }
+
+    // ==================== QUICK TOOL ACTIONS ====================
+    async function clearRam() {
+      const dev = currentDeviceSerial || "";
+      const btn = document.getElementById('btn-clear-ram');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<span>⏳</span><span>กำลังเคลียร์...</span>`;
+      }
+      appendLog({ level: 'sys', message: `🧹 กำลังสั่งเคลียร์ RAM (Python GC, Windows Working Set, Android cache)...`, device: dev });
+      try {
+        const res = await fetch(`/api/clear-ram?device=${encodeURIComponent(dev)}`, { method: 'POST' });
+        const data = await res.json();
+        appendLog({ level: 'sys', message: `✅ ${data.message}`, device: dev });
+        alert(data.message);
+      } catch (e) {
+        appendLog({ level: 'error', message: `เคลียร์ RAM ไม่สำเร็จ: ${e.message}`, device: dev });
+        alert("เคลียร์ RAM ไม่สำเร็จ: " + e.message);
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = `<span>🧹</span><span>เคลียร์ RAM</span>`;
+        }
+      }
+    }
+
+    async function resetApp() {
+      const dev = currentDeviceSerial || "";
+      if (!confirm(`ต้องการสั่งบังคับรีสตาร์ทแอป CookieRun บนจอ [${dev || 'ปัจจุบัน'}] หรือไม่?`)) return;
+      const btn = document.getElementById('btn-reset-app');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<span>⏳</span><span>กำลังรีเซ็ต...</span>`;
+      }
+      appendLog({ level: 'sys', message: `🔄 สั่งรีเซ็ตและเปิดแอปเกม CookieRun ใหม่...`, device: dev });
+      try {
+        const payload = {
+          device_serial: dev,
+          device_ip: dev.includes(':') ? dev.split(':')[0] : dev,
+          device_port: dev.includes(':') ? parseInt(dev.split(':')[1]) : 5555
+        };
+        const res = await fetch('/api/reset-app', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        appendLog({ level: 'sys', message: `✅ รีสตาร์ทแอปเกมสำเร็จ`, device: dev });
+        alert("รีสตาร์ทแอปเกมเรียบร้อยแล้ว");
+      } catch (e) {
+        appendLog({ level: 'error', message: `รีสตาร์ทแอปไม่สำเร็จ: ${e.message}`, device: dev });
+        alert("รีสตาร์ทแอปไม่สำเร็จ: " + e.message);
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = `<span>🔄</span><span>รีสตาร์ทเกม</span>`;
+        }
+      }
+    }
+
+    async function testConnection() {
+      const dev = currentDeviceSerial || "";
+      const btn = document.getElementById('btn-test-conn');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<span>⏳</span><span>กำลังเช็ค...</span>`;
+      }
+      appendLog({ level: 'sys', message: `🔌 กำลังทดสอบการเชื่อมต่อ ADB ไปยัง ${dev}...`, device: dev });
+      const t0 = performance.now();
+      try {
+        const payload = {
+          device_serial: dev,
+          device_ip: dev.includes(':') ? dev.split(':')[0] : dev,
+          device_port: dev.includes(':') ? parseInt(dev.split(':')[1]) : 5555
+        };
+        const res = await fetch('/api/test-connection', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        const latency = Math.round(performance.now() - t0);
+        if (data.success) {
+          appendLog({ level: 'sys', message: `✅ เชื่อมต่อ ADB สำเร็จ (${latency}ms) - ${data.message}`, device: dev });
+          alert(`✅ การเชื่อมต่อ ADB สมบูรณ์!\n• อุปกรณ์: ${dev}\n• ความเร็วตอบสนอง: ${latency} ms\n• สถานะ: ${data.message}`);
+        } else {
+          appendLog({ level: 'error', message: `❌ เชื่อมต่อ ADB ไม่สำเร็จ: ${data.message}`, device: dev });
+          alert(`❌ การเชื่อมต่อ ADB ล้มเหลว:\n${data.message}`);
+        }
+      } catch (e) {
+        appendLog({ level: 'error', message: `ทดสอบเชื่อมต่อล้มเหลว: ${e.message}`, device: dev });
+        alert("เกิดข้อผิดพลาดในการทดสอบ: " + e.message);
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = `<span>🔌</span><span>เช็ค ADB</span>`;
+        }
+      }
+    }
+
+    function captureScreenshot() {
+      const dev = currentDeviceSerial || "";
+      const url = `/api/screenshot?device=${encodeURIComponent(dev)}&t=${Date.now()}`;
+      window.open(url, '_blank');
+    }
+
     // ==================== STATS & STATUS POLLING ====================
     async function fetchStats() {
       if (!currentDeviceSerial && allDevices.length > 0) {
@@ -1605,6 +1866,17 @@
       const uptimeEl = document.getElementById('stat-uptime');
       if (uptimeEl) uptimeEl.textContent = dev.uptime || "00:00:00";
 
+      const uptimeStatusEl = document.getElementById('stat-uptime-status');
+      if (uptimeStatusEl) {
+        if (isRunning) {
+          uptimeStatusEl.className = "text-[11px] font-semibold text-emerald-600 flex items-center gap-1";
+          uptimeStatusEl.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> กำลังทำงาน`;
+        } else {
+          uptimeStatusEl.className = "text-[11px] font-semibold text-slate-500 flex items-center gap-1";
+          uptimeStatusEl.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span> พร้อมทำงาน`;
+        }
+      }
+
       // 4. Connection Info Card
       const adbTarget = document.getElementById('info-adb-target');
       if (adbTarget && dev.serial) {
@@ -1624,6 +1896,36 @@
       if (dev.round_history && Array.isArray(dev.round_history)) {
         renderRoundHistoryTable(dev.round_history);
       }
+
+      // 6. Update Accumulated Stats Modal Data (boxes, coins, exp)
+      updateStatsModalData(dev);
+    }
+
+    function getBoxBadgeHtml(b) {
+      const type = String(b || '').toLowerCase();
+      if (type === 'gold') {
+        return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-xl border border-yellow-200 bg-yellow-50 text-yellow-900 text-[11px] font-bold shadow-xs">
+          <img src="/templates/BOX_GOLD.png" alt="กล่องทอง" class="w-5 h-5 object-contain inline-block drop-shadow-xs">
+          <span>กล่องทอง</span>
+        </span>`;
+      }
+      if (type === 'silver') {
+        return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-xl border border-slate-200 bg-slate-100 text-slate-800 text-[11px] font-bold shadow-xs">
+          <img src="/templates/BOX_SILVER.png" alt="กล่องเงิน" class="w-5 h-5 object-contain inline-block drop-shadow-xs">
+          <span>กล่องเงิน</span>
+        </span>`;
+      }
+      if (type === 'rainbow') {
+        return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-xl border border-pink-200 bg-gradient-to-r from-pink-50 to-purple-50 text-purple-900 text-[11px] font-bold shadow-xs">
+          <img src="/templates/BOX_RAINBOW.png" alt="กล่องรุ้ง" class="w-5 h-5 object-contain inline-block drop-shadow-xs">
+          <span>กล่องรุ้ง</span>
+        </span>`;
+      }
+      // default / wood
+      return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-xl border border-amber-200 bg-amber-50 text-amber-900 text-[11px] font-bold shadow-xs">
+        <img src="/templates/BOX_WOOD.png" alt="กล่องไม้" class="w-5 h-5 object-contain inline-block drop-shadow-xs">
+        <span>กล่องไม้</span>
+      </span>`;
     }
 
     function renderRoundHistoryTable(history) {
@@ -1633,20 +1935,33 @@
         tbody.innerHTML = `<tr><td colspan="7" class="py-6 text-center text-slate-400 italic">ยังไม่มีประวัติการเล่นในเซสชันนี้</td></tr>`;
         return;
       }
-      const recent = [...history].reverse().slice(0, 5);
-      tbody.innerHTML = recent.map((r, i) => `
-        <tr class="hover:bg-purple-50/40 transition">
-          <td class="py-2.5 px-3 text-slate-500 font-mono">${i + 1}</td>
-          <td class="py-2.5 px-3 text-slate-500 font-mono">${r.time || '-'}</td>
-          <td class="py-2.5 px-3 font-bold text-brand-700">รอบที่ ${r.round || '-'}</td>
-          <td class="py-2.5 px-3 text-amber-600 font-semibold font-mono">🪙 ${r.coins || 0}</td>
-          <td class="py-2.5 px-3 text-indigo-600 font-semibold font-mono">⭐ ${r.xp || 0}</td>
-          <td class="py-2.5 px-3 text-purple-600 font-semibold">🎁 ${r.boxes || 0}</td>
-          <td class="py-2.5 px-3">
-            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">สำเร็จ</span>
-          </td>
-        </tr>
-      `).join('');
+      // Show newest 5 rounds
+      const recent = history.slice(0, 5);
+      tbody.innerHTML = recent.map((r, i) => {
+        let boxHtml = '<span class="text-slate-400 font-normal">-</span>';
+        if (Array.isArray(r.boxes) && r.boxes.length > 0) {
+          boxHtml = `<div class="flex flex-wrap items-center gap-1.5">` + r.boxes.map(b => getBoxBadgeHtml(b)).join('') + `</div>`;
+        } else if (r.box_count > 0 || (typeof r.boxes === 'number' && r.boxes > 0)) {
+          boxHtml = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-xl border border-purple-200 bg-purple-50 text-purple-700 text-[11px] font-bold shadow-xs">
+            <img src="/templates/MYSTERY_BOX_1.png" alt="กล่องปริศนา" class="w-5 h-5 object-contain inline-block drop-shadow-xs">
+            <span>${r.box_count || r.boxes} กล่อง</span>
+          </span>`;
+        }
+
+        return `
+          <tr class="hover:bg-purple-50/40 transition">
+            <td class="py-2.5 px-3 text-slate-500 font-mono">${i + 1}</td>
+            <td class="py-2.5 px-3 text-slate-500 font-mono">${r.time || '-'}</td>
+            <td class="py-2.5 px-3 font-bold text-brand-700">รอบที่ ${r.round || '-'}</td>
+            <td class="py-2.5 px-3 text-amber-600 font-semibold font-mono">🪙 ${(r.coins || 0).toLocaleString()}</td>
+            <td class="py-2.5 px-3 text-indigo-600 font-semibold font-mono">⭐ ${(r.xp || 0).toLocaleString()}</td>
+            <td class="py-2.5 px-3 font-semibold">${boxHtml}</td>
+            <td class="py-2.5 px-3">
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">สำเร็จ</span>
+            </td>
+          </tr>
+        `;
+      }).join('');
     }
 
     setInterval(fetchStats, 2000);
@@ -2143,12 +2458,75 @@
 
     // ==================== ROUND HISTORY MODAL ====================
     function openHistoryModal() {
+      renderDetailedHistoryModal();
       document.getElementById('round-modal')?.classList.remove('hidden');
       document.getElementById('round-modal')?.classList.add('flex');
     }
     function closeHistoryModal() {
       document.getElementById('round-modal')?.classList.add('hidden');
       document.getElementById('round-modal')?.classList.remove('flex');
+    }
+
+    function renderDetailedHistoryModal() {
+      const d = allDevicesData.find(x => x.serial === currentDeviceSerial) || allDevicesData[0];
+      const listEl = document.getElementById('modal-history-list');
+      if (!listEl) return;
+      const history = d?.round_history || [];
+      if (!history || history.length === 0) {
+        listEl.innerHTML = `<div class="p-8 text-center text-slate-400 italic">ยังไม่มีประวัติการเล่นที่บันทึกไว้</div>`;
+        return;
+      }
+
+      listEl.innerHTML = history.map((r, i) => {
+        let boxesHtml = '<span class="text-slate-400 text-[11px]">-</span>';
+        if (Array.isArray(r.boxes) && r.boxes.length > 0) {
+          boxesHtml = `<div class="flex flex-wrap items-center justify-end gap-1.5">` + r.boxes.map(b => getBoxBadgeHtml(b)).join('') + `</div>`;
+        } else if (r.box_count > 0 || (typeof r.boxes === 'number' && r.boxes > 0)) {
+          boxesHtml = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-xl border border-purple-200 bg-purple-50 text-purple-700 text-[11px] font-bold shadow-xs">
+            <img src="/templates/MYSTERY_BOX_1.png" alt="กล่องปริศนา" class="w-5 h-5 object-contain inline-block drop-shadow-xs">
+            <span>${r.box_count || r.boxes} กล่อง</span>
+          </span>`;
+        }
+
+        return `
+          <div onclick="selectHistoryRound(${r.round}, '${encodeURIComponent(r.screenshot || '')}', '${r.time || ''}', '${r.duration || ''}', ${r.score || 0}, ${r.coins || 0})"
+            class="p-3 rounded-2xl border border-purple-100 hover:border-brand-500 hover:bg-purple-50/50 cursor-pointer transition flex items-center justify-between group">
+            <div class="space-y-0.5">
+              <div class="flex items-center gap-2">
+                <span class="font-bold text-sm text-brand-700">รอบที่ ${r.round || (history.length - i)}</span>
+                <span class="text-[11px] text-slate-400 font-mono">${r.time || '-'}</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-mono">${r.duration || '-'}</span>
+              </div>
+              <div class="flex items-center gap-3 text-xs">
+                <span class="text-amber-600 font-semibold font-mono">🪙 +${(r.coins || 0).toLocaleString()}</span>
+                <span class="text-indigo-600 font-semibold font-mono">⭐ +${(r.xp || 0).toLocaleString()} EXP</span>
+                ${r.score ? `<span class="text-slate-500 font-mono">คะแนน ${(r.score).toLocaleString()}</span>` : ''}
+              </div>
+            </div>
+            <div class="text-right">
+              ${boxesHtml}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // Auto select first entry screenshot if available
+      if (history.length > 0) {
+        const first = history[0];
+        selectHistoryRound(first.round, first.screenshot || '', first.time || '', first.duration || '', first.score || 0, first.coins || 0);
+      }
+    }
+
+    function selectHistoryRound(roundNum, screenshotPath, timeStr, durStr, score, coins) {
+      const img = document.getElementById('modal-screenshot-img');
+      const cap = document.getElementById('modal-screenshot-caption');
+      if (img) {
+        const devParam = currentDeviceSerial ? `?device=${encodeURIComponent(currentDeviceSerial)}` : '';
+        img.src = `/api/round-screenshot/${roundNum}${devParam}`;
+      }
+      if (cap) {
+        cap.textContent = `รอบที่ ${roundNum} (${timeStr || '-'}) | เหรียญ +${(coins || 0).toLocaleString()}`;
+      }
     }
 
     // ==================== SETTINGS MODAL ====================
@@ -2166,6 +2544,13 @@
         if (currentSettings.desired_boost_id) {
           document.getElementById('cfg-desired-boost-id').value = currentSettings.desired_boost_id;
         }
+        document.getElementById('cfg-stop-goal-rounds').checked = !!currentSettings.stop_goal_rounds_enabled;
+        document.getElementById('cfg-stop-goal-rounds-target').value = currentSettings.stop_goal_rounds_target || 50;
+        document.getElementById('cfg-stop-goal-time').checked = !!currentSettings.stop_goal_time_enabled;
+        document.getElementById('cfg-stop-goal-time-hours').value = currentSettings.stop_goal_time_hours || 2.0;
+        document.getElementById('cfg-fast-start-min-stock').value = currentSettings.fast_start_min_stock !== undefined ? currentSettings.fast_start_min_stock : 10;
+        document.getElementById('cfg-cookie-relay-min-stock').value = currentSettings.cookie_relay_min_stock !== undefined ? currentSettings.cookie_relay_min_stock : 10;
+        document.getElementById('cfg-send-friend-lives').checked = currentSettings.send_friend_lives !== undefined ? !!currentSettings.send_friend_lives : true;
       }
       document.getElementById('settings-modal')?.classList.remove('hidden');
       document.getElementById('settings-modal')?.classList.add('flex');
@@ -2186,6 +2571,14 @@
       currentSettings.detect_relic = document.getElementById('cfg-relic').checked;
       currentSettings.use_desired_random_boost = document.getElementById('cfg-desired-boost').checked;
       currentSettings.desired_boost_id = document.getElementById('cfg-desired-boost-id').value;
+
+      currentSettings.stop_goal_rounds_enabled = document.getElementById('cfg-stop-goal-rounds').checked;
+      currentSettings.stop_goal_rounds_target = parseInt(document.getElementById('cfg-stop-goal-rounds-target').value) || 50;
+      currentSettings.stop_goal_time_enabled = document.getElementById('cfg-stop-goal-time').checked;
+      currentSettings.stop_goal_time_hours = parseFloat(document.getElementById('cfg-stop-goal-time-hours').value) || 2.0;
+      currentSettings.fast_start_min_stock = parseInt(document.getElementById('cfg-fast-start-min-stock').value) || 10;
+      currentSettings.cookie_relay_min_stock = parseInt(document.getElementById('cfg-cookie-relay-min-stock').value) || 10;
+      currentSettings.send_friend_lives = document.getElementById('cfg-send-friend-lives').checked;
 
       applySettingsToToggles(currentSettings);
 
@@ -2278,12 +2671,40 @@
 
     // ==================== STATS MODAL ====================
     function openStatsModal() {
+      updateStatsModalData();
       document.getElementById('stats-modal')?.classList.remove('hidden');
       document.getElementById('stats-modal')?.classList.add('flex');
     }
     function closeStatsModal() {
       document.getElementById('stats-modal')?.classList.add('hidden');
       document.getElementById('stats-modal')?.classList.remove('flex');
+    }
+
+    function updateStatsModalData(dev) {
+      const d = dev || allDevicesData.find(x => x.serial === currentDeviceSerial) || allDevicesData[0];
+      if (!d) return;
+
+      const boxes = d.box_counts || { wood: 0, silver: 0, gold: 0, rainbow: 0 };
+      const coins = d.coin_stats?.session_earned ?? 0;
+      const xp = d.coin_stats?.session_xp_earned ?? 0;
+
+      const elWood = document.getElementById('box-wood-num');
+      if (elWood) elWood.textContent = boxes.wood ?? 0;
+
+      const elSilver = document.getElementById('box-silver-num');
+      if (elSilver) elSilver.textContent = boxes.silver ?? 0;
+
+      const elGold = document.getElementById('box-gold-num');
+      if (elGold) elGold.textContent = boxes.gold ?? 0;
+
+      const elRainbow = document.getElementById('box-rainbow-num');
+      if (elRainbow) elRainbow.textContent = boxes.rainbow ?? 0;
+
+      const elCoins = document.getElementById('modal-coins-total');
+      if (elCoins) elCoins.textContent = `+${Number(coins).toLocaleString()} 🪙`;
+
+      const elXp = document.getElementById('modal-xp-total');
+      if (elXp) elXp.textContent = `+${Number(xp).toLocaleString()} EXP`;
     }
 
     // ==================== TABS SWITCHER ====================

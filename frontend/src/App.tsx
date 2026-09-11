@@ -1,0 +1,206 @@
+import React, { useState, useEffect } from 'react';
+import { Navbar } from './components/layout/Navbar';
+import { MetricsCards } from './components/dashboard/MetricsCards';
+import { DeviceTabs } from './components/dashboard/DeviceTabs';
+import { StreamPlayer } from './components/dashboard/StreamPlayer';
+import { QuickActions } from './components/dashboard/QuickActions';
+import { RoundHistory } from './components/dashboard/RoundHistory';
+import { LogsConsole } from './components/dashboard/LogsConsole';
+
+// Modals
+import { StatsModal } from './components/modals/StatsModal';
+import { HistoryModal } from './components/modals/HistoryModal';
+import { SettingsModal } from './components/modals/SettingsModal';
+import { DiscordModal } from './components/modals/DiscordModal';
+import { ToolsModal } from './components/modals/ToolsModal';
+
+import { Device } from './types/bot';
+import { botApi } from './api/botApi';
+
+export function App() {
+  const [devices, setDevices] = useState<Device[]>([]);
+  const [selectedSerial, setSelectedSerial] = useState<string>('');
+  const [isScanning, setIsScanning] = useState(false);
+
+  // Modals state
+  const [isStatsOpen, setIsStatsOpen] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isDiscordOpen, setIsDiscordOpen] = useState(false);
+  const [isToolsOpen, setIsToolsOpen] = useState(false);
+
+  // Fetch devices poll
+  const fetchDevices = async () => {
+    try {
+      const list = await botApi.getDevices();
+      setDevices(list);
+      if (list.length > 0 && !selectedSerial) {
+        setSelectedSerial(list[0].serial);
+      }
+    } catch (err) {
+      console.error('Failed to fetch devices:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchDevices();
+    const timer = setInterval(fetchDevices, 2000);
+    return () => clearInterval(timer);
+  }, [selectedSerial]);
+
+  const activeDevice = devices.find((d) => d.serial === selectedSerial) || devices[0];
+  const runningCount = devices.filter((d) => d.is_running).length;
+
+  const handleScan = async () => {
+    setIsScanning(true);
+    await fetchDevices();
+    setTimeout(() => setIsScanning(false), 800);
+  };
+
+  const handleStartAll = async () => {
+    if (!confirm('ต้องการเริ่มบอททุกจอพร้อมกันหรือไม่?')) return;
+    try {
+      const res = await botApi.startAllBots();
+      alert(res.message || 'สั่งการเรียบร้อย');
+      fetchDevices();
+    } catch (e: any) {
+      alert('เริ่มไม่สำเร็จ: ' + e.message);
+    }
+  };
+
+  const handleStopAll = async () => {
+    if (!confirm('ต้องการหยุดบอททุกจอทันทีหรือไม่?')) return;
+    try {
+      const res = await botApi.stopAllBots();
+      alert(res.message || 'สั่งหยุดทุกจอเรียบร้อย');
+      fetchDevices();
+    } catch (e: any) {
+      alert('หยุดไม่สำเร็จ: ' + e.message);
+    }
+  };
+
+  const handleStartCurrent = async () => {
+    if (!activeDevice) return alert('กรุณาเลือกจอก่อน');
+    try {
+      const res = await botApi.startBot(activeDevice.serial);
+      if (!res.success) alert(res.message);
+      fetchDevices();
+    } catch (e: any) {
+      alert('เริ่มบอทไม่สำเร็จ: ' + e.message);
+    }
+  };
+
+  const handleStopCurrent = async () => {
+    if (!activeDevice) return alert('กรุณาเลือกจอก่อน');
+    try {
+      const res = await botApi.stopBot(activeDevice.serial);
+      if (!res.success) alert(res.message);
+      fetchDevices();
+    } catch (e: any) {
+      alert('หยุดบอทไม่สำเร็จ: ' + e.message);
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-800">
+      {/* Navbar */}
+      <Navbar
+        devicesCount={devices.length}
+        runningCount={runningCount}
+        onScan={handleScan}
+        onStartAll={handleStartAll}
+        onStopAll={handleStopAll}
+        isScanning={isScanning}
+      />
+
+      {/* Main Container */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 w-full grow">
+        {/* Device Switcher Tabs */}
+        <DeviceTabs
+          devices={devices}
+          selectedSerial={activeDevice?.serial || ''}
+          onSelectDevice={(s) => setSelectedSerial(s)}
+        />
+
+        {/* Top 4 Metrics Summary Cards */}
+        <MetricsCards
+          device={activeDevice}
+          onOpenStats={() => setIsStatsOpen(true)}
+        />
+
+        {/* Main Grid: Stream & History on Left (8 cols), Quick Actions & Controls on Right (4 cols) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* Left Canvas & History Area */}
+          <div className="lg:col-span-8 space-y-6">
+            <StreamPlayer
+              deviceSerial={activeDevice?.serial || ''}
+              stageName={activeDevice?.current_stage || ''}
+              isRunning={activeDevice?.is_running || false}
+            />
+
+            <RoundHistory
+              history={activeDevice?.round_history || []}
+              onOpenHistoryModal={() => setIsHistoryOpen(true)}
+            />
+
+            <LogsConsole deviceSerial={activeDevice?.serial} />
+          </div>
+
+          {/* Right Action Panel */}
+          <div className="lg:col-span-4 space-y-6">
+            <QuickActions
+              deviceSerial={activeDevice?.serial || ''}
+              isRunning={activeDevice?.is_running || false}
+              onStart={handleStartCurrent}
+              onStop={handleStopCurrent}
+              onOpenSettings={() => setIsSettingsOpen(true)}
+              onOpenDiscord={() => setIsDiscordOpen(true)}
+              onOpenTools={() => setIsToolsOpen(true)}
+            />
+          </div>
+        </div>
+      </main>
+
+      {/* Footer */}
+      <footer className="border-t border-purple-100/60 bg-white/70 py-4 text-center text-xs text-slate-400">
+        CookieRun AutoBot Pro • Powered by Vite + React + FastAPI
+      </footer>
+
+      {/* Modals */}
+      <StatsModal
+        isOpen={isStatsOpen}
+        onClose={() => setIsStatsOpen(false)}
+        device={activeDevice}
+        onReset={() => fetchDevices()}
+      />
+
+      <HistoryModal
+        isOpen={isHistoryOpen}
+        onClose={() => setIsHistoryOpen(false)}
+        history={activeDevice?.round_history || []}
+        deviceSerial={activeDevice?.serial || ''}
+        onReset={() => fetchDevices()}
+      />
+
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        deviceSerial={activeDevice?.serial || ''}
+      />
+
+      <DiscordModal
+        isOpen={isDiscordOpen}
+        onClose={() => setIsDiscordOpen(false)}
+      />
+
+      <ToolsModal
+        isOpen={isToolsOpen}
+        onClose={() => setIsToolsOpen(false)}
+        deviceSerial={activeDevice?.serial || ''}
+        devices={devices}
+      />
+    </div>
+  );
+}
+
+export default App;

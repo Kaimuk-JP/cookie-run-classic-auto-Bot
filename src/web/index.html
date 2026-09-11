@@ -1326,7 +1326,14 @@
           if (force) appendLog({ level: 'sys', message: `สแกนเสร็จสิ้น พบทั้งหมด ${allDevices.length} จอ` });
 
           if (!currentDeviceSerial && allDevices.length > 0) {
-            switchDevice(allDevices[0].serial);
+            const urlParams = new URLSearchParams(window.location.search);
+            const targetDev = urlParams.get('device');
+            const found = targetDev ? allDevices.find(d => d.serial === targetDev || d.serial.includes(targetDev)) : null;
+            if (found) {
+              switchDevice(found.serial);
+            } else {
+              switchDevice(allDevices[0].serial);
+            }
           }
         }
       } catch (e) {

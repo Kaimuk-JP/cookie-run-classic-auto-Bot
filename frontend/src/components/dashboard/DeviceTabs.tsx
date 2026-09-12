@@ -48,7 +48,17 @@ export const DeviceTabs: React.FC<DeviceTabsProps> = ({
             <div className="space-y-0.5 pr-2">
               <div className="flex items-center gap-2">
                 <span className="font-bold text-xs text-slate-900">{d.name || d.serial}</span>
-                {isRunning ? (
+                {d.active_mode === 'friend_cleaner' ? (
+                  <span className="flex items-center gap-1 text-[10px] font-bold text-teal-700 px-1.5 py-0.5 rounded-md bg-teal-50 border border-teal-200">
+                    <span className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse"></span>
+                    ลบเพื่อนเวล 1 🧹
+                  </span>
+                ) : d.active_mode === 'heart_farmer' ? (
+                  <span className="flex items-center gap-1 text-[10px] font-bold text-pink-600 px-1.5 py-0.5 rounded-md bg-pink-50 border border-pink-200">
+                    <span className="w-1.5 h-1.5 rounded-full bg-pink-500 animate-pulse"></span>
+                    กำลังปั้มหัวใจ ❤️
+                  </span>
+                ) : isRunning ? (
                   <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 px-1.5 py-0.5 rounded-md bg-emerald-50 border border-emerald-200">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                     กำลังทำงาน
@@ -59,8 +69,18 @@ export const DeviceTabs: React.FC<DeviceTabsProps> = ({
                   </span>
                 )}
               </div>
-              <p className="text-[11px] text-slate-400 font-mono">
-                {d.serial} • รอบที่ {d.rounds_played ?? 0}
+              <p className="text-[11px] text-slate-400 font-mono truncate max-w-[200px]" title={
+                d.active_mode === 'friend_cleaner' && d.cleaner_stats?.current_step
+                  ? d.cleaner_stats.current_step
+                  : d.active_mode === 'heart_farmer' && d.heart_stats
+                  ? `ส่งแล้ว ${d.heart_stats.success_count ?? 0} ❤️ (รอบ ${d.heart_stats.rounds ?? 0})`
+                  : `${d.serial} • รอบที่ ${d.rounds_played ?? 0}`
+              }>
+                {d.active_mode === 'friend_cleaner' && d.cleaner_stats?.current_step
+                  ? d.cleaner_stats.current_step
+                  : d.active_mode === 'heart_farmer' && d.heart_stats
+                  ? `ส่งแล้ว ${d.heart_stats.success_count ?? 0} ❤️ (รอบ ${d.heart_stats.rounds ?? 0})`
+                  : `${d.serial} • รอบที่ ${d.rounds_played ?? 0}`}
               </p>
             </div>
           </button>

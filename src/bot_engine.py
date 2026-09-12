@@ -126,6 +126,42 @@ def load_round_history_from_file(serial: Optional[str]) -> list:
     return []
 
 
+def get_device_captcha_stats_path(serial: Optional[str]) -> str:
+    """Get device-specific captcha stats JSON file path inside history/ directory."""
+    safe_id = "".join(c if c.isalnum() else "_" for c in str(serial or "default"))
+    return os.path.join(HISTORY_DIR, f"captcha_stats_{safe_id}.json")
+
+
+def load_device_captcha_stats(serial: Optional[str]) -> dict:
+    """Load saved captcha stats from history/ directory."""
+    path = get_device_captcha_stats_path(serial)
+    if os.path.isfile(path):
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if isinstance(data, dict):
+                    return data
+        except Exception:
+            pass
+    return {
+        "total_attempts": 0,
+        "success_count": 0,
+        "fail_count": 0,
+        "last_attempt_time": None,
+        "last_result": None,
+    }
+
+
+def save_device_captcha_stats(serial: Optional[str], stats: dict):
+    """Save captcha stats JSON inside history/ directory."""
+    try:
+        path = get_device_captcha_stats_path(serial)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(stats, f, indent=2, ensure_ascii=False)
+    except Exception as e:
+        print(f"[CaptchaStats] Error saving: {e}")
+
+
 def save_round_history_to_file(serial: Optional[str], history_list: list, new_entry: Optional[dict] = None):
     """Save round history list as JSON and append to CSV inside history/ directory."""
     try:
@@ -231,6 +267,9 @@ def get_detection_stage_names(group_name: str, exclude: Optional[set] = None) ->
     return stage_names
 
 
+_in_bot_log = threading.local()
+
+
 class BotEngine:
     def __init__(self, device_serial: Optional[str] = None, device_ip: Optional[str] = None, device_port: Optional[int] = None):
         self.is_running = False
@@ -332,6 +371,7 @@ class BotEngine:
         self.current_round_boxes: List[str] = []
         self.current_round_mystery_box_handled: bool = False
         self.current_round_screen: Optional[np.ndarray] = None
+        self.captcha_stats: Dict[str, Any] = load_device_captcha_stats(self.device_serial)
 
         # Accumulated Coins, EXP & Play Time Tracking
         self.session_coins_earned: int = 0
@@ -387,16 +427,21 @@ class BotEngine:
         }
         self.logs.append(log_entry)
         dev_tag = f"[{target}] " if target else ""
-        print(f"[{timestamp}] [{level.upper()}] {dev_tag}{message}")
+        _in_bot_log.active = True
+        try:
+            print(f"[{timestamp}] [{level.upper()}] {dev_tag}{message}")
+        finally:
+            _in_bot_log.active = False
 
-        if self.loop and self.ws_subscribers:
+        mgr = globals().get("engine_manager")
+        loop = self.loop or getattr(mgr, "loop", None)
+        if loop and self.ws_subscribers:
             for q in list(self.ws_subscribers):
                 try:
-                    self.loop.call_soon_threadsafe(q.put_nowait, log_entry)
+                    loop.call_soon_threadsafe(q.put_nowait, log_entry)
                 except Exception:
                     pass
 
-        mgr = globals().get("engine_manager")
         if mgr:
             mgr.record_and_broadcast_log(log_entry)
 
@@ -532,6 +577,19 @@ class BotEngine:
         self.box_history.clear()
         self.current_round_boxes = []
         self.current_round_mystery_box_handled = False
+        self.captcha_stats = {
+            "total_attempts": 0,
+            "success_count": 0,
+            "fail_count": 0,
+            "last_attempt_time": None,
+            "last_result": None,
+        }
+        path_cap = get_device_captcha_stats_path(self.device_serial)
+        if os.path.isfile(path_cap):
+            try:
+                os.remove(path_cap)
+            except Exception:
+                pass
 
         # Remove device-specific history files from disk
         path_json = get_device_history_path(self.device_serial)
@@ -547,7 +605,7 @@ class BotEngine:
             except Exception:
                 pass
 
-        self.log("📊 ล้างข้อมูลสถิติ กล่องปริศนา เหรียญ และ EXP ทั้งหมดเป็น 0 แล้ว", "info")
+        self.log("📊 ล้างข้อมูลสถิติ กล่องปริศนา เหรียญ EXP และการแก้แคปซ่าทั้งหมดเป็น 0 แล้ว", "info")
 
     def get_status(self) -> Dict[str, Any]:
         session_sec = int(time.time() - self.start_time) if self.is_running and self.start_time else 0
@@ -567,6 +625,7 @@ class BotEngine:
             "rounds_played": self.rounds_played,
             "mystery_boxes": self.mystery_boxes,
             "box_counts": self.box_counts,
+            "captcha_stats": self.captcha_stats,
             "coin_stats": {
                 "session_earned": self.session_coins_earned,
                 "session_xp_earned": self.session_xp_earned,
@@ -1259,9 +1318,34 @@ class BotEngine:
                     detection_group = "PRE_GAME"
 
                 elif stage == "ANTI_BOT":
-                    self.log("⚠️ Detected Stage: ANTI_BOT — solving captcha automatically...", "warning")
+                    self.log("⚠️ ตรวจพบหน้าจอ ANTI_BOT (กันบอท) — กำลังวิเคราะห์และแก้แคปซ่าอัตโนมัติ...", "warning")
                     discord_notifier.send_anti_bot_alert("ANTI_BOT", screen_img=device_screen)
                     handle_anti_bot(device_screen)
+
+                    # ตรวจสอบผลลัพธ์ว่าแก้สำเร็จหรือไม่
+                    time.sleep(2.5)
+                    verify_screen = device_capture_screen(target, self.device_port)
+                    still_anti_bot = False
+                    if verify_screen is not None:
+                        post_stage = detect_game_stage(verify_screen)
+                        still_anti_bot = (post_stage == "ANTI_BOT")
+
+                    now_str = datetime.now().strftime("%H:%M:%S")
+                    self.captcha_stats["total_attempts"] += 1
+                    self.captcha_stats["last_attempt_time"] = now_str
+
+                    if not still_anti_bot:
+                        self.captcha_stats["success_count"] += 1
+                        self.captcha_stats["last_result"] = "success"
+                        rate = (self.captcha_stats["success_count"] / self.captcha_stats["total_attempts"]) * 100
+                        self.log(f"✅ แก้ไขแคปซ่ากันบอทสำเร็จ! (อัตราสำเร็จ: {rate:.1f}% | {self.captcha_stats['success_count']}/{self.captcha_stats['total_attempts']} ครั้ง)", "success")
+                    else:
+                        self.captcha_stats["fail_count"] += 1
+                        self.captcha_stats["last_result"] = "fail"
+                        rate = (self.captcha_stats["success_count"] / self.captcha_stats["total_attempts"]) * 100
+                        self.log(f"❌ แก้ไขแคปซ่าไม่สำเร็จ (หน้าจอยังคงติดกันบอท) (อัตราสำเร็จ: {rate:.1f}% | {self.captcha_stats['success_count']}/{self.captcha_stats['total_attempts']} ครั้ง)", "error")
+
+                    save_device_captcha_stats(self.device_serial, self.captcha_stats)
                     last_stage = None
 
                 elif stage == "CONNECTION_LOST":
@@ -1319,7 +1403,12 @@ class EngineManager:
         with self.lock:
             s = str(serial).strip()
             if s not in self.engines:
-                self.engines[s] = BotEngine(device_serial=s)
+                eng = BotEngine(device_serial=s)
+                eng.loop = self.loop
+                self.engines[s] = eng
+            else:
+                if self.loop and not self.engines[s].loop:
+                    self.engines[s].loop = self.loop
             return self.engines[s]
 
     def get_engine(self, serial: str) -> Optional[BotEngine]:

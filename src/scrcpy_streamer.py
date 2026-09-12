@@ -125,6 +125,18 @@ class ScrcpyDeviceStreamer:
                 self.is_running = False
                 self.current_fps = 0.0
 
+    def tap(self, x: int, y: int) -> bool:
+        """Inject touch event through scrcpy control connection (< 1ms)."""
+        if self.client and hasattr(self.client, "control") and self.client.control:
+            try:
+                self.client.control.touch(int(x), int(y), scrcpy.ACTION_DOWN)
+                time.sleep(0.04)
+                self.client.control.touch(int(x), int(y), scrcpy.ACTION_UP)
+                return True
+            except Exception:
+                pass
+        return False
+
     def add_subscriber(self):
         with self._lock:
             self.subscribers += 1

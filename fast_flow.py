@@ -341,18 +341,42 @@ def run_fast_flow():
     print("=" * 60)
 
     # ---------------------------------------------------------------------
-    print("\n[STEP 0] ล้างข้อมูลล็อกอิน/แคช (เก็บแพตช์เกม) + ซ่อน Root + เปิดเกม")
+    print("\n[STEP 0] ล้างข้อมูลล็อกอิน/แคช (เก็บแพตช์เกม) + ตรวจสิทธิ์ Root + เปิดเกม")
     # ---------------------------------------------------------------------
     adb('shell', 'am', 'force-stop', PACKAGE)
+    time.sleep(0.5)
+    try:
+        from adb import ensure_adb_root
+        ensure_adb_root(DEVICE)
+    except Exception:
+        pass
+
+    try:
+        adb('shell', 'chmod', '755', '/system/xbin/su', timeout=2)
+        adb('shell', 'chmod', '755', '/system/bin/su', timeout=2)
+    except Exception:
+        pass
+
     rm_cmd = (f"rm -rf /data/data/{PACKAGE}/shared_prefs "
               f"/data/data/{PACKAGE}/databases "
               f"/data/data/{PACKAGE}/cache "
               f"/data/data/{PACKAGE}/code_cache "
               f"/data/data/{PACKAGE}/app_webview "
               f"/sdcard/Android/data/{PACKAGE}/cache")
-    adb('shell', 'su', '-c', f"'{rm_cmd}'")
     adb('shell', rm_cmd)
-    adb('shell', 'chmod', '000', '/system/xbin/su')
+    adb('shell', 'su', '-c', f"'{rm_cmd}'")
+
+    check_sp = adb('shell', f"ls -d /data/data/{PACKAGE}/shared_prefs 2>/dev/null")
+    if check_sp and "shared_prefs" in (check_sp.stdout or ""):
+        adb('shell', f"rm -rf /data/data/{PACKAGE}/shared_prefs/* /data/data/{PACKAGE}/databases/*")
+        adb('shell', 'su', '-c', f"'rm -rf /data/data/{PACKAGE}/shared_prefs/* /data/data/{PACKAGE}/databases/*'")
+
+    try:
+        adb('shell', 'chmod', '000', '/system/xbin/su', timeout=2)
+        adb('shell', 'chmod', '000', '/system/bin/su', timeout=2)
+    except Exception:
+        pass
+
     adb('shell', 'monkey', '-p', PACKAGE, '-c', 'android.intent.category.LAUNCHER', '1')
     cap("s0_launched")
 

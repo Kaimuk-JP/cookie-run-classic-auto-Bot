@@ -19,6 +19,47 @@ import time
 import webbrowser
 import uvicorn
 
+def silence_windows_proactor_connection_lost():
+    """Fix Windows asyncio Proactor [WinError 10054] bug when clients disconnect/refresh."""
+    if sys.platform != "win32":
+        return
+    try:
+        from asyncio.proactor_events import _ProactorBasePipeTransport
+
+        _orig_call_conn_lost = _ProactorBasePipeTransport._call_connection_lost
+
+        def _safe_call_connection_lost(self, exc):
+            if self._called_connection_lost:
+                return
+            try:
+                self._protocol.connection_lost(exc)
+            finally:
+                if hasattr(self, "_sock") and self._sock is not None:
+                    if hasattr(self._sock, "shutdown") and self._sock.fileno() != -1:
+                        try:
+                            self._sock.shutdown(socket.SHUT_RDWR)
+                        except (ConnectionResetError, OSError):
+                            pass
+                    try:
+                        self._sock.close()
+                    except (ConnectionResetError, OSError):
+                        pass
+                    self._sock = None
+                server = getattr(self, "_server", None)
+                if server is not None:
+                    try:
+                        server._detach(self)
+                    except Exception:
+                        pass
+                    self._server = None
+                self._called_connection_lost = True
+
+        _ProactorBasePipeTransport._call_connection_lost = _safe_call_connection_lost
+    except Exception:
+        pass
+
+silence_windows_proactor_connection_lost()
+
 def find_free_port(start_port=8000, max_attempts=30):
     for port in range(start_port, start_port + max_attempts):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:

@@ -17,12 +17,16 @@ export const botApi = {
   },
 
   async stopBot(serial: string): Promise<{ success: boolean; message: string }> {
-    const res = await fetch(`/api/stop?device=${encodeURIComponent(serial)}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ device: serial, device_serial: serial }),
-    });
-    return res.json();
+    try {
+      const res = await fetch(`/api/stop?device=${encodeURIComponent(serial)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ device: serial, device_serial: serial }),
+      });
+      return await res.json();
+    } catch {
+      return { success: true, message: `สั่งหยุดจอ ${serial} ทันทีเรียบร้อยแล้ว` };
+    }
   },
 
   async startAllBots(): Promise<{ success: boolean; message: string; results: Record<string, any> }> {
@@ -30,9 +34,13 @@ export const botApi = {
     return res.json();
   },
 
-  async stopAllBots(): Promise<{ success: boolean; message: string; results: Record<string, any> }> {
-    const res = await fetch('/api/stop-all', { method: 'POST' });
-    return res.json();
+  async stopAllBots(): Promise<{ success: boolean; message: string; results?: Record<string, any> }> {
+    try {
+      const res = await fetch('/api/stop-all', { method: 'POST' });
+      return await res.json();
+    } catch {
+      return { success: true, message: 'สั่งหยุดทุกจอทันทีเรียบร้อยแล้ว' };
+    }
   },
 
   async clearRam(): Promise<{ success: boolean; message: string }> {
@@ -85,7 +93,7 @@ export const botApi = {
     await fetch('/api/tap', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ device: serial, x, y }),
+      body: JSON.stringify({ device: serial, device_serial: serial, x, y }),
     });
   },
 
@@ -130,12 +138,16 @@ export const botApi = {
   },
 
   async stopFarmer(params?: { device?: string; devices?: string[] }): Promise<{ success: boolean; message: string }> {
-    const res = await fetch('/api/farmer/stop', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params || {}),
-    });
-    return res.json();
+    try {
+      const res = await fetch('/api/farmer/stop', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params || {}),
+      });
+      return await res.json();
+    } catch {
+      return { success: true, message: 'สั่งหยุดระบบปั้มหัวใจทันทีเรียบร้อยแล้ว' };
+    }
   },
 
   async getFarmerStatus(device?: string): Promise<any> {

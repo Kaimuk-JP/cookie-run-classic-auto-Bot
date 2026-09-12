@@ -52,13 +52,13 @@ except ImportError:
 
 # Coordinates on 1280x720 (User-calibrated)
 LOBBY_FRIENDS_BUTTON = (801, 302)      # แตะ: (801, 302) ปุ่มเพื่อน
-LEVEL_SORT_BUTTON = (564, 148)         # แตะ: (564, 148) ปุ่มกรองเวล
-MANAGE_BUTTON = (328, 654)             # แตะ: (328, 654) ปุ่ม manage
-FRIEND_ROW_POINTS = [                  # แตะเพื่อนเวลหนึ่งสี่จุด
-    (625, 236),
-    (633, 358),
-    (642, 449),
-    (623, 536),
+LEVEL_SORT_BUTTON = (565, 150)         # แตะ: (565, 150) ปุ่มกรองเวล
+MANAGE_BUTTON = (326, 651)             # แตะ: (326, 651) ปุ่ม manage
+FRIEND_ROW_POINTS = [                  # แตะเพื่อนเวลหนึ่งสี่จุด (ที่ปุ่มดาวเลือก)
+    (980, 236),
+    (980, 340),
+    (980, 445),
+    (980, 550),
 ]
 CLEAR_SELECTION_BUTTON = (956, 650)    # แตะ: (956, 650) ปุ่มเคลียร์สีแดง (Clear selection)
 CONFIRM_REMOVE_BUTTON = (777, 455)     # แตะ: (777, 455) ปุ่มยืนยันลบสีเขียว (Confirm)
@@ -68,9 +68,9 @@ GIFT_CLOSE_BUTTON = (1113, 109)        # แตะ: (1113, 109) ปุ่มป�
 
 # Mailbox & Receive Hearts coordinates (1280x720)
 LOBBY_MAILBOX_BUTTON = (686, 677)      # ปุ่มกล่องจดหมายที่หน้าหลัก
-MAILBOX_LIVES_TAB = (490, 180)         # แท็บ Lives
-MAILBOX_QUICK_RECEIVE = (600, 615)     # ปุ่ม Quick Receive & Send Lives
-MAILBOX_CLOSE_BUTTON = (1119, 93)      # ปุ่ม X ปิดกล่องจดหมาย (1119, 93)
+MAILBOX_LIVES_TAB = (645, 175)         # แท็บ Lives
+MAILBOX_QUICK_RECEIVE = (640, 601)     # ปุ่ม Quick Receive & Send Lives
+MAILBOX_CLOSE_BUTTON = (1130, 88)      # ปุ่ม X ปิดกล่องจดหมาย (1130, 88)
 
 
 TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), "templates")
@@ -98,6 +98,49 @@ def _adb_swipe(device: str, x1: int, y1: int, x2: int, y2: int, duration: int = 
         time.sleep(delay)
 
 
+def is_all_lives_received_and_sent(screen: Optional[np.ndarray], threshold: float = 0.75) -> bool:
+    """
+    Detects if the 'All Lives received and sent!' dialog popup is visible on screen.
+    """
+    if screen is None:
+        return False
+    p = os.path.join(TEMPLATE_DIR, "ALL_LIVES_RECEIVED_AND_SENT_1.png")
+    if not os.path.exists(p):
+        return False
+    tmpl = cv2.imread(p)
+    if tmpl is None:
+        return False
+    h, w = screen.shape[:2]
+    if (w, h) != (1280, 720):
+        screen = cv2.resize(screen, (1280, 720))
+    roi = screen[250:420, 400:880]
+    res = cv2.matchTemplate(roi, tmpl, cv2.TM_CCOEFF_NORMED)
+    return float(np.max(res)) >= threshold
+
+
+def is_no_lives_to_receive(screen: Optional[np.ndarray], threshold: float = 0.75) -> bool:
+    """
+    Detects if the 'No Lives to receive!' dialog popup is visible on screen.
+    When this appears, all lives have been claimed and the receiving routine should stop immediately.
+    """
+    if screen is None:
+        return False
+    p = os.path.join(TEMPLATE_DIR, "no_lives_text.png")
+    if not os.path.exists(p):
+        p = os.path.join(TEMPLATE_DIR, "NO_LIVES_TO_RECEIVE_1.png")
+        if not os.path.exists(p):
+            return False
+    tmpl = cv2.imread(p)
+    if tmpl is None:
+        return False
+    h, w = screen.shape[:2]
+    if (w, h) != (1280, 720):
+        screen = cv2.resize(screen, (1280, 720))
+    roi = screen[250:420, 400:880]
+    res = cv2.matchTemplate(roi, tmpl, cv2.TM_CCOEFF_NORMED)
+    return float(np.max(res)) >= threshold
+
+
 def _find_green_confirm_button(screen: Optional[np.ndarray]) -> Optional[Tuple[int, int]]:
     """
     Detects green Confirm button in center dialog popup area.
@@ -105,27 +148,44 @@ def _find_green_confirm_button(screen: Optional[np.ndarray]) -> Optional[Tuple[i
     """
     if screen is None:
         return None
-    roi = screen[380:520, 450:850]
-    green = (roi[:, :, 1] > 160) & (roi[:, :, 0] < 80) & (roi[:, :, 2] < 180)
-    if green.sum() > 80:
+    h, w = screen.shape[:2]
+    if (w, h) != (1280, 720):
+        screen = cv2.resize(screen, (1280, 720))
+
+    # 1. Template match CONFIRM_SEND_LIFE_1.png (2-button popup: Cancel / Confirm)
+    p_send = os.path.join(TEMPLATE_DIR, "CONFIRM_SEND_LIFE_1.png")
+    if os.path.exists(p_send):
+        tmpl = cv2.imread(p_send)
+        if tmpl is not None:
+            res = cv2.matchTemplate(screen[350:550, 500:950], tmpl, cv2.TM_CCOEFF_NORMED)
+            if float(np.max(res)) >= 0.75:
+                _, max_val, _, max_loc = cv2.minMaxLoc(res)
+                th, tw = tmpl.shape[:2]
+                return (500 + max_loc[0] + tw // 2, 350 + max_loc[1] + th // 2)
+
+    # 2. Template match CONFIRM_BUTTON_1.png (1-button popup)
+    p_conf = os.path.join(TEMPLATE_DIR, "CONFIRM_BUTTON_1.png")
+    if os.path.exists(p_conf):
+        tmpl = cv2.imread(p_conf)
+        if tmpl is not None:
+            res = cv2.matchTemplate(screen[350:550, 450:850], tmpl, cv2.TM_CCOEFF_NORMED)
+            if float(np.max(res)) >= 0.72:
+                _, max_val, _, max_loc = cv2.minMaxLoc(res)
+                th, tw = tmpl.shape[:2]
+                return (450 + max_loc[0] + tw // 2, 350 + max_loc[1] + th // 2)
+
+    # 3. Color detection for 2-button popup green Confirm (X: 630..820, Y: 410..500)
+    roi_btn = screen[410:500, 630:820]
+    green = (roi_btn[:, :, 1] > 160) & (roi_btn[:, :, 0] < 100) & (roi_btn[:, :, 2] < 180)
+    if green.sum() > 2000:
         ys, xs = np.where(green)
-        return (int(xs.mean()) + 450, int(ys.mean()) + 380)
+        return (int(xs.mean()) + 630, int(ys.mean()) + 410)
+
+    # 4. Check if popup title is visible (No Lives or All Lives)
+    if is_no_lives_to_receive(screen) or is_all_lives_received_and_sent(screen):
+        return (640, 462)
+
     return None
-
-
-def is_no_lives_to_receive(screen: Optional[np.ndarray], threshold: float = 0.80) -> bool:
-    """
-    Detects if the 'No Lives to receive!' dialog popup is visible on screen.
-    When this appears, all lives have been claimed and the receiving routine should stop immediately.
-    """
-    if screen is None or not os.path.exists(NO_LIVES_TEMPLATE_PATH):
-        return False
-    templ = cv2.imread(NO_LIVES_TEMPLATE_PATH)
-    if templ is None:
-        return False
-    roi = screen[250:400, 400:900]
-    res = cv2.matchTemplate(roi, templ, cv2.TM_CCOEFF_NORMED)
-    return float(np.max(res)) >= threshold
 
 
 def is_at_lobby(screen: Optional[np.ndarray]) -> bool:
@@ -154,6 +214,127 @@ def is_at_lobby(screen: Optional[np.ndarray]) -> bool:
     return False
 
 
+def is_mailbox_open(screen: Optional[np.ndarray]) -> bool:
+    """
+    Check if the Mailbox dialog is currently open on screen.
+    1. Must not be at Lobby.
+    2. Check the green 'Quick Receive & Send Lives' button area at the bottom: (X: 400..880, Y: 580..620).
+    3. If modal popup is active over mailbox (Confirm button present), returns True.
+    """
+    if screen is None or is_at_lobby(screen):
+        return False
+    h, w = screen.shape[:2]
+    if (w, h) != (1280, 720):
+        screen = cv2.resize(screen, (1280, 720))
+    # Quick Receive button green
+    roi = screen[580:620, 400:880]
+    green = (roi[:, :, 1] > 130) & (roi[:, :, 0] < 110) & (roi[:, :, 2] < 160)
+    if green.sum() > 1000:
+        return True
+    # If Confirm dialog is open inside mailbox
+    if _find_green_confirm_button(screen) is not None:
+        return True
+    return False
+
+
+def find_normal_friends_close_btn(screen: Optional[np.ndarray], threshold: float = 0.72) -> Optional[Tuple[int, int]]:
+    """
+    Detects 'X' close button of Friends dialog in NORMAL mode (with Friends/Find/Request tabs).
+    Returns (1009, 69) if detected, otherwise None.
+    """
+    if screen is None or not os.path.exists(FRIENDS_DIALOG_X_TEMPLATE_PATH):
+        return None
+    tmpl = cv2.imread(FRIENDS_DIALOG_X_TEMPLATE_PATH)
+    if tmpl is None:
+        return None
+    h, w = screen.shape[:2]
+    if (w, h) != (1280, 720):
+        screen = cv2.resize(screen, (1280, 720))
+    roi = screen[30:140, 900:1120]
+    res = cv2.matchTemplate(roi, tmpl, cv2.TM_CCOEFF_NORMED)
+    min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
+    if max_val >= threshold:
+        return FRIENDS_CLOSE_BUTTON
+    return None
+
+
+def find_manage_mode_close_btn(screen: Optional[np.ndarray], threshold: float = 0.80) -> Optional[Tuple[int, int]]:
+    """
+    Detects 'X' close button in MANAGE mode ('Select a friend to remove!').
+    Returns (1054, 52) if detected, otherwise None.
+    """
+    if screen is None or not os.path.exists(MANAGE_MODE_X_TEMPLATE_PATH):
+        return None
+    tmpl = cv2.imread(MANAGE_MODE_X_TEMPLATE_PATH)
+    if tmpl is None:
+        return None
+    h, w = screen.shape[:2]
+    if (w, h) != (1280, 720):
+        screen = cv2.resize(screen, (1280, 720))
+    roi = screen[20:100, 1000:1120]
+    res = cv2.matchTemplate(roi, tmpl, cv2.TM_CCOEFF_NORMED)
+    min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
+    if max_val >= threshold:
+        return MANAGE_CLOSE_BUTTON
+    return None
+
+
+def is_in_manage_friends_mode(screen: Optional[np.ndarray]) -> Optional[Tuple[int, int]]:
+    """
+    Checks if device is currently in Manage Friends mode ('Select a friend to remove!').
+    Returns coordinate of 'Clear selection' button if detected, else None.
+    """
+    if screen is None or is_at_lobby(screen) or is_mailbox_open(screen):
+        return None
+    h, w = screen.shape[:2]
+    if (w, h) != (1280, 720):
+        screen = cv2.resize(screen, (1280, 720))
+    # Red button at bottom right (600..715, 650..1100)
+    roi = screen[600:715, 650:1100]
+    red_mask = (roi[:, :, 2] > 160) & (roi[:, :, 1] < 80) & (roi[:, :, 0] < 80)
+    if red_mask.sum() > 800:
+        ys, xs = np.where(red_mask)
+        return (int(xs.mean()) + 650, int(ys.mean()) + 600)
+    # Check Manage mode X button
+    if find_manage_mode_close_btn(screen) is not None:
+        return CLEAR_SELECTION_BUTTON
+    return None
+
+
+def find_friends_dialog_close_btn(screen: Optional[np.ndarray]) -> Optional[Tuple[int, int]]:
+    """
+    Unified close button detector:
+    - If in Manage mode: returns (1054, 52)
+    - If in Normal mode: returns (1009, 69)
+    """
+    btn = find_manage_mode_close_btn(screen)
+    if btn is not None:
+        return btn
+    return find_normal_friends_close_btn(screen)
+
+
+def is_friends_dialog_open(screen: Optional[np.ndarray]) -> bool:
+    """
+    Check if Friends list popup is open on screen (either Normal or Manage mode).
+    Must NOT be Lobby, and must NOT be Mailbox.
+    """
+    if screen is None or is_at_lobby(screen) or is_mailbox_open(screen):
+        return False
+    if is_in_manage_friends_mode(screen) is not None:
+        return True
+    if find_normal_friends_close_btn(screen) is not None:
+        return True
+    # Check for cyan Manage button at (326, 651) in normal friends dialog
+    h, w = screen.shape[:2]
+    if (w, h) != (1280, 720):
+        screen = cv2.resize(screen, (1280, 720))
+    manage_roi = screen[630:680, 240:370]
+    cyan = (manage_roi[:, :, 0] > 130) & (manage_roi[:, :, 1] > 130) & (manage_roi[:, :, 2] < 100)
+    if cyan.sum() > 2500:
+        return True
+    return False
+
+
 GAME_PACKAGE = "com.devsisters.crg"
 
 
@@ -166,6 +347,9 @@ def check_banner_or_news_popup(img: Optional[np.ndarray]) -> Optional[Tuple[int,
     คืนค่าพิกัด (x, y) ของปุ่ม X หรือ None ถ้าไม่พบ
     """
     if img is None:
+        return None
+    # อย่าแตะปิดถ้าหน้าต่างที่เปิดอยู่คือกล่องข้อความหรือหน้าต่างเพื่อน
+    if is_mailbox_open(img) or is_friends_dialog_open(img):
         return None
     h, w = img.shape[:2]
     if (w, h) != (1280, 720):
@@ -328,8 +512,9 @@ def receive_mailbox_hearts(device: str, log_func=None) -> bool:
     Open Mailbox, receive all lives/hearts and return lives to friends before deleting friends.
     ตรวจจอก่อนกด และตรวจจอหลังกดทุกขั้นตอน:
       - ตรวจสอบหน้าล็อบบี้ก่อนเปิดกล่องข้อความ
+      - ยืนยันว่าหน้าต่าง Mailbox เปิดจริงก่อนกดปุ่มภายใน
       - รับหัวใจจนกว่าจะขึ้น 'No Lives to receive!'
-      - ตรวจสอบหน้าจอก่อนกดปิด และตรวจว่ากลับหน้าล็อบบี้หรือยังก่อนไปต่อ
+      - ปิดกล่องข้อความและยืนยันกลับสู่หน้าล็อบบี้ 100%
     """
     def _log(msg: str):
         if log_func:
@@ -340,10 +525,27 @@ def receive_mailbox_hearts(device: str, log_func=None) -> bool:
     # 1. ตรวจจอก่อนกด: ตรวจสอบว่าพร้อมที่หน้าล็อบบี้
     _log("💌 1. ตรวจสอบหน้าจอ: รอให้พร้อมที่หน้าล็อบบี้ก่อนเปิดกล่องข้อความ...")
     if not wait_for_lobby(device, timeout=8.0, log_func=_log):
-        _log("   ⚠️ หน้าจออาจยังไม่ได้อยู่ล็อบบี้ แต่จะพยายามกดเข้ากล่องข้อความ...")
+        _log("   ⚠️ หน้าจออาจยังไม่ได้อยู่ล็อบบี้ กำลังตรวจสอบหน้าจอ...")
 
-    _log(f"   แตะ: ({LOBBY_MAILBOX_BUTTON[0]}, {LOBBY_MAILBOX_BUTTON[1]}) ปุ่มกล่องข้อความ")
-    _adb_tap(device, LOBBY_MAILBOX_BUTTON[0], LOBBY_MAILBOX_BUTTON[1], jitter=2, delay=1.5)
+    mailbox_opened = False
+    for attempt in range(5):
+        screen = device_capture_screen(device)
+        if is_mailbox_open(screen):
+            _log("   ✅ ตรวจพบกล่องข้อความ (Mailbox) เปิดอยู่แล้ว!")
+            mailbox_opened = True
+            break
+        _log(f"   แตะ: ({LOBBY_MAILBOX_BUTTON[0]}, {LOBBY_MAILBOX_BUTTON[1]}) ปุ่มกล่องข้อความ (รอบที่ {attempt + 1})...")
+        _adb_tap(device, LOBBY_MAILBOX_BUTTON[0], LOBBY_MAILBOX_BUTTON[1], jitter=2, delay=1.5)
+        screen_chk = device_capture_screen(device)
+        if is_mailbox_open(screen_chk):
+            _log("   ✅ ตรวจพบกล่องข้อความ (Mailbox) เปิดขึ้นมาแล้ว!")
+            mailbox_opened = True
+            break
+        time.sleep(0.8)
+
+    if not mailbox_opened:
+        _log("⚠️ ไม่สามารถเปิดกล่องข้อความได้ หรือหน้าจอไม่ตรง ข้ามขั้นตอนรับหัวใจเพื่อความปลอดภัย")
+        return False
 
     _log("💌 2. กดแท็บ Lives...")
     _adb_tap(device, MAILBOX_LIVES_TAB[0], MAILBOX_LIVES_TAB[1], jitter=2, delay=1.0)
@@ -356,11 +558,13 @@ def receive_mailbox_hearts(device: str, log_func=None) -> bool:
         if btn is not None:
             _adb_tap(device, btn[0], btn[1], jitter=2, delay=0.8)
 
-        _log("💌 ปิดกล่องข้อความกลับสู่หน้าหลัก (ตรวจจอก่อนกด)...")
-        screen_curr = device_capture_screen(device)
-        if not is_at_lobby(screen_curr):
+        _log("💌 ปิดกล่องข้อความกลับสู่หน้าหลัก...")
+        for _ in range(3):
+            screen_curr = device_capture_screen(device)
+            if is_at_lobby(screen_curr):
+                break
             _adb_tap(device, MAILBOX_CLOSE_BUTTON[0], MAILBOX_CLOSE_BUTTON[1], jitter=1, delay=1.2)
-            wait_for_lobby(device, timeout=6.0, log_func=_log)
+        wait_for_lobby(device, timeout=6.0, log_func=_log)
         return True
 
     _log("💌 3. เริ่มลูปกดรับหัวใจต่อเนื่องจนกว่าจะขึ้น 'No Lives to receive!'...")
@@ -370,6 +574,9 @@ def receive_mailbox_hearts(device: str, log_func=None) -> bool:
 
     for round_num in range(1, max_rounds + 1):
         screen = device_capture_screen(device)
+        if not is_mailbox_open(screen):
+            _log("   ⚠️ หน้าต่าง Mailbox ไม่ได้เปิดอยู่แล้ว หยุดลูปรับหัวใจ")
+            break
 
         # ตรวจจอก่อนกด: เช็ค No Lives to receive!
         if is_no_lives_to_receive(screen):
@@ -388,7 +595,7 @@ def receive_mailbox_hearts(device: str, log_func=None) -> bool:
             continue
 
         _log(f"   👉 กดปุ่ม 'Quick Receive & Send Lives' (รอบที่ {round_num})...")
-        _adb_tap(device, MAILBOX_QUICK_RECEIVE[0], MAILBOX_QUICK_RECEIVE[1], jitter=3, delay=1.0)
+        _adb_tap(device, MAILBOX_QUICK_RECEIVE[0], MAILBOX_QUICK_RECEIVE[1], jitter=2, delay=1.0)
 
         # ตรวจจอหลังกด
         time.sleep(0.8)
@@ -415,117 +622,25 @@ def receive_mailbox_hearts(device: str, log_func=None) -> bool:
 
     # 4. ออกจากรับใจตรวจจอ: ตรวจจอก่อนแตะปิด และตรวจจอหลังแตะปิด
     _log(f"💌 4. ปิดกล่องข้อความกลับสู่หน้าหลัก (กดยืนยันไปทั้งหมด {total_confirmed} ครั้ง)...")
-    screen_before_close = device_capture_screen(device)
-    if is_at_lobby(screen_before_close):
-        _log("   ✅ ตรวจจอพบว่าอยู่ที่หน้าล็อบบี้แล้ว ไม่ต้องแตะปุ่มปิดซ้ำ")
-    else:
-        _log(f"   แตะ: ({MAILBOX_CLOSE_BUTTON[0]}, {MAILBOX_CLOSE_BUTTON[1]}) ปุ่มปิดกล่องข้อความ")
-        _adb_tap(device, MAILBOX_CLOSE_BUTTON[0], MAILBOX_CLOSE_BUTTON[1], jitter=1, delay=1.2)
-        # ตรวจจอหลังกด: ยืนยันว่ากลับสู่หน้าล็อบบี้แล้ว
-        if not wait_for_lobby(device, timeout=6.0, log_func=_log):
-            _log("   [รอ] ยังไม่พบหน้าล็อบบี้ ตรวจสอบภาพหน้าจออีกครั้ง...")
-            screen_retry = device_capture_screen(device)
-            if not is_at_lobby(screen_retry):
-                _adb_tap(device, MAILBOX_CLOSE_BUTTON[0], MAILBOX_CLOSE_BUTTON[1], jitter=1, delay=1.0)
-                wait_for_lobby(device, timeout=5.0, log_func=_log)
+    for close_attempt in range(5):
+        screen_curr = device_capture_screen(device)
+        if is_at_lobby(screen_curr):
+            _log("   ✅ ตรวจจอพบว่าอยู่ที่หน้าล็อบบี้แล้ว 100%")
+            break
+        if is_mailbox_open(screen_curr):
+            _log(f"   แตะ: ({MAILBOX_CLOSE_BUTTON[0]}, {MAILBOX_CLOSE_BUTTON[1]}) ปุ่มปิดกล่องข้อความ (รอบ {close_attempt + 1})")
+            _adb_tap(device, MAILBOX_CLOSE_BUTTON[0], MAILBOX_CLOSE_BUTTON[1], jitter=1, delay=1.2)
+        else:
+            btn = _find_green_confirm_button(screen_curr)
+            if btn is not None:
+                _adb_tap(device, btn[0], btn[1], jitter=1, delay=1.0)
+            else:
+                _adb_tap(device, MAILBOX_CLOSE_BUTTON[0], MAILBOX_CLOSE_BUTTON[1], jitter=1, delay=1.2)
+        time.sleep(0.8)
 
+    wait_for_lobby(device, timeout=6.0, log_func=_log)
     _log("✅ รับหัวใจครบถ้วน 100% เรียบร้อยแล้ว!")
     return True
-
-
-def find_normal_friends_close_btn(screen: Optional[np.ndarray], threshold: float = 0.72) -> Optional[Tuple[int, int]]:
-    """
-    Detects 'X' close button of Friends dialog in NORMAL mode (with Friends/Find/Request tabs).
-    Returns (1009, 69) if detected, otherwise None.
-    """
-    if screen is None or not os.path.exists(FRIENDS_DIALOG_X_TEMPLATE_PATH):
-        return None
-    tmpl = cv2.imread(FRIENDS_DIALOG_X_TEMPLATE_PATH)
-    if tmpl is None:
-        return None
-    h, w = screen.shape[:2]
-    if (w, h) != (1280, 720):
-        screen = cv2.resize(screen, (1280, 720))
-    roi = screen[30:140, 900:1120]
-    res = cv2.matchTemplate(roi, tmpl, cv2.TM_CCOEFF_NORMED)
-    min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
-    if max_val >= threshold:
-        return FRIENDS_CLOSE_BUTTON
-    return None
-
-
-def find_manage_mode_close_btn(screen: Optional[np.ndarray], threshold: float = 0.80) -> Optional[Tuple[int, int]]:
-    """
-    Detects 'X' close button in MANAGE mode ('Select a friend to remove!').
-    Returns (1054, 52) if detected, otherwise None.
-    """
-    if screen is None or not os.path.exists(MANAGE_MODE_X_TEMPLATE_PATH):
-        return None
-    tmpl = cv2.imread(MANAGE_MODE_X_TEMPLATE_PATH)
-    if tmpl is None:
-        return None
-    h, w = screen.shape[:2]
-    if (w, h) != (1280, 720):
-        screen = cv2.resize(screen, (1280, 720))
-    roi = screen[20:100, 1000:1120]
-    res = cv2.matchTemplate(roi, tmpl, cv2.TM_CCOEFF_NORMED)
-    min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
-    if max_val >= threshold:
-        return MANAGE_CLOSE_BUTTON
-    return None
-
-
-def is_in_manage_friends_mode(screen: Optional[np.ndarray]) -> Optional[Tuple[int, int]]:
-    """
-    Checks if device is currently in Manage Friends mode ('Select a friend to remove!').
-    Returns coordinate of 'Clear selection' button if detected, else None.
-    """
-    if screen is None:
-        return None
-    h, w = screen.shape[:2]
-    if (w, h) != (1280, 720):
-        screen = cv2.resize(screen, (1280, 720))
-    # Red button at bottom right (600..715, 650..1100)
-    roi = screen[600:715, 650:1100]
-    red_mask = (roi[:, :, 2] > 160) & (roi[:, :, 1] < 80) & (roi[:, :, 0] < 80)
-    if red_mask.sum() > 800:
-        ys, xs = np.where(red_mask)
-        return (int(xs.mean()) + 650, int(ys.mean()) + 600)
-    # Check Manage mode X button
-    if find_manage_mode_close_btn(screen) is not None:
-        return CLEAR_SELECTION_BUTTON
-    return None
-
-
-def find_friends_dialog_close_btn(screen: Optional[np.ndarray]) -> Optional[Tuple[int, int]]:
-    """
-    Unified close button detector:
-    - If in Manage mode: returns (1054, 52)
-    - If in Normal mode: returns (1009, 69)
-    """
-    btn = find_manage_mode_close_btn(screen)
-    if btn is not None:
-        return btn
-    return find_normal_friends_close_btn(screen)
-
-
-def is_friends_dialog_open(screen: Optional[np.ndarray]) -> bool:
-    """
-    Check if Friends list popup is open on screen (either Normal or Manage mode).
-    1. Checks if Manage mode is active.
-    2. Checks if Normal close button is detected.
-    3. Fallback: Checks for Favorites button in [140:220, 200:380].
-    """
-    if screen is None:
-        return False
-    if is_in_manage_friends_mode(screen) is not None:
-        return True
-    if find_normal_friends_close_btn(screen) is not None:
-        return True
-    roi = screen[140:220, 200:380]
-    gold = (roi[:, :, 2] > 150) & (roi[:, :, 1] > 120) & (roi[:, :, 0] < 80)
-    return bool(gold.sum() > 200)
-
 
 def detect_level1_badges(screen_bgr: np.ndarray, threshold: float = 0.70) -> List[int]:
     """
@@ -666,11 +781,43 @@ def clean_level1_friends(device: str, log_func=None, restart_app: bool = False) 
         _log("❌ ตรวจไม่พบหน้าต่าง Friends ยกเลิกการทำงานเพื่อความปลอดภัย")
         return {"success": False, "message": "Friends dialog not visible"}
 
-    # 2. ตรวจสอบหน้าจอว่ามีเพื่อนเวลหนึ่งไหม ค่อยกดกรองใหม่ (ตรวจจอก่อนกด กดแล้วตรวจจอ 4-5 ครั้ง)
-    _log("2. ตรวจสอบหน้าจอว่ามีเพื่อนเวล 1 หรือไม่ เพื่อปรับการเรียงลำดับ (Sort)...")
+    # 2. กดเข้า Manage Friends mode
+    _log("2. ตรวจสอบหน้าต่าง Friends และเข้าสู่โหมด Manage Friends...")
+    manage_opened = False
+    for manage_attempt in range(5):
+        screen = device_capture_screen(device)
+        if is_in_manage_friends_mode(screen) is not None:
+            _log("   ✅ อยู่ในหน้า Manage Friends เรียบร้อยแล้ว!")
+            manage_opened = True
+            break
+        if not is_friends_dialog_open(screen):
+            _log("   ⚠️ หน้าต่าง Friends ปิดไปแล้ว พยายามเปิดใหม่...")
+            _adb_tap(device, LOBBY_FRIENDS_BUTTON[0], LOBBY_FRIENDS_BUTTON[1], jitter=1, delay=1.5)
+            continue
+        _log(f"   แตะ: ({MANAGE_BUTTON[0]}, {MANAGE_BUTTON[1]}) ปุ่ม Manage (รอบที่ {manage_attempt + 1})...")
+        _adb_tap(device, MANAGE_BUTTON[0], MANAGE_BUTTON[1], jitter=1, delay=1.2)
+        screen_after = device_capture_screen(device)
+        if is_in_manage_friends_mode(screen_after) is not None:
+            _log("   ✅ เข้าสู่หน้า Manage Friends เรียบร้อยแล้ว!")
+            manage_opened = True
+            break
+        time.sleep(0.5)
+
+    if not manage_opened:
+        _log("❌ ไม่สามารถเข้าสู่หน้า Manage Friends ได้ ยกเลิกเพื่อความปลอดภัย ไม่แตะปุ่มใดๆ มั่วเด็ดขาด")
+        close_btn = find_friends_dialog_close_btn(device_capture_screen(device))
+        if close_btn:
+            _adb_tap(device, close_btn[0], close_btn[1], jitter=1, delay=1.0)
+        return {"success": False, "message": "Failed to enter Manage Friends mode"}
+
+    # 3. ปรับการเรียงลำดับ (Sort by Level)
+    _log("3. ตรวจสอบหน้าจอเพื่อปรับการเรียงลำดับเลเวล (Sort by Level)...")
     lvl1_found = False
     for sort_attempt in range(1, 6):
         screen = device_capture_screen(device)
+        if is_in_manage_friends_mode(screen) is None:
+            _log("⚠️ หลุดออกจากหน้า Manage Friends! หยุดขั้นตอนการกรอง")
+            break
         badges = detect_level1_badges(screen)
         if len(badges) > 0:
             _log(f"   ✅ [ตรวจจอก่อนกด: พบเวล 1] จำนวน {len(badges)} คนบนหน้าจอแล้ว! การเรียงลำดับถูกต้อง")
@@ -680,7 +827,6 @@ def clean_level1_friends(device: str, log_func=None, restart_app: bool = False) 
         _log(f"   🔍 [รอบที่ {sort_attempt}/5: ยังไม่พบเวล 1] แตะปุ่มกรองเวล ({LEVEL_SORT_BUTTON[0]}, {LEVEL_SORT_BUTTON[1]})...")
         _adb_tap(device, LEVEL_SORT_BUTTON[0], LEVEL_SORT_BUTTON[1], jitter=1, delay=1.2)
 
-        # ตรวจสอบหน้าจอหลังกดกรองทันที
         screen_after_sort = device_capture_screen(device)
         badges_after = detect_level1_badges(screen_after_sort)
         if len(badges_after) > 0:
@@ -692,32 +838,23 @@ def clean_level1_friends(device: str, log_func=None, restart_app: bool = False) 
     if not lvl1_found:
         _log("ℹ️ ตรวจสอบหน้าจอครบ 5 ครั้งแล้ว ไม่พบเพื่อนเลเวล 1 บนหน้าจอ (อาจไม่มีเพื่อนเวล 1 ในไอดีนี้)")
 
-    # 3. กด manage: ตรวจจอก่อนกด
-    screen = device_capture_screen(device)
-    if not is_friends_dialog_open(screen):
-        _log("❌ หน้าต่าง Friends ปิดไปแล้ว ไม่สามารถดำเนินการต่อได้")
-        return {"success": False, "message": "Friends dialog closed unexpectedly"}
-
-    _log(f"3. แตะ: ({MANAGE_BUTTON[0]}, {MANAGE_BUTTON[1]}) ปุ่ม manage")
-    _adb_tap(device, MANAGE_BUTTON[0], MANAGE_BUTTON[1], jitter=1, delay=1.2)
-
-    screen = device_capture_screen(device)
-    if screen is None:
-        _log("❌ ไม่สามารถจับภาพหน้าจอได้")
-        return {"success": False, "message": "Failed to capture screen"}
-
-    # 4. แตะเพื่อนเวลหนึ่ง: ตรวจจอก่อนแตะ แตะแล้วตรวจจอ ทุกครั้ง
+    # 4. แตะติ๊กเลือกเพื่อนเวล 1
     total_ticked = 0
     consecutive_empty_scrolls = 0
     max_scrolls = 40
 
-    _log("4. เริ่มกระบวนการติ๊กเลือกเพื่อนเวล 1 (ตรวจจอก่อนแตะ และตรวจจอหลังแตะทุกรายการ)...")
+    _log("4. เริ่มกระบวนการติ๊กเลือกเพื่อนเวล 1 (เฉพาะในโหมดจัดการเพื่อนเท่านั้น)...")
 
     for scroll_idx in range(max_scrolls):
         screen = device_capture_screen(device)
         if screen is None:
             time.sleep(0.5)
             continue
+
+        # CRITICAL GUARD: ต้องอยู่ในหน้า Manage Friends เท่านั้น ห้ามแตะหน้าอื่นเด็ดขาด!
+        if is_in_manage_friends_mode(screen) is None:
+            _log("⚠️ หน้าจอไม่ได้อยู่ในหน้า Manage Friends แล้ว! หยุดการติ๊กเพื่อนทันทีเพื่อความปลอดภัย")
+            break
 
         badges = detect_level1_badges(screen)
 
@@ -730,7 +867,6 @@ def clean_level1_friends(device: str, log_func=None, restart_app: bool = False) 
             consecutive_empty_scrolls = 0
             _log(f"   [รอบเลื่อนที่ {scroll_idx + 1}] พบเพื่อนเวล 1 บนหน้าจอ {len(badges)} คน")
 
-            # แตะเพื่อนเวลหนึ่งตามจุด
             for pt in FRIEND_ROW_POINTS:
                 px, py = pt[0], pt[1]
                 has_lvl1 = any(abs(b_y - (py - 40)) < 65 for b_y in badges)
@@ -753,14 +889,14 @@ def clean_level1_friends(device: str, log_func=None, restart_app: bool = False) 
                             _log(f"      ✅ [ตรวจจอหลังกด: สำเร็จ] แถวที่จุด ({px}, {py}) ติ๊กเลือกแล้ว")
                     total_ticked += 1
 
-            # เก็บตกแถวที่ตรวจเจอแต่ไม่ตรงจุด 4 จุดหลัก
+            # เก็บตกแถวที่ตรวจเจอแต่ไม่ตรงจุด 4 จุดหลัก (แตะที่ X=980 ช่องดาวเลือก)
             screen_after = device_capture_screen(device)
             if screen_after is not None:
                 badges_after = detect_level1_badges(screen_after)
                 for b_y in badges_after:
                     if not is_row_selected(screen_after, b_y):
-                        _log(f"   👉 [เก็บตก: ก่อนกด] แตะเพื่อนเวล 1 ที่ Y={b_y + 20}")
-                        _adb_tap(device, 500, b_y + 20, jitter=2, delay=0.3)
+                        _log(f"   👉 [เก็บตก: ก่อนกด] แตะติ๊กเพื่อนเวล 1 ที่ (980, {b_y + 20})")
+                        _adb_tap(device, 980, b_y + 20, jitter=2, delay=0.3)
                         total_ticked += 1
 
         # เลื่อนหน้าจอลงเพื่อตรวจคนถัดไป
@@ -869,12 +1005,28 @@ class FriendCleanerScheduler:
         self.last_run_time: Optional[float] = None
         self.next_run_time: Optional[float] = None
         self.history: List[Dict[str, Any]] = []
+        self.current_device: Optional[str] = None
+        self.current_step: str = "พร้อมทำงาน"
+        self.device_statuses: Dict[str, Dict[str, Any]] = {}
+
+    def set_step(self, device: Optional[str], step: str):
+        with self.lock:
+            self.current_device = device
+            self.current_step = step
+            if device:
+                self.device_statuses[device] = {
+                    "device": device,
+                    "status": "running",
+                    "current_step": step,
+                    "updated_at": time.strftime("%H:%M:%S")
+                }
 
     def start(self, devices: List[str], interval_minutes: int = 30, run_immediately: bool = True):
         with self.lock:
             self.target_devices = [d.strip() for d in devices if d and d.strip()]
             self.interval_minutes = max(1, interval_minutes)
             self.is_running = True
+            self.current_step = "กำลังเริ่มระบบวนลูป..."
             self._stop_event.clear()
 
             if self._thread is None or not self._thread.is_alive():
@@ -890,6 +1042,11 @@ class FriendCleanerScheduler:
         with self.lock:
             self.is_running = False
             self._stop_event.set()
+            self.current_device = None
+            self.current_step = "หยุดการทำงานแล้ว"
+            for dev in self.device_statuses:
+                self.device_statuses[dev]["status"] = "stopped"
+                self.device_statuses[dev]["current_step"] = "หยุดการทำงานแล้ว"
 
     def get_status(self) -> Dict[str, Any]:
         with self.lock:
@@ -899,6 +1056,9 @@ class FriendCleanerScheduler:
                 "is_running": self.is_running,
                 "interval_minutes": self.interval_minutes,
                 "target_devices": self.target_devices,
+                "current_device": self.current_device,
+                "current_step": self.current_step,
+                "device_statuses": self.device_statuses,
                 "last_run": time.strftime("%H:%M:%S", time.localtime(self.last_run_time)) if self.last_run_time else None,
                 "next_run_seconds": remaining_seconds,
                 "next_run": time.strftime("%H:%M:%S", time.localtime(self.next_run_time)) if self.next_run_time else None,
@@ -913,6 +1073,8 @@ class FriendCleanerScheduler:
                 if not run_immediately:
                     with self.lock:
                         self.next_run_time = time.time() + (self.interval_minutes * 60)
+                    next_str = time.strftime('%H:%M:%S', time.localtime(self.next_run_time))
+                    self.set_step(None, f"รอเริ่มรอบแรกเวลา {next_str} (อีก {self.interval_minutes} นาที)")
                     if self._stop_event.wait(self.interval_minutes * 60):
                         break
 
@@ -926,27 +1088,46 @@ class FriendCleanerScheduler:
                 if self._stop_event.is_set():
                     break
                 try:
+                    self.set_step(dev, f"กำลังเปิดเกม Cookie Run บนจอ {dev}...")
+
+                    def _scheduler_log(msg: str):
+                        clean_msg = msg
+                        # Extract friendly message from bracketed prefixes
+                        if "]" in clean_msg:
+                            clean_msg = clean_msg.split("]", 1)[-1].strip()
+                        self.set_step(dev, clean_msg)
+                        print(f"[{time.strftime('%H:%M:%S')}][Cleaner][{dev}] {clean_msg}", flush=True)
+
                     # ตรวจสอบและเปิดเกมพร้อมรอให้ถึงหน้า Lobby สะอาด
-                    launch_game_and_wait_lobby(dev, timeout=45.0)
-                    res = clean_level1_friends(dev, restart_app=True)
+                    launch_game_and_wait_lobby(dev, timeout=45.0, log_func=_scheduler_log)
+                    res = clean_level1_friends(dev, log_func=_scheduler_log, restart_app=True)
+                    ticked = res.get("total_ticked", 0)
                     with self.lock:
                         self.history.append({
                             "time": time.strftime("%H:%M:%S"),
                             "device": dev,
                             "success": res.get("success", False),
-                            "ticked": res.get("total_ticked", 0)
+                            "ticked": ticked
                         })
+                        if dev in self.device_statuses:
+                            self.device_statuses[dev]["status"] = "idle"
+                            self.device_statuses[dev]["current_step"] = f"ลบเพื่อนเลเวล 1 สำเร็จ {ticked} รายการ"
                 except Exception as e:
                     print(f"[FriendCleaner] Error on {dev}: {e}", flush=True)
+                    self.set_step(dev, f"เกิดข้อผิดพลาด: {e}")
                 finally:
                     clear_system_memory(dev, package=GAME_PACKAGE)
 
             # Wait for next interval
+            next_str = time.strftime('%H:%M:%S', time.localtime(self.next_run_time)) if self.next_run_time else ""
+            self.set_step(None, f"รอบล่าสุดเสร็จสิ้น • รอทำรอบถัดไปเวลา {next_str} (อีก {self.interval_minutes} นาที)")
             if self._stop_event.wait(self.interval_minutes * 60):
                 break
 
         with self.lock:
             self.is_running = False
+            self.current_device = None
+            self.current_step = "หยุดการทำงานแล้ว"
 
 
 # Global singleton

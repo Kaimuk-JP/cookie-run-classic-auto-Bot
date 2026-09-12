@@ -27,6 +27,30 @@ export interface RoundHistoryItem {
   screenshot: string;
 }
 
+export interface CaptchaStats {
+  total_attempts: number;
+  success_count: number;
+  fail_count: number;
+  last_attempt_time?: string | null;
+  last_result?: 'success' | 'fail' | null;
+}
+
+export interface HeartStats {
+  running: boolean;
+  rounds: number;
+  success_count: number;
+  current_step?: string;
+}
+
+export interface CleanerStats {
+  running: boolean;
+  is_busy: boolean;
+  current_device?: string | null;
+  current_step?: string;
+  next_run?: string | null;
+  next_run_seconds?: number;
+}
+
 export interface Device {
   serial: string;
   name: string;
@@ -37,6 +61,8 @@ export interface Device {
   index: number;
   port?: number | string;
   is_running: boolean;
+  active_mode?: 'bot_engine' | 'heart_farmer' | 'friend_cleaner' | 'idle';
+  activity_description?: string;
   current_stage: string;
   rounds_played: number;
   mystery_boxes: number;
@@ -44,6 +70,9 @@ export interface Device {
   box_counts: BoxCounts;
   coin_stats: CoinStats;
   round_history: RoundHistoryItem[];
+  captcha_stats?: CaptchaStats;
+  heart_stats?: HeartStats;
+  cleaner_stats?: CleanerStats;
 }
 
 export interface BotSettings {

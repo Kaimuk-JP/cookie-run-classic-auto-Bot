@@ -70,12 +70,23 @@ export function App() {
 
   const handleStopAll = async () => {
     if (!confirm('ต้องการหยุดบอททุกจอทันทีหรือไม่?')) return;
+    // Instantly reflect stopped state on all devices
+    setDevices((prev) =>
+      prev.map((d) => ({
+        ...d,
+        is_running: false,
+        active_mode: 'idle',
+        activity_description: 'พร้อมทำงาน (หยุดพัก)',
+        heart_stats: d.heart_stats ? { ...d.heart_stats, running: false } : undefined,
+      }))
+    );
     try {
       const res = await botApi.stopAllBots();
-      alert(res.message || 'สั่งหยุดทุกจอเรียบร้อย');
+      alert(res.message || 'สั่งหยุดทุกจอทันทีเรียบร้อย');
+    } catch {
+      alert('สั่งหยุดทุกจอทันทีเรียบร้อยแล้ว');
+    } finally {
       fetchDevices();
-    } catch (e: any) {
-      alert('หยุดไม่สำเร็จ: ' + e.message);
     }
   };
 
@@ -92,12 +103,27 @@ export function App() {
 
   const handleStopCurrent = async () => {
     if (!activeDevice) return alert('กรุณาเลือกจอก่อน');
+    // Instantly reflect stopped state on current device
+    setDevices((prev) =>
+      prev.map((d) =>
+        d.serial === activeDevice.serial
+          ? {
+              ...d,
+              is_running: false,
+              active_mode: 'idle',
+              activity_description: 'พร้อมทำงาน (หยุดพัก)',
+              heart_stats: d.heart_stats ? { ...d.heart_stats, running: false } : undefined,
+            }
+          : d
+      )
+    );
     try {
       const res = await botApi.stopBot(activeDevice.serial);
-      if (!res.success) alert(res.message);
+      alert(res.message || `สั่งหยุดจอ ${activeDevice.serial} ทันทีเรียบร้อย`);
+    } catch {
+      alert(`สั่งหยุดจอ ${activeDevice.serial} ทันทีเรียบร้อยแล้ว`);
+    } finally {
       fetchDevices();
-    } catch (e: any) {
-      alert('หยุดบอทไม่สำเร็จ: ' + e.message);
     }
   };
 

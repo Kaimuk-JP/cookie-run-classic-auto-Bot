@@ -76,6 +76,32 @@ def _format_target(ip_or_serial: str, port: Optional[int | str] = None) -> str:
     return target
 
 
+def ensure_adb_root(device: str) -> bool:
+    """
+    Ensure the ADB daemon on the target device is running as root (uid=0).
+    Many emulators (MuMu 12/15, LDPlayer 9, etc.) start adbd as unprivileged shell (uid=2000)
+    over network connections until 'adb root' is explicitly requested.
+    """
+    adb = get_adb_path()
+    target = _format_target(device)
+    try:
+        res = _run_cmd([adb, "-s", target, "shell", "id"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=3)
+        if "uid=0" in (res.stdout or ""):
+            return True
+
+        # Attempt adb root
+        _run_cmd([adb, "-s", target, "root"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=4)
+        time.sleep(0.8)
+        if ":" in str(target):
+            _run_cmd([adb, "connect", target], stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=3)
+        _run_cmd([adb, "-s", target, "wait-for-device"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=4)
+
+        res2 = _run_cmd([adb, "-s", target, "shell", "id"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=3)
+        return "uid=0" in (res2.stdout or "")
+    except Exception:
+        return False
+
+
 _EMU_NAME_CACHE: Dict[str, Tuple[float, str]] = {}
 _PORT_PID_CACHE: Tuple[float, Dict[int, int]] = (0.0, {})
 

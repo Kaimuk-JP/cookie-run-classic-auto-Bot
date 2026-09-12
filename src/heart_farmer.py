@@ -43,6 +43,7 @@ from adb import (
     device_capture_screen,
     resolve_emulator_name,
     clear_system_memory,
+    ensure_adb_root,
 )
 from error_logger import record_game_error
 
@@ -378,16 +379,61 @@ class HeartFarmer:
         self.invite_url = invite_url or INVITE_URL
         self.max_rounds = max_rounds   # 0 = infinite
         self.rounds = 0
+        self.success_count = 0
+        self.current_step = "เตรียมเริ่มทำงาน"
+        self.start_time = time.time()
         self.stopped = False
         self.heart_sent = False
 
     def stop(self):
         self.stopped = True
-        self._log("สั่งหยุดการทำงาน (Stopping requested...)")
+        self.current_step = "หยุดการทำงานทันทีแล้ว"
+        self._log("สั่งหยุดการทำงานทันที (Stopping requested...)")
+        try:
+            self.adb('shell', 'am', 'force-stop', PACKAGE, timeout=5)
+        except Exception:
+            pass
 
     def _log(self, msg: str):
         display_device = f"{self.emu_name} ({self.device})" if getattr(self, "emu_name", "") else self.device
-        print(f"[{time.strftime('%H:%M:%S')}][HeartFarmer][{display_device}] {msg}", flush=True)
+        full_line = f"[{time.strftime('%H:%M:%S')}][HeartFarmer][{display_device}] {msg}"
+        print(full_line, flush=True)
+
+        try:
+            from bot_engine import engine_manager
+            eng = engine_manager.get_or_create_engine(self.device)
+            timestamp = time.strftime("%H:%M:%S")
+            level = "farmer"
+            msg_lower = msg.lower()
+            if any(x in msg for x in ("❌", "error", "fail", "ล้มเหลว", "ไม่สำเร็จ")):
+                level = "error"
+            elif any(x in msg for x in ("⚠️", "warning", "warn", "เตือน")):
+                level = "warning"
+            elif any(x in msg for x in ("✅", "success", "สำเร็จ", "🎉", "GREEN", "⚡")):
+                level = "success"
+
+            log_entry = {
+                "time": timestamp,
+                "timestamp": timestamp,
+                "message": f"[HeartFarmer][{display_device}] {msg}",
+                "level": level,
+                "device": self.device,
+                "target": self.device,
+            }
+            eng.logs.append(log_entry)
+
+            loop = eng.loop or getattr(engine_manager, "loop", None)
+            if loop and eng.ws_subscribers:
+                for q in list(eng.ws_subscribers):
+                    try:
+                        loop.call_soon_threadsafe(q.put_nowait, log_entry)
+                    except Exception:
+                        pass
+
+            if engine_manager:
+                engine_manager.record_and_broadcast_log(log_entry)
+        except Exception:
+            pass
 
     def adb(self, *args, timeout: int = 15):
         return _adb(self.device, *args, timeout=timeout)
@@ -490,6 +536,7 @@ class HeartFarmer:
         return False
 
     def handle_step_failure(self, step_name: str, details: str = ""):
+        self.current_step = f"ล้มเหลว ({step_name}: {details})"
         self._log(f"❌ [ล้มเหลว] {step_name} ไม่สำเร็จ! รายละเอียด: {details}")
         try:
             img = self.screenshot()
@@ -508,17 +555,57 @@ class HeartFarmer:
     # -----------------------------------------------------------------------
 
     def step0_clear_and_launch(self) -> bool:
-        self._log("\n[STEP 0] ล้างข้อมูลล็อกอิน/แคช (เก็บแพตช์เกม) + ซ่อน Root + เปิดเกม")
+        self._log("\n[STEP 0] ล้างข้อมูลล็อกอิน/แคช (เก็บแพตช์เกม) + ตรวจสิทธิ์ Root + เปิดเกม")
         self.adb('shell', 'am', 'force-stop', PACKAGE)
+        time.sleep(0.5)
+
+        # 1. ตรวจสอบและเปิดสิทธิ์ Root บน ADB ถ้ายังไม่ได้เป็น Root
+        try:
+            is_root = ensure_adb_root(self.device)
+            if not is_root:
+                self._log("  ⚠️ [Root Check] ไม่สามารถขอสิทธิ์ ADB Root ได้ จะพยายามใช้คำสั่ง su แทน")
+        except Exception as e:
+            self._log(f"  [Root Check] ข้อผิดพลาด: {e}")
+
+        # 2. ปลดล็อกสิทธิ์ su ชั่วคราว (เผื่อเครื่องที่มี su โดน chmod 000 ซ่อนไว้)
+        try:
+            self.adb('shell', 'chmod', '755', '/system/xbin/su', timeout=2)
+            self.adb('shell', 'chmod', '755', '/system/bin/su', timeout=2)
+        except Exception:
+            pass
+
+        # 3. ล้างไฟล์ข้อมูลล็อกอินและแคช (เก็บโฟลเดอร์ files ซึ่งเป็นแพตช์เกมไว้)
         rm_cmd = (f"rm -rf /data/data/{PACKAGE}/shared_prefs "
                   f"/data/data/{PACKAGE}/databases "
                   f"/data/data/{PACKAGE}/cache "
                   f"/data/data/{PACKAGE}/code_cache "
                   f"/data/data/{PACKAGE}/app_webview "
                   f"/sdcard/Android/data/{PACKAGE}/cache")
-        self.adb('shell', 'su', '-c', f"'{rm_cmd}'")
         self.adb('shell', rm_cmd)
-        self.adb('shell', 'chmod', '000', '/system/xbin/su')
+        self.adb('shell', 'su', '-c', f"'{rm_cmd}'")
+
+        # 4. ตรวจสอบยืนยันว่าโฟลเดอร์ล็อกอิน (shared_prefs) ถูกลบออกจริงหรือไม่
+        check_sp = self.adb('shell', f"ls -d /data/data/{PACKAGE}/shared_prefs 2>/dev/null")
+        if check_sp and "shared_prefs" in (check_sp.stdout or ""):
+            # พยายามลบเจาะจงไฟล์ข้างในโฟลเดอร์อีกรอบ
+            self.adb('shell', f"rm -rf /data/data/{PACKAGE}/shared_prefs/* /data/data/{PACKAGE}/databases/*")
+            self.adb('shell', 'su', '-c', f"'rm -rf /data/data/{PACKAGE}/shared_prefs/* /data/data/{PACKAGE}/databases/*'")
+            recheck = self.adb('shell', f"ls /data/data/{PACKAGE}/shared_prefs 2>/dev/null")
+            if recheck and recheck.stdout.strip():
+                self._log("  ⚠️ [ล้างข้อมูล] พบไฟล์ใน shared_prefs ตกค้าง (กรุณาเปิดสิทธิ์ Root ในโปรแกรมจำลอง)")
+            else:
+                self._log("  ✅ [ล้างข้อมูล] ล้างไฟล์ข้อมูลล็อกอินสำเร็จเรียบร้อย")
+        else:
+            self._log("  ✅ [ล้างข้อมูล] ล้างข้อมูลล็อกอินสำเร็จสมบูรณ์ (shared_prefs ถูกลบเรียบร้อย)")
+
+        # 5. ซ่อน su binary (ถ้ามี) ไม่ให้เกมตรวจจับ
+        try:
+            self.adb('shell', 'chmod', '000', '/system/xbin/su', timeout=2)
+            self.adb('shell', 'chmod', '000', '/system/bin/su', timeout=2)
+        except Exception:
+            pass
+
+        # 6. เปิดตัวเกม CookieRun Classic
         self.adb('shell', 'monkey', '-p', PACKAGE, '-c', 'android.intent.category.LAUNCHER', '1')
         time.sleep(2.0)
         return True
@@ -927,55 +1014,66 @@ class HeartFarmer:
 
     def run_round(self) -> bool:
         if self.stopped: return False
+        self.current_step = "ล้างแคช & เปิดเกมใหม่"
         if not self.step0_clear_and_launch():
             self.handle_step_failure("STEP 0", "ไม่สามารถล้างข้อมูลหรือเปิดเกมได้")
             return False
 
         if self.stopped: return False
+        self.current_step = "ตรวจจับหน้าเข้าสู่ระบบ DevPlay"
         if not self.step1_login_email():
             self.handle_step_failure("STEP 1", "ไม่สามารถผ่านหน้าต่างเริ่มต้นหรือเปิดหน้ากรอกอีเมลได้")
             return False
 
         if self.stopped: return False
+        self.current_step = "สร้างบัญชีสุ่ม & กรอกอีเมล"
         if not self.step2_enter_email():
             self.handle_step_failure("STEP 2", "กรอกอีเมลไม่สำเร็จ หรือไม่ได้หน้าสมัครที่มี 2 ช่อง")
             return False
 
         if self.stopped: return False
+        self.current_step = "กรอกรหัสผ่าน & ยอมรับเงื่อนไข"
         if not self.step3_enter_password():
             self.handle_step_failure("STEP 3", "กรอกรหัสผ่าน 2 ช่องไม่สำเร็จ")
             return False
 
         if self.stopped: return False
+        self.current_step = "ตรวจจับ Cloudflare & สมัครสมาชิก"
         if not self.step4_register():
             self.handle_step_failure("STEP 4", "กดยอมรับ/Cloudflare/Register ไม่สำเร็จ")
             return False
 
         if self.stopped: return False
+        self.current_step = "ข้ามวิดีโอ & ข้ามด่านฝึกสอน"
         if not self.step5_handle_tutorial():
             self.handle_step_failure("STEP 5", "ข้ามหน้าต่าง Tutorial หรือออกจากด่านไม่สำเร็จ")
             return False
 
         if self.stopped: return False
+        self.current_step = "ตั้งชื่อตัวละคร & รับของขวัญเริ่มต้น"
         if not self.step6_set_nickname():
             self.handle_step_failure("STEP 6", "ตั้งชื่อเล่นไม่สำเร็จ")
             return False
 
         if self.stopped: return False
+        self.current_step = "เปิดลิงก์เชิญเพื่อน (Invite Link)"
         if not self.step7_open_invite_link():
             self.handle_step_failure("STEP 7", "เปิด Invite link ในเบราว์เซอร์ไม่สำเร็จ")
             return False
 
         if self.stopped: return False
+        self.current_step = "ตรวจสอบยืนยันการเพิ่มเพื่อน"
         if not self.step8_confirm_friend_added():
             self.handle_step_failure("STEP 8", "ยืนยันการเพิ่มเพื่อนไม่สำเร็จ")
             return False
 
         if self.stopped: return False
+        self.current_step = "ส่งหัวใจให้เพื่อนอันดับ 1 ❤️"
         if not self.step9_send_heart_and_exit():
             self.handle_step_failure("STEP 9", "ส่งหัวใจไม่สำเร็จ")
             return False
 
+        self.current_step = "ส่งหัวใจสำเร็จเสร็จสิ้น 100%!"
         return True
 
     def run(self):
@@ -986,21 +1084,27 @@ class HeartFarmer:
         while not self.stopped:
             if self.max_rounds and self.rounds >= self.max_rounds:
                 self._log(f"ครบ {self.max_rounds} รอบ - หยุด")
+                self.current_step = f"ครบ {self.max_rounds} รอบแล้ว (หยุดทำงาน)"
                 break
 
             self.rounds += 1
             self.heart_sent = False
+            self.current_step = f"เริ่มรอบที่ #{self.rounds}..."
             self._log(f"\n{'='*55}\n--- Round #{self.rounds} ---\n{'='*55}")
 
             try:
                 ok = self.run_round()
                 if ok:
+                    self.success_count += 1
+                    self.current_step = f"ส่งหัวใจสำเร็จ #{self.success_count} ดวง! (รอบ #{self.rounds})"
                     self._log(f"🎉 Round #{self.rounds} สำเร็จสมบูรณ์ 100% (DONE)!")
                 else:
+                    self.current_step = f"รอบ #{self.rounds} ล้มเหลว -> กำลังเริ่มรอบถัดไป..."
                     self._log(f"⚠️ Round #{self.rounds} ล้มเหลว -> เตรียมเริ่มรอบถัดไป...")
                     time.sleep(2.0)
             except KeyboardInterrupt:
                 self._log("หยุดโดยผู้ใช้ (Ctrl+C)")
+                self.current_step = "หยุดการทำงานแล้ว"
                 break
             except Exception as exc:
                 self.handle_step_failure("Exception", f"เกิดข้อผิดพลาด: {exc}")

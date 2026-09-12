@@ -207,9 +207,12 @@ export const LogsConsole: React.FC<LogsConsoleProps> = ({ deviceSerial }) => {
             } else if (msg.includes('[ADB]') || log.level === 'adb' || msg.includes('Tap')) {
               tag = 'ADB';
               tagClass = 'text-amber-400 bg-amber-950/70 border-amber-500/40';
-            } else if (msg.includes('[FARMER]') || log.level === 'farmer' || msg.includes('หัวใจ')) {
+            } else if (msg.includes('[FARMER]') || msg.includes('[HeartFarmer]') || log.level === 'farmer' || msg.includes('หัวใจ')) {
               tag = 'FARM';
               tagClass = 'text-pink-400 bg-pink-950/70 border-pink-500/40';
+            } else if (msg.includes('[CLEANER]') || msg.includes('[FriendCleaner]') || log.level === 'cleaner' || msg.includes('ลบเพื่อน')) {
+              tag = 'CLEAN';
+              tagClass = 'text-teal-400 bg-teal-950/70 border-teal-500/40';
             } else if (msg.includes('[ERROR]') || log.level === 'error' || msg.includes('ไม่สำเร็จ') || msg.includes('ล้มเหลว') || msg.includes('Error')) {
               tag = 'ERR';
               tagClass = 'text-rose-400 bg-rose-950/70 border-rose-500/40';
@@ -224,7 +227,7 @@ export const LogsConsole: React.FC<LogsConsoleProps> = ({ deviceSerial }) => {
               tagClass = 'text-emerald-400 bg-emerald-950/70 border-emerald-500/40';
             }
 
-            const cleanMsg = msg.replace(/^\[(BOT|ADB|INFO|ERROR|SYS|FARMER|STREAM)\]\s*/i, '');
+            const cleanMsg = msg.replace(/^\[(BOT|ADB|INFO|ERROR|SYS|FARMER|HeartFarmer|CLEANER|FriendCleaner|STREAM)\]\s*/i, '');
 
             return (
               <div key={idx} className="flex items-baseline gap-2 hover:bg-slate-900/60 px-1.5 py-0.5 rounded transition">

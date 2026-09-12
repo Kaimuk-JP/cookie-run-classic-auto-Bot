@@ -27,12 +27,58 @@ from adb import (
 from bot_engine import (
     BOOST_OPTIONS,
     BotEngine,
+    _in_bot_log,
     bot_engine,
     engine_manager,
     get_device_settings_path,
 )
 from discord_notifier import discord_notifier
 from scrcpy_streamer import stream_manager
+import sys
+import re
+from datetime import datetime
+import socket
+
+def silence_windows_proactor_connection_lost():
+    """Fix Windows asyncio Proactor [WinError 10054] bug when clients disconnect/refresh."""
+    if sys.platform != "win32":
+        return
+    try:
+        from asyncio.proactor_events import _ProactorBasePipeTransport
+
+        _orig_call_conn_lost = _ProactorBasePipeTransport._call_connection_lost
+
+        def _safe_call_connection_lost(self, exc):
+            if self._called_connection_lost:
+                return
+            try:
+                self._protocol.connection_lost(exc)
+            finally:
+                if hasattr(self, "_sock") and self._sock is not None:
+                    if hasattr(self._sock, "shutdown") and self._sock.fileno() != -1:
+                        try:
+                            self._sock.shutdown(socket.SHUT_RDWR)
+                        except (ConnectionResetError, OSError):
+                            pass
+                    try:
+                        self._sock.close()
+                    except (ConnectionResetError, OSError):
+                        pass
+                    self._sock = None
+                server = getattr(self, "_server", None)
+                if server is not None:
+                    try:
+                        server._detach(self)
+                    except Exception:
+                        pass
+                    self._server = None
+                self._called_connection_lost = True
+
+        _ProactorBasePipeTransport._call_connection_lost = _safe_call_connection_lost
+    except Exception:
+        pass
+
+silence_windows_proactor_connection_lost()
 
 # Heart Farmer (imported lazily to avoid circular deps)
 try:
@@ -68,6 +114,12 @@ def _start_heart_farmer(device: str, invite_url: str) -> dict:
     if existing_t and existing_t.is_alive() and existing_i and not existing_i.stopped:
         return {"success": False, "message": f"บอทปั้มหัวใจกำลังทำงานอยู่แล้วบนจอ {device}"}
 
+    try:
+        from adb import ensure_adb_root
+        ensure_adb_root(device)
+    except Exception:
+        pass
+
     farmer = _HeartFarmer(device=device, invite_url=invite_url, max_rounds=0)
     t = threading.Thread(target=farmer.run, name=f"HeartFarmer-{device}", daemon=True)
     t.start()
@@ -82,9 +134,18 @@ def _stop_heart_farmer(device: str) -> dict:
     farmer = _farmer_instances.get(device)
     if farmer:
         farmer.stop()
-    bot_engine.log(f"[FARMER] สั่งหยุดระบบปั้มหัวใจบนจอ {device}", "farmer")
-    print(f"[WebServer] HeartFarmer stopping on {device}", flush=True)
-    return {"success": True, "message": f"สั่งหยุดระบบปั้มหัวใจบนจอ {device} เรียบร้อยแล้ว"}
+    # Force stop game app immediately on emulator so actions halt right now
+    try:
+        from adb import get_adb_path
+        import subprocess
+        adb_path = get_adb_path()
+        subprocess.run([adb_path, "-s", device, "shell", "am", "force-stop", "com.linecorp.LGCOOKIE"],
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
+    except Exception:
+        pass
+    bot_engine.log(f"[FARMER] สั่งหยุดระบบปั้มหัวใจบนจอ {device} และปิดเกมทันที", "farmer")
+    print(f"[WebServer] HeartFarmer stopped immediately on {device}", flush=True)
+    return {"success": True, "message": f"สั่งหยุดระบบปั้มหัวใจบนจอ {device} ทันทีเรียบร้อยแล้ว"}
 
 app = FastAPI(title="CookieRun Classic Bot Web Dashboard", version="1.0.0")
 
@@ -186,6 +247,7 @@ class ConnectionTestRequest(BaseModel):
 class TapRequest(BaseModel):
     x: int
     y: int
+    device: Optional[str] = None
     device_serial: Optional[str] = None
     device_ip: Optional[str] = None
     device_port: Optional[int] = None
@@ -293,12 +355,120 @@ def save_bot_settings_to_file(settings: dict, device_serial: Optional[str] = Non
         print(f"Failed to save bot settings to {target_file}: {e}")
 
 
+class InterceptingStdout:
+    """Intercepts sys.stdout so print statements from all functions and modules
+    are automatically streamed in real-time to the Web Dashboard Live Logs console."""
+    def __init__(self, original_stdout):
+        self.original_stdout = original_stdout
+        self._buffer = ""
+        self._lock = threading.Lock()
+
+    def write(self, s):
+        if self.original_stdout:
+            try:
+                self.original_stdout.write(s)
+            except Exception:
+                pass
+
+        if getattr(_in_bot_log, "active", False):
+            return
+
+        with self._lock:
+            self._buffer += str(s)
+            while "\n" in self._buffer:
+                line, self._buffer = self._buffer.split("\n", 1)
+                line = line.strip()
+                if not line:
+                    continue
+                # Filter out standard uvicorn log spam
+                if line.startswith("INFO:") or line.startswith("WARNING:") or line.startswith("DEBUG:") or "GET /api/" in line or "GET /ws/" in line:
+                    continue
+
+                level = "info"
+                line_lower = line.lower()
+                if any(x in line for x in ("❌", "error", "fail", "ล้มเหลว", "ไม่สำเร็จ")):
+                    level = "error"
+                elif any(x in line for x in ("⚠️", "warning", "warn", "เตือน")):
+                    level = "warning"
+                elif any(x in line for x in ("✅", "success", "สำเร็จ", "🎉", "🎁")):
+                    level = "success"
+                elif "[farmer]" in line_lower or "heartfarmer" in line_lower or "หัวใจ" in line:
+                    level = "farmer"
+                elif "[cleaner]" in line_lower or "friendcleaner" in line_lower:
+                    level = "cleaner"
+                elif any(x in line_lower for x in ("detected stage", "stage:")):
+                    level = "stage"
+
+                now_str = datetime.now().strftime("%H:%M:%S")
+                tm = re.match(r"^\[(\d{2}:\d{2}:\d{2})\]", line)
+                time_str = tm.group(1) if tm else now_str
+
+                # Accurately detect device serial anywhere in the line
+                found_device = None
+                known_serials = list(engine_manager.engines.keys()) + list(_farmer_instances.keys())
+                for ser in known_serials:
+                    if ser and ser in line:
+                        found_device = ser
+                        break
+                if not found_device:
+                    m_ser = re.search(r"(emulator-\d+|\d+\.\d+\.\d+\.\d+:\d+)", line)
+                    if m_ser:
+                        found_device = m_ser.group(1)
+
+                log_entry = {
+                    "time": time_str,
+                    "timestamp": time_str,
+                    "message": line,
+                    "level": level,
+                    "device": found_device,
+                    "target": found_device,
+                }
+                engine_manager.record_and_broadcast_log(log_entry)
+
+                if found_device:
+                    eng = engine_manager.get_or_create_engine(found_device)
+                    eng.logs.append(log_entry)
+                    loop = eng.loop or getattr(engine_manager, "loop", None)
+                    if loop and eng.ws_subscribers:
+                        for q in list(eng.ws_subscribers):
+                            try:
+                                loop.call_soon_threadsafe(q.put_nowait, log_entry)
+                            except Exception:
+                                pass
+                else:
+                    # Broadcast system/adb logs to all engines as well
+                    for eng in engine_manager.get_all_engines().values():
+                        eng.logs.append(log_entry)
+                        loop = eng.loop or getattr(engine_manager, "loop", None)
+                        if loop and eng.ws_subscribers:
+                            for q in list(eng.ws_subscribers):
+                                try:
+                                    loop.call_soon_threadsafe(q.put_nowait, log_entry)
+                                except Exception:
+                                    pass
+
+    def flush(self):
+        if self.original_stdout:
+            try:
+                self.original_stdout.flush()
+            except Exception:
+                pass
+
+
+# Initialize stdout interception immediately so every module's print statements are captured
+if not isinstance(sys.stdout, InterceptingStdout):
+    sys.stdout = InterceptingStdout(sys.stdout)
+
+
 @app.on_event("startup")
 async def startup_event():
     loop = asyncio.get_event_loop()
+    engine_manager.loop = loop
     bot_engine.loop = loop
     for eng in engine_manager.get_all_engines().values():
         eng.loop = loop
+    if not isinstance(sys.stdout, InterceptingStdout):
+        sys.stdout = InterceptingStdout(sys.stdout)
     bot_engine.log(f"🌐 Web Server started. ADB path: {get_adb_path()}")
 
 
@@ -318,35 +488,121 @@ def get_devices():
     for d in scanned:
         serial = d["serial"]
         engine = engine_manager.get_or_create_engine(serial)
-        d["is_running"] = engine.is_running
-        d["current_stage"] = engine.current_stage
+        
+        # Check HeartFarmer status on this device
+        farmer_inst = _farmer_instances.get(serial)
+        farmer_thread = _farmer_threads.get(serial)
+        is_farmer_running = bool(farmer_thread and farmer_thread.is_alive() and farmer_inst and not farmer_inst.stopped)
+        
+        heart_rounds = getattr(farmer_inst, "rounds", 0) if farmer_inst else 0
+        heart_success = getattr(farmer_inst, "success_count", max(0, heart_rounds - 1 if is_farmer_running else heart_rounds)) if farmer_inst else 0
+        heart_step = getattr(farmer_inst, "current_step", "กำลังปั้มหัวใจ" if is_farmer_running else "") if farmer_inst else ""
+
+        heart_stats = {
+            "running": is_farmer_running,
+            "rounds": heart_rounds,
+            "success_count": heart_success,
+            "current_step": heart_step
+        }
+        d["heart_stats"] = heart_stats
+
+        # Check Friend Cleaner Scheduler status
+        is_cleaner_target = bool(friend_cleaner_scheduler and friend_cleaner_scheduler.is_running and serial in friend_cleaner_scheduler.target_devices)
+        is_cleaner_busy = bool(is_cleaner_target and friend_cleaner_scheduler.current_device == serial)
+        cleaner_stat = friend_cleaner_scheduler.get_status() if friend_cleaner_scheduler else {}
+        cleaner_step = friend_cleaner_scheduler.current_step if is_cleaner_target else ""
+        cleaner_next = cleaner_stat.get("next_run")
+        cleaner_dev_status = (friend_cleaner_scheduler.device_statuses.get(serial, {}) if friend_cleaner_scheduler else {})
+        cur_dev_step = cleaner_dev_status.get("current_step") or cleaner_step
+
+        cleaner_stats = {
+            "running": is_cleaner_target,
+            "is_busy": is_cleaner_busy,
+            "current_device": friend_cleaner_scheduler.current_device if friend_cleaner_scheduler else None,
+            "current_step": cur_dev_step,
+            "next_run": cleaner_next,
+            "next_run_seconds": cleaner_stat.get("next_run_seconds", 0),
+        }
+        d["cleaner_stats"] = cleaner_stats
+
+        if is_farmer_running:
+            d["is_running"] = True
+            d["active_mode"] = "heart_farmer"
+            d["current_stage"] = "HEART_FARMER"
+            d["activity_description"] = f"กำลังปั้มหัวใจ (รอบที่ {heart_rounds}) • {heart_step}"
+            farmer_start = getattr(farmer_inst, "start_time", None)
+            if farmer_start:
+                secs = int(time.time() - farmer_start)
+                m, s = divmod(secs, 60)
+                h, m = divmod(m, 60)
+                d["uptime"] = f"{h:02d}:{m:02d}:{s:02d}"
+            else:
+                d["uptime"] = "กำลังทำงาน"
+        elif is_cleaner_target:
+            d["is_running"] = True
+            d["active_mode"] = "friend_cleaner"
+            d["current_stage"] = "FRIEND_CLEANER"
+            if is_cleaner_busy:
+                d["activity_description"] = f"กำลังลบเพื่อนเวล 1 🧹 • {cur_dev_step}"
+            else:
+                d["activity_description"] = f"ระบบลบเพื่อนเวล 1 (รอบถัดไป {cleaner_next or 'เร็วๆ นี้'})"
+            d["uptime"] = "กำลังทำงาน"
+        elif engine.is_running:
+            d["is_running"] = True
+            d["active_mode"] = "bot_engine"
+            d["current_stage"] = engine.current_stage
+            d["activity_description"] = f"กำลังฟาร์มเหรียญ/กล่อง • {engine.current_stage}"
+            d["uptime"] = engine.get_status().get("uptime", "00:00:00")
+        else:
+            d["is_running"] = False
+            d["active_mode"] = "idle"
+            d["current_stage"] = engine.current_stage
+            d["activity_description"] = "พร้อมทำงาน (หยุดพัก)"
+            d["uptime"] = engine.get_status().get("uptime", "00:00:00")
+
         st = engine.get_status()
         d["rounds_played"] = st.get("rounds_played", 0)
         d["mystery_boxes"] = st.get("mystery_boxes", 0)
-        d["uptime"] = st.get("uptime", "00:00:00")
         d["box_counts"] = st.get("box_counts", {})
         d["coin_stats"] = st.get("coin_stats", {})
         d["round_history"] = st.get("round_history", [])
+        d["captcha_stats"] = st.get("captcha_stats", {})
         device_map[serial] = d
 
     # Also include any active engine serials that may not be in scanned (only if currently running)
     for serial, eng in all_engines.items():
         if serial not in device_map and eng.is_running:
             st = eng.get_status()
+            farmer_inst = _farmer_instances.get(serial)
+            farmer_thread = _farmer_threads.get(serial)
+            is_farmer_running = bool(farmer_thread and farmer_thread.is_alive() and farmer_inst and not farmer_inst.stopped)
+            heart_rounds = getattr(farmer_inst, "rounds", 0) if farmer_inst else 0
+            heart_success = getattr(farmer_inst, "success_count", max(0, heart_rounds - 1 if is_farmer_running else heart_rounds)) if farmer_inst else 0
+            heart_step = getattr(farmer_inst, "current_step", "") if farmer_inst else ""
+
             device_map[serial] = {
                 "serial": serial,
                 "name": f"จอ ({serial})",
                 "model": "Device",
                 "status": "online",
                 "index": len(device_map) + 1,
-                "is_running": eng.is_running,
-                "current_stage": eng.current_stage,
+                "is_running": eng.is_running or is_farmer_running,
+                "active_mode": "heart_farmer" if is_farmer_running else "bot_engine",
+                "current_stage": "HEART_FARMER" if is_farmer_running else eng.current_stage,
+                "activity_description": f"กำลังปั้มหัวใจ (รอบที่ {heart_rounds})" if is_farmer_running else f"กำลังฟาร์ม • {eng.current_stage}",
+                "heart_stats": {
+                    "running": is_farmer_running,
+                    "rounds": heart_rounds,
+                    "success_count": heart_success,
+                    "current_step": heart_step
+                },
                 "rounds_played": st.get("rounds_played", 0),
                 "mystery_boxes": st.get("mystery_boxes", 0),
                 "uptime": st.get("uptime", "00:00:00"),
                 "box_counts": st.get("box_counts", {}),
                 "coin_stats": st.get("coin_stats", {}),
                 "round_history": st.get("round_history", []),
+                "captcha_stats": st.get("captcha_stats", {}),
             }
     return list(device_map.values())
 
@@ -480,33 +736,43 @@ def api_farmer_stop(req: Optional[FarmerStopRequest] = None, device: Optional[st
 def api_farmer_status(device: Optional[str] = None):
     result = {}
     total_rounds = 0
+    total_success = 0
     any_running = False
     for dev, t in list(_farmer_threads.items()):
         inst = _farmer_instances.get(dev)
         is_running = bool(t and t.is_alive() and inst and not inst.stopped)
-        rounds = inst.rounds if inst else 0
+        rounds = getattr(inst, "rounds", 0) if inst else 0
+        success_count = getattr(inst, "success_count", max(0, rounds - 1 if is_running else rounds)) if inst else 0
+        current_step = getattr(inst, "current_step", "กำลังปั้มหัวใจ" if is_running else "") if inst else ""
         result[dev] = {
             "running": is_running,
-            "rounds": rounds
+            "rounds": rounds,
+            "success_count": success_count,
+            "current_step": current_step
         }
         if is_running:
             any_running = True
         total_rounds += rounds
+        total_success += success_count
 
     if device:
         dev = device.strip()
-        d_stat = result.get(dev, {"running": False, "rounds": 0})
+        d_stat = result.get(dev, {"running": False, "rounds": 0, "success_count": 0, "current_step": ""})
         return {
             "device": dev,
             "running": d_stat["running"],
             "rounds": d_stat["rounds"],
+            "success_count": d_stat["success_count"],
+            "current_step": d_stat["current_step"],
             "any_running": any_running,
             "total_rounds": total_rounds,
+            "total_success": total_success,
             "instances": result
         }
     return {
         "any_running": any_running,
         "total_rounds": total_rounds,
+        "total_success": total_success,
         "instances": result
     }
 
@@ -573,11 +839,32 @@ def api_cleaner_run_once(req: Optional[FriendCleanerRunOnceRequest] = None, devi
             import importlib
             import friend_cleaner
             importlib.reload(friend_cleaner)
+            if friend_cleaner_scheduler:
+                friend_cleaner_scheduler.set_step(dev, f"เริ่มลบเพื่อนเวล 1 ทันทีบนจอ {dev}...")
             bot_engine.log(f"[CLEANER] กำลังเริ่มลบเพื่อนเวล 1 ทันทีบนจอ {dev}...", "cleaner")
-            res = friend_cleaner.clean_level1_friends(dev, log_func=lambda m: bot_engine.log(m, "cleaner"))
-            bot_engine.log(f"[CLEANER] {res.get('message', 'ลบเพื่อนเสร็จสิ้น')}", "cleaner")
+
+            def _run_once_log(m: str):
+                if friend_cleaner_scheduler:
+                    clean_msg = m.split("]", 1)[-1].strip() if "]" in m else m
+                    friend_cleaner_scheduler.set_step(dev, clean_msg)
+                bot_engine.log(m, "cleaner")
+
+            res = friend_cleaner.clean_level1_friends(dev, log_func=_run_once_log)
+            done_msg = res.get('message', 'ลบเพื่อนเสร็จสิ้น')
+            bot_engine.log(f"[CLEANER] {done_msg}", "cleaner")
+            if friend_cleaner_scheduler:
+                friend_cleaner_scheduler.set_step(dev, done_msg)
+                with friend_cleaner_scheduler.lock:
+                    friend_cleaner_scheduler.history.append({
+                        "time": time.strftime("%H:%M:%S"),
+                        "device": dev,
+                        "success": res.get("success", False),
+                        "ticked": res.get("total_ticked", 0)
+                    })
         except Exception as e:
             bot_engine.log(f"[CLEANER] เกิดข้อผิดพลาด: {e}", "error")
+            if friend_cleaner_scheduler:
+                friend_cleaner_scheduler.set_step(dev, f"เกิดข้อผิดพลาด: {e}")
 
     t = threading.Thread(target=_async_clean, daemon=True, name=f"CleanOnce-{dev}")
     t.start()
@@ -589,22 +876,29 @@ def api_cleaner_run_once(req: Optional[FriendCleanerRunOnceRequest] = None, devi
 def stop_bot(req: Optional[StopBotRequest] = None, device: Optional[str] = None):
     dev = (req.device_serial if req and req.device_serial else None) or (req.device if req and req.device else None) or device
     if not dev or not str(dev).strip():
-        running_engines = [e for e in engine_manager.get_all_engines().values() if e.is_running]
-        if running_engines:
-            for e in running_engines:
-                e.stop()
-            return {"success": True, "message": "สั่งหยุดบอททุกจอที่ทำงานอยู่แล้ว"}
-        scanned = scan_adb_devices()
-        if scanned:
-            dev = scanned[0]["serial"]
-        else:
-            dev = f"{config.DEVICE_IP}:{config.DEVICE_PORT}"
+        return api_stop_all()
+
+    dev = str(dev).strip()
+
+    # 1. Stop Heart Farmer on this device if running
+    _stop_heart_farmer(dev)
+
+    # 2. Stop Bot Engine
     eng = get_engine_for_device(dev)
     eng.log(f"[BOT] สั่งหยุดการทำงานบอทสำหรับจอ {dev}", "bot")
     res = eng.stop()
-    if not res.get("success", False):
-        raise HTTPException(status_code=400, detail=res.get("message", "หยุดบอทไม่สำเร็จ"))
-    return res
+
+    # 3. Force stop game app immediately via ADB
+    try:
+        from adb import get_adb_path
+        import subprocess
+        adb_path = get_adb_path()
+        subprocess.run([adb_path, "-s", dev, "shell", "am", "force-stop", "com.linecorp.LGCOOKIE"],
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
+    except Exception:
+        pass
+
+    return {"success": True, "message": f"สั่งหยุดการทำงานจอ {dev} ทันทีเรียบร้อยแล้ว"}
 
 
 @app.post("/api/start-all")
@@ -637,16 +931,47 @@ def api_start_all():
 
 @app.post("/api/stop-all")
 def api_stop_all():
-    """Stop bot on all devices."""
+    """Stop bot, heart farmer, and close game immediately on all devices."""
     stopped = []
+
+    # 1. Stop all bot engines
     for serial, eng in engine_manager.get_all_engines().items():
         if eng.is_running:
             eng.stop()
             stopped.append(serial)
     if bot_engine.is_running:
         bot_engine.stop()
-        stopped.append("default")
-    return {"success": True, "stopped": stopped, "message": f"สั่งหยุดบอทแล้ว {len(stopped)} จอ"}
+        if "default" not in stopped:
+            stopped.append("default")
+
+    # 2. Stop all heart farmers
+    for d in list(_farmer_instances.keys()):
+        _stop_heart_farmer(d)
+        if d not in stopped:
+            stopped.append(d)
+
+    # 3. Stop cleaner
+    if friend_cleaner_scheduler:
+        try:
+            friend_cleaner_scheduler.stop()
+        except Exception:
+            pass
+
+    # 4. Force-stop game on all scanned devices immediately
+    try:
+        from adb import get_adb_path
+        import subprocess
+        adb_path = get_adb_path()
+        devices = scan_adb_devices()
+        for d in devices:
+            serial = d.get("serial")
+            if serial:
+                subprocess.Popen([adb_path, "-s", serial, "shell", "am", "force-stop", "com.linecorp.LGCOOKIE"],
+                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except Exception:
+        pass
+
+    return {"success": True, "stopped": stopped, "message": f"สั่งหยุดบอทและปิดเกมทุกจอทันทีเรียบร้อยแล้ว ({len(stopped)} จอ)"}
 
 
 @app.post("/api/clear-ram")
@@ -707,15 +1032,26 @@ def trigger_reset_app(req: ConnectionTestRequest):
 
 @app.post("/api/tap")
 def manual_tap(req: TapRequest):
-    dev = req.device_serial or (f"{req.device_ip}:{req.device_port}" if req.device_ip and req.device_port else None)
+    dev = (req.device or req.device_serial or "").strip()
+    if not dev and req.device_ip and req.device_port:
+        dev = f"{req.device_ip}:{req.device_port}"
+    dev = dev or None
     eng = get_engine_for_device(dev)
-    target = eng.device_serial or eng.device_ip
+    target = dev or eng.device_serial or eng.device_ip
+    port = eng.device_port if eng else 5555
     try:
-        device_tap(target, eng.device_port, req.x, req.y)
-        eng.log(f"[ADB] Tap {req.x},{req.y}", "adb")
-        return {"success": True, "x": req.x, "y": req.y}
+        tapped = False
+        streamer = stream_manager.get_streamer(target)
+        if streamer and streamer.is_running:
+            tapped = streamer.tap(req.x, req.y)
+
+        if not tapped:
+            device_tap(target, port, req.x, req.y)
+
+        eng.log(f"[ADB] แตะจอที่ ({req.x}, {req.y}) บน {target}", "adb")
+        return {"success": True, "target": target, "x": req.x, "y": req.y}
     except Exception as e:
-        eng.log(f"[ERROR] Tap failed at ({req.x},{req.y}): {e}", "error")
+        eng.log(f"[ERROR] แตะจอไม่สำเร็จบน {target} ({req.x},{req.y}): {e}", "error")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -872,7 +1208,21 @@ def get_logs(device: Optional[str] = None):
     if device == "all" or not device:
         return list(engine_manager.global_logs)
     eng = get_engine_for_device(device)
-    return list(eng.logs)
+    seen = set()
+    combined = []
+    for item in list(eng.logs):
+        sig = (item.get("timestamp"), item.get("message"))
+        if sig not in seen:
+            seen.add(sig)
+            combined.append(item)
+    for item in list(engine_manager.global_logs):
+        t_dev = item.get("device") or item.get("target")
+        if not t_dev or t_dev == device:
+            sig = (item.get("timestamp"), item.get("message"))
+            if sig not in seen:
+                seen.add(sig)
+                combined.append(item)
+    return combined
 
 
 @app.websocket("/ws/logs")
@@ -880,9 +1230,10 @@ async def websocket_logs(websocket: WebSocket, device: Optional[str] = None):
     await websocket.accept()
     queue = asyncio.Queue()
     is_all = (device == "all" or not device)
+    loop = asyncio.get_running_loop()
 
     if is_all:
-        engine_manager.loop = asyncio.get_running_loop()
+        engine_manager.loop = loop
         engine_manager.global_ws_subscribers.append(queue)
         try:
             history = list(engine_manager.global_logs)
@@ -898,10 +1249,24 @@ async def websocket_logs(websocket: WebSocket, device: Optional[str] = None):
                 engine_manager.global_ws_subscribers.remove(queue)
     else:
         eng = get_engine_for_device(device)
-        eng.loop = asyncio.get_running_loop()
+        eng.loop = loop
+        engine_manager.loop = loop
         eng.ws_subscribers.append(queue)
         try:
-            history = list(eng.logs)
+            seen = set()
+            history = []
+            for item in list(eng.logs):
+                sig = (item.get("timestamp"), item.get("message"))
+                if sig not in seen:
+                    seen.add(sig)
+                    history.append(item)
+            for item in list(engine_manager.global_logs):
+                t_dev = item.get("device") or item.get("target")
+                if not t_dev or t_dev == device:
+                    sig = (item.get("timestamp"), item.get("message"))
+                    if sig not in seen:
+                        seen.add(sig)
+                        history.append(item)
             await websocket.send_json({"type": "history", "logs": history})
 
             while True:

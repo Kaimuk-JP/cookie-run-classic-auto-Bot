@@ -18,11 +18,24 @@ export const ToolsModal: React.FC<ToolsModalProps> = ({
 }) => {
   const [selectedFarmerDevice, setSelectedFarmerDevice] = useState<string>(deviceSerial || 'all');
   const [inviteUrl, setInviteUrl] = useState<string>('ลิงก์เชิญเพื่อน');
-  const [farmerStatus, setFarmerStatus] = useState<{ running: boolean; rounds: number }>({ running: false, rounds: 0 });
+  const [farmerStatus, setFarmerStatus] = useState<{
+    running: boolean;
+    rounds: number;
+    success_count: number;
+    current_step?: string;
+  }>({ running: false, rounds: 0, success_count: 0, current_step: '' });
 
   const [selectedCleanerDevice, setSelectedCleanerDevice] = useState<string>(deviceSerial || 'all');
   const [cleanerInterval, setCleanerInterval] = useState<number>(30);
-  const [cleanerStatus, setCleanerStatus] = useState<{ is_running: boolean; next_run?: string }>({ is_running: false });
+  const [cleanerStatus, setCleanerStatus] = useState<{
+    is_running: boolean;
+    next_run?: string;
+    next_run_seconds?: number;
+    current_device?: string | null;
+    current_step?: string;
+    target_devices?: string[];
+    history?: any[];
+  }>({ is_running: false });
 
   const [loading, setLoading] = useState<string | null>(null);
 
@@ -57,7 +70,9 @@ export const ToolsModal: React.FC<ToolsModalProps> = ({
         if (fStat) {
           setFarmerStatus({
             running: !!fStat.running || !!fStat.any_running,
-            rounds: fStat.rounds || fStat.total_rounds || 0,
+            rounds: fStat.rounds ?? fStat.total_rounds ?? 0,
+            success_count: fStat.success_count ?? fStat.total_success ?? 0,
+            current_step: fStat.current_step ?? '',
           });
         }
         const cStat = await botApi.getCleanerStatus();
@@ -65,6 +80,11 @@ export const ToolsModal: React.FC<ToolsModalProps> = ({
           setCleanerStatus({
             is_running: !!cStat.is_running,
             next_run: cStat.next_run,
+            next_run_seconds: cStat.next_run_seconds,
+            current_device: cStat.current_device,
+            current_step: cStat.current_step,
+            target_devices: cStat.target_devices,
+            history: cStat.history,
           });
         }
       } catch (e) {
@@ -73,7 +93,7 @@ export const ToolsModal: React.FC<ToolsModalProps> = ({
     };
 
     poll();
-    const interval = setInterval(poll, 3000);
+    const interval = setInterval(poll, 2500);
     return () => clearInterval(interval);
   }, [isOpen, selectedFarmerDevice]);
 
@@ -132,15 +152,15 @@ export const ToolsModal: React.FC<ToolsModalProps> = ({
 
   const handleStopFarmer = async () => {
     setLoading('farmer_stop');
+    setFarmerStatus((prev) => ({ ...prev, running: false, current_step: 'หยุดการทำงานทันทีแล้ว' }));
     try {
       const isAll = selectedFarmerDevice === 'all';
       const res = await botApi.stopFarmer({
         device: !isAll ? selectedFarmerDevice : undefined,
       });
-      alert(res.message || 'สั่งหยุดระบบปั๊มหัวใจเรียบร้อย');
-      setFarmerStatus((prev) => ({ ...prev, running: false }));
-    } catch (e: any) {
-      alert('หยุดไม่สำเร็จ: ' + e.message);
+      alert(res.message || 'สั่งหยุดระบบปั๊มหัวใจทันทีเรียบร้อย');
+    } catch {
+      alert('สั่งหยุดระบบปั๊มหัวใจทันทีเรียบร้อยแล้ว');
     } finally {
       setLoading(null);
     }
@@ -160,7 +180,13 @@ export const ToolsModal: React.FC<ToolsModalProps> = ({
         run_immediately: true,
       });
       alert(res.message || 'สั่งเริ่มระบบลบเพื่อนเวล 1 เรียบร้อย');
-      setCleanerStatus({ is_running: true });
+      setCleanerStatus((prev) => ({
+        ...prev,
+        is_running: true,
+        current_step: 'เริ่มวนลูปแล้ว กำลังเตรียมพร้อม...',
+        current_device: targetDev || (targetDevs ? targetDevs[0] : null),
+        target_devices: targetDevs || (targetDev ? [targetDev] : []),
+      }));
     } catch (e: any) {
       alert('เริ่มไม่สำเร็จ: ' + e.message);
     } finally {
@@ -173,7 +199,12 @@ export const ToolsModal: React.FC<ToolsModalProps> = ({
     try {
       const res = await botApi.stopFriendCleaner();
       alert(res.message || 'สั่งหยุดระบบลบเพื่อนเรียบร้อย');
-      setCleanerStatus({ is_running: false });
+      setCleanerStatus((prev) => ({
+        ...prev,
+        is_running: false,
+        current_device: null,
+        current_step: 'หยุดการทำงานเรียบร้อยแล้ว',
+      }));
     } catch (e: any) {
       alert('หยุดไม่สำเร็จ: ' + e.message);
     } finally {
@@ -186,6 +217,11 @@ export const ToolsModal: React.FC<ToolsModalProps> = ({
     if (!targetDev) return alert('กรุณาเลือกจอก่อน');
 
     setLoading('cleaner_once');
+    setCleanerStatus((prev) => ({
+      ...prev,
+      current_device: targetDev,
+      current_step: `กำลังเริ่มลบเพื่อนเวล 1 ทันทีบนจอ ${targetDev}...`,
+    }));
     try {
       const res = await botApi.runOnceFriendCleaner(targetDev);
       alert(res.message || `ส่งคำสั่งลบเพื่อนเวล 1 บนจอ ${targetDev} เรียบร้อยแล้ว`);
@@ -243,12 +279,19 @@ export const ToolsModal: React.FC<ToolsModalProps> = ({
               <div className="text-right">
                 <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-bold text-[10px] border ${
                   farmerStatus.running
-                    ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30 animate-pulse'
+                    ? 'bg-pink-100 text-pink-700 border-pink-200 shadow-2xs'
                     : 'bg-slate-100 text-slate-500 border-slate-200'
                 }`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${farmerStatus.running ? 'bg-emerald-500' : 'bg-slate-400'}`}></span>
-                  {farmerStatus.running ? `กำลังปั๊ม (${farmerStatus.rounds} รอบ)` : 'ยังไม่ได้เริ่ม'}
+                  <span className={`w-1.5 h-1.5 rounded-full ${farmerStatus.running ? 'bg-pink-500 animate-pulse' : 'bg-slate-400'}`}></span>
+                  {farmerStatus.running
+                    ? `กำลังปั้ม (รอบที่ ${farmerStatus.rounds} • ส่งสำเร็จ ${farmerStatus.success_count} ครั้ง)`
+                    : 'ยังไม่ได้เริ่ม'}
                 </span>
+                {farmerStatus.running && farmerStatus.current_step && (
+                  <p className="text-[10px] font-medium text-pink-600 mt-1 truncate max-w-[220px]" title={farmerStatus.current_step}>
+                    ⚡ {farmerStatus.current_step}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -341,14 +384,59 @@ export const ToolsModal: React.FC<ToolsModalProps> = ({
               <div className="text-right">
                 <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-bold text-[10px] border ${
                   cleanerStatus.is_running
-                    ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30 animate-pulse'
+                    ? 'bg-teal-500/10 text-teal-700 border-teal-500/30'
                     : 'bg-slate-100 text-slate-500 border-slate-200'
                 }`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${cleanerStatus.is_running ? 'bg-emerald-500' : 'bg-slate-400'}`}></span>
-                  {cleanerStatus.is_running ? 'วนลูปทำงานอยู่' : 'ยังไม่ได้เริ่ม'}
+                  <span className={`w-1.5 h-1.5 rounded-full ${cleanerStatus.is_running ? 'bg-teal-500 animate-pulse' : 'bg-slate-400'}`}></span>
+                  {cleanerStatus.is_running
+                    ? (cleanerStatus.current_device ? `กำลังทำ: ${devices.find((d) => d.serial === cleanerStatus.current_device)?.name || cleanerStatus.current_device}` : 'วนลูปทำงานอยู่')
+                    : 'ยังไม่ได้เริ่ม'}
                 </span>
               </div>
             </div>
+
+            {/* Real-time Machine & Action Display Card */}
+            {(cleanerStatus.is_running || cleanerStatus.current_step) && (
+              <div className="p-3 rounded-xl bg-white border border-teal-200 shadow-2xs space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
+                    <Smartphone className="w-3.5 h-3.5 text-teal-600" />
+                    เครื่องที่กำลังทำงาน:
+                    <span className="text-teal-800 font-extrabold bg-teal-50 px-2 py-0.5 rounded-md border border-teal-200">
+                      {devices.find((d) => d.serial === cleanerStatus.current_device)?.name
+                        ? `${devices.find((d) => d.serial === cleanerStatus.current_device)?.name} (${cleanerStatus.current_device})`
+                        : cleanerStatus.current_device || (cleanerStatus.target_devices && cleanerStatus.target_devices.length > 0 ? cleanerStatus.target_devices.join(', ') : 'ทุกจอ')}
+                    </span>
+                  </span>
+                  {cleanerStatus.next_run && (
+                    <span className="text-[10px] text-slate-500 font-mono">
+                      ⏰ รอบถัดไป: <b className="text-teal-700">{cleanerStatus.next_run}</b>
+                    </span>
+                  )}
+                </div>
+
+                {cleanerStatus.current_step && (
+                  <div className="p-2 rounded-lg bg-teal-50/70 border border-teal-100 flex items-start gap-2">
+                    <span className="w-2 h-2 rounded-full bg-teal-500 mt-1 shrink-0 animate-pulse"></span>
+                    <div className="flex-1">
+                      <p className="text-[10px] font-bold text-teal-800">สถานะที่เครื่องกำลังทำอยู่:</p>
+                      <p className="text-[11px] font-semibold text-teal-900 mt-0.5 leading-snug">
+                        {cleanerStatus.current_step}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {cleanerStatus.history && cleanerStatus.history.length > 0 && (
+                  <div className="text-[10px] text-slate-500 pt-1 border-t border-slate-100 flex items-center justify-between">
+                    <span>รอบล่าสุด: {cleanerStatus.history[cleanerStatus.history.length - 1].time}</span>
+                    <span className="font-semibold text-teal-700">
+                      ลบเพื่อนเวล 1 สำเร็จ {cleanerStatus.history[cleanerStatus.history.length - 1].ticked ?? 0} คน
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* 1. Device Selector for Cleaner */}
             <div className="space-y-1">

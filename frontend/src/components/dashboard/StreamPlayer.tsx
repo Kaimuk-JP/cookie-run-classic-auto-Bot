@@ -17,6 +17,7 @@ export const StreamPlayer: React.FC<StreamPlayerProps> = ({
   const [fpsMode, setFpsMode] = useState<60 | 30 | 5>(60);
   const [streamError, setStreamError] = useState(false);
   const [clickRipple, setClickRipple] = useState<{ x: number; y: number } | null>(null);
+  const [lastTap, setLastTap] = useState<{ x: number; y: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const streamUrl = deviceSerial
@@ -36,6 +37,9 @@ export const StreamPlayer: React.FC<StreamPlayerProps> = ({
     // Map to 1280x720 internal coordinate space
     const targetX = Math.round((clickX / rect.width) * 1280);
     const targetY = Math.round((clickY / rect.height) * 720);
+
+    setLastTap({ x: targetX, y: targetY });
+    setTimeout(() => setLastTap(null), 1500);
 
     try {
       await botApi.tapScreen(deviceSerial, targetX, targetY);
@@ -99,7 +103,9 @@ export const StreamPlayer: React.FC<StreamPlayerProps> = ({
             alt="Device Stream"
             onClick={handleCanvasClick}
             onError={() => setStreamError(true)}
-            className="w-full h-full object-contain"
+            draggable={false}
+            onDragStart={(e) => e.preventDefault()}
+            className="w-full h-full object-contain pointer-events-auto select-none"
           />
         ) : (
           <div className="text-center text-slate-400 text-xs p-6 space-y-2">
@@ -118,6 +124,14 @@ export const StreamPlayer: React.FC<StreamPlayerProps> = ({
           <span className={`w-2 h-2 rounded-full ${isRunning ? 'bg-emerald-400 animate-ping' : 'bg-slate-400'}`}></span>
           <span>{translateStageToThai(stageName, isRunning)}</span>
         </div>
+
+        {/* Last Tap Coordinate Badge */}
+        {lastTap && (
+          <div className="absolute top-3 right-3 pointer-events-none flex items-center gap-1 bg-brand-600/90 text-white text-[11px] font-bold px-2.5 py-1 rounded-xl shadow-md animate-fade-in backdrop-blur-xs">
+            <MousePointer className="w-3 h-3" />
+            <span>แตะที่ ({lastTap.x}, {lastTap.y})</span>
+          </div>
+        )}
 
         {/* Click Ripple Indicator */}
         {clickRipple && (

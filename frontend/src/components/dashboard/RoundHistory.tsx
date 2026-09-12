@@ -1,5 +1,5 @@
 import React from 'react';
-import { ScrollText, ChevronRight, Check } from 'lucide-react';
+import { ScrollText, ChevronRight, Check, Coins, Star } from 'lucide-react';
 import { RoundHistoryItem } from '../../types/bot';
 
 interface RoundHistoryProps {
@@ -113,10 +113,16 @@ export const RoundHistory: React.FC<RoundHistoryProps> = ({
                       รอบที่ {r.round !== undefined && r.round !== null ? r.round : '-'}
                     </td>
                     <td className="py-2.5 px-3 text-amber-600 font-semibold font-mono">
-                      🪙 {(r.coins || 0).toLocaleString()}
+                      <span className="inline-flex items-center gap-1">
+                        <Coins className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                        <span>{(r.coins || 0).toLocaleString()}</span>
+                      </span>
                     </td>
                     <td className="py-2.5 px-3 text-indigo-600 font-semibold font-mono">
-                      ⭐ {(r.xp || 0).toLocaleString()}
+                      <span className="inline-flex items-center gap-1">
+                        <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400 shrink-0" />
+                        <span>{(r.xp || 0).toLocaleString()}</span>
+                      </span>
                     </td>
                     <td className="py-2.5 px-3">
                       {hasBoxes ? (

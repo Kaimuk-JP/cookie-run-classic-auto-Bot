@@ -578,10 +578,17 @@ def get_devices():
 
         st = engine.get_status()
         d["rounds_played"] = st.get("rounds_played", 0)
+        d["session_rounds"] = st.get("session_rounds", 0)
         d["mystery_boxes"] = st.get("mystery_boxes", 0)
+        d["session_mystery_boxes"] = st.get("session_mystery_boxes", 0)
         d["box_counts"] = st.get("box_counts", {})
+        d["session_box_counts"] = st.get("session_box_counts", {})
         d["coin_stats"] = st.get("coin_stats", {})
         d["round_history"] = st.get("round_history", [])
+        d["session_round_history"] = st.get("session_round_history", [])
+        d["session_start_time"] = st.get("session_start_time", "")
+        d["session_uptime"] = st.get("session_uptime", "00:00:00")
+        d["total_uptime"] = st.get("total_uptime", st.get("uptime", "00:00:00"))
         d["captcha_stats"] = st.get("captcha_stats", {})
         device_map[serial] = d
 
@@ -613,11 +620,18 @@ def get_devices():
                     "current_step": heart_step
                 },
                 "rounds_played": st.get("rounds_played", 0),
+                "session_rounds": st.get("session_rounds", 0),
                 "mystery_boxes": st.get("mystery_boxes", 0),
+                "session_mystery_boxes": st.get("session_mystery_boxes", 0),
                 "uptime": st.get("uptime", "00:00:00"),
+                "session_uptime": st.get("session_uptime", "00:00:00"),
+                "total_uptime": st.get("total_uptime", st.get("uptime", "00:00:00")),
+                "session_start_time": st.get("session_start_time", ""),
                 "box_counts": st.get("box_counts", {}),
+                "session_box_counts": st.get("session_box_counts", {}),
                 "coin_stats": st.get("coin_stats", {}),
                 "round_history": st.get("round_history", []),
+                "session_round_history": st.get("session_round_history", []),
                 "captcha_stats": st.get("captcha_stats", {}),
             }
     return list(device_map.values())
@@ -711,16 +725,6 @@ def start_bot(req: BotSettings, device: Optional[str] = None):
     res = eng.start(merged_settings)
     if not res["success"]:
         raise HTTPException(status_code=400, detail=res["message"])
-
-    # --- Launch Heart Farmer thread if enabled ---
-    if merged_settings.get("heart_farmer_enabled") and _HeartFarmer is not None:
-        farmer_invite = str(merged_settings.get("heart_farmer_invite", "")).strip() or "ลิงก์เชิญเพื่อน"
-        farmer_devs = merged_settings.get("heart_farmer_devices")
-        target_devs = [d.strip() for d in farmer_devs if d and d.strip()] if farmer_devs else ([merged_settings.get("heart_farmer_device", "").strip()] if merged_settings.get("heart_farmer_device") else [dev])
-        for fdev in target_devs:
-            if fdev:
-                _start_heart_farmer(fdev, farmer_invite)
-
     return res
 
 

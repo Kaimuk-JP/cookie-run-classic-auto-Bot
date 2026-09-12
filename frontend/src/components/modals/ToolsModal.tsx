@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Heart, UserMinus, Play, Square, PlayCircle, Clipboard, Smartphone, RefreshCw } from 'lucide-react';
+import { X, Heart, UserMinus, Play, Square, PlayCircle, Clipboard, Smartphone, RefreshCw, Mail, Link, Zap, Clock } from 'lucide-react';
 import { botApi } from '../../api/botApi';
 import { Device } from '../../types/bot';
 import { toast, confirmModal } from '../../context/ToastContext';
@@ -272,7 +272,7 @@ export const ToolsModal: React.FC<ToolsModalProps> = ({
           <div className="p-4 rounded-2xl bg-gradient-to-br from-pink-50/70 via-white to-rose-50/40 border border-pink-200 shadow-xs space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="text-pink-600 text-base">💖</span>
+                <Heart className="w-5 h-5 text-pink-600 fill-pink-500 shrink-0" />
                 <div>
                   <h4 className="font-bold text-slate-900 text-sm flex items-center gap-1.5">
                     ระบบปั๊มหัวใจ (Heart Farmer)
@@ -297,8 +297,9 @@ export const ToolsModal: React.FC<ToolsModalProps> = ({
                     : 'ยังไม่ได้เริ่ม'}
                 </span>
                 {farmerStatus.running && farmerStatus.current_step && (
-                  <p className="text-[10px] font-medium text-pink-600 mt-1 truncate max-w-[220px]" title={farmerStatus.current_step}>
-                    ⚡ {farmerStatus.current_step}
+                  <p className="text-[10px] font-medium text-pink-600 mt-1 truncate max-w-[220px] flex items-center gap-1" title={farmerStatus.current_step}>
+                    <Zap className="w-3 h-3 text-amber-500 shrink-0" />
+                    <span>{farmerStatus.current_step}</span>
                   </p>
                 )}
               </div>
@@ -315,10 +316,10 @@ export const ToolsModal: React.FC<ToolsModalProps> = ({
                 onChange={(e) => setSelectedFarmerDevice(e.target.value)}
                 className="w-full px-3 py-2 rounded-xl bg-white border border-pink-200 text-xs font-semibold focus:ring-2 focus:ring-pink-500 outline-none text-slate-800 shadow-2xs"
               >
-                <option value="all">🌐 ทุกจอพร้อมกัน (All Devices - {devices.length} จอ)</option>
+                <option value="all">ทุกจอพร้อมกัน (All Devices - {devices.length} จอ)</option>
                 {devices.map((d, idx) => (
                   <option key={d.serial} value={d.serial}>
-                    📱 {d.name || d.emu_name || `จอที่ ${idx + 1}`} ({d.serial}) {d.model ? `[${d.model}]` : ''}
+                    {d.name || d.emu_name || `จอที่ ${idx + 1}`} ({d.serial}) {d.model ? `[${d.model}]` : ''}
                   </option>
                 ))}
               </select>
@@ -327,8 +328,8 @@ export const ToolsModal: React.FC<ToolsModalProps> = ({
             {/* 2. Invite URL Input for Farmer */}
             <div className="space-y-1">
               <div className="flex items-center justify-between">
-                <label className="text-slate-700 font-bold flex items-center gap-1">
-                  <span>🔗</span>
+                <label className="text-slate-700 font-bold flex items-center gap-1.5">
+                  <Link className="w-3.5 h-3.5 text-pink-600" />
                   <span>ลิงก์เชิญเพื่อนของคุณ (Invite Link)</span>
                 </label>
                 <button
@@ -377,7 +378,7 @@ export const ToolsModal: React.FC<ToolsModalProps> = ({
           <div className="p-4 rounded-2xl bg-gradient-to-br from-teal-50/70 via-white to-emerald-50/40 border border-teal-200 shadow-xs space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="text-teal-600 text-base">💌</span>
+                <Mail className="w-5 h-5 text-teal-600 shrink-0" />
                 <div>
                   <h4 className="font-bold text-slate-900 text-sm flex items-center gap-1.5">
                     ระบบลบเพื่อนเลิกเล่น (Friend Cleaner)
@@ -418,8 +419,9 @@ export const ToolsModal: React.FC<ToolsModalProps> = ({
                     </span>
                   </span>
                   {cleanerStatus.next_run && (
-                    <span className="text-[10px] text-slate-500 font-mono">
-                      ⏰ รอบถัดไป: <b className="text-teal-700">{cleanerStatus.next_run}</b>
+                    <span className="text-[10px] text-slate-500 font-mono flex items-center gap-1">
+                      <Clock className="w-3 h-3 text-teal-600" />
+                      <span>รอบถัดไป: <b className="text-teal-700">{cleanerStatus.next_run}</b></span>
                     </span>
                   )}
                 </div>
@@ -458,10 +460,10 @@ export const ToolsModal: React.FC<ToolsModalProps> = ({
                 onChange={(e) => setSelectedCleanerDevice(e.target.value)}
                 className="w-full px-3 py-2 rounded-xl bg-white border border-teal-200 text-xs font-semibold focus:ring-2 focus:ring-teal-500 outline-none text-slate-800 shadow-2xs"
               >
-                <option value="all">🌐 ทุกจอพร้อมกัน (All Devices - {devices.length} จอ)</option>
+                <option value="all">ทุกจอพร้อมกัน (All Devices - {devices.length} จอ)</option>
                 {devices.map((d, idx) => (
                   <option key={d.serial} value={d.serial}>
-                    📱 {d.name || d.emu_name || `จอที่ ${idx + 1}`} ({d.serial}) {d.model ? `[${d.model}]` : ''}
+                    {d.name || d.emu_name || `จอที่ ${idx + 1}`} ({d.serial}) {d.model ? `[${d.model}]` : ''}
                   </option>
                 ))}
               </select>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Settings, Save, RotateCcw, Loader2 } from 'lucide-react';
+import { X, Settings, Save, RotateCcw, Loader2, Activity, ChevronsUp, ChevronsDown, Zap, Target } from 'lucide-react';
 import { BotSettings } from '../../types/bot';
 import { botApi } from '../../api/botApi';
 import { toast, confirmModal } from '../../context/ToastContext';
@@ -212,7 +212,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   className="rounded text-emerald-600 focus:ring-0"
                 />
                 <span className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
-                  <span>🏃‍♂️</span>
+                  <Activity className="w-4 h-4 text-emerald-600" />
                   <span>วิ่ง + กระโดด / สไลด์ อัตโนมัติ</span>
                 </span>
               </label>
@@ -240,7 +240,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
                     }`}
                   >
-                    <span className="text-base">🦘</span>
+                    <ChevronsUp className="w-5 h-5" />
                     <span className="text-[11px]">กระโดดอย่างเดียว</span>
                   </button>
 
@@ -253,7 +253,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
                     }`}
                   >
-                    <span className="text-base">🛹</span>
+                    <ChevronsDown className="w-5 h-5" />
                     <span className="text-[11px]">สไลด์อย่างเดียว</span>
                   </button>
 
@@ -266,7 +266,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
                     }`}
                   >
-                    <span className="text-base">⚡</span>
+                    <Zap className="w-5 h-5" />
                     <span className="text-[11px]">กระโดด + สไลด์</span>
                   </button>
                 </div>
@@ -307,8 +307,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   onChange={(e) => setSettings({ ...settings, use_desired_random_boost: e.target.checked })}
                   className="rounded text-amber-600 focus:ring-0"
                 />
-                <span className="font-bold text-slate-800 text-xs flex items-center gap-1">
-                  <span>🎯</span>
+                <span className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
+                  <Target className="w-4 h-4 text-amber-600" />
                   <span>สุ่มบูสต์จนกว่าจะได้ที่ต้องการ (Random Boost)</span>
                 </span>
               </label>
@@ -327,7 +327,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 disabled={!settings.use_desired_random_boost}
                 className="w-full px-3 py-2.5 rounded-xl bg-white border border-amber-200 text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-amber-500 outline-none shadow-2xs disabled:opacity-50 disabled:bg-slate-100"
               >
-                <option value="double_coins">เหรียญ 2 เท่า (Double Coins 2x) ⭐ แนะนำ</option>
+                <option value="double_coins">เหรียญ 2 เท่า (Double Coins 2x) (แนะนำ)</option>
                 <option value="coin_magic">เหรียญทองเวทมนตร์ (Gold Coin Magic)</option>
                 <option value="score_15">คะแนนเพิ่ม 15% (+15% Score Bonus)</option>
                 <option value="hp_drain_15">เลือดลดช้าลง 15% (-15% HP Drain)</option>

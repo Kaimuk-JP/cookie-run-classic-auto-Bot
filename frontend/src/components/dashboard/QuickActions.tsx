@@ -103,7 +103,7 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
           className="w-full py-3.5 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-sm shadow-md shadow-rose-600/30 transition flex items-center justify-center gap-2 active:scale-98 animate-pulse cursor-pointer"
         >
           <Square className="w-4 h-4 fill-current" />
-          <span>⏹️ หยุดบอท</span>
+          <span>หยุดบอท</span>
         </button>
       ) : (
         <button
@@ -111,7 +111,7 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
           className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 text-white font-bold text-sm shadow-btn transition flex items-center justify-center gap-2 active:scale-98 cursor-pointer"
         >
           <Play className="w-4 h-4 fill-current" />
-          <span>▶️ เริ่มบอท (Start Bot)</span>
+          <span>เริ่มบอท (Start Bot)</span>
         </button>
       )}
 
@@ -124,7 +124,7 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
           title="เคลียร์ RAM 3 ระดับ (Python + Windows + Android)"
         >
           <Sparkles className="w-3.5 h-3.5 text-brand-600" />
-          <span>🧹 เคลียร์ RAM</span>
+          <span>เคลียร์ RAM</span>
         </button>
 
         <button
@@ -134,7 +134,7 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
           title="Force close และเปิดเกม CookieRun ใหม่"
         >
           <RotateCcw className="w-3.5 h-3.5 text-slate-600" />
-          <span>🔄 รีสตาร์ทเกม</span>
+          <span>รีสตาร์ทเกม</span>
         </button>
 
         <button
@@ -144,7 +144,7 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
           title="ทดสอบสัญญาณการเชื่อมต่อ ADB"
         >
           <Wifi className="w-3.5 h-3.5 text-emerald-600" />
-          <span>🔌 เช็ค ADB</span>
+          <span>เช็ค ADB</span>
         </button>
 
         <button
@@ -153,7 +153,7 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
           title="บันทึกภาพหน้าจอปัจจุบันและดาวน์โหลด"
         >
           <Camera className="w-3.5 h-3.5 text-indigo-600" />
-          <span>📸 แคปหน้าจอ</span>
+          <span>แคปหน้าจอ</span>
         </button>
       </div>
 

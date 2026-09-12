@@ -394,18 +394,32 @@ class BotEngine:
         self.captcha_stats: Dict[str, Any] = load_device_captcha_stats(self.device_serial)
 
         # Accumulated Coins, EXP & Play Time Tracking
+        self.lifetime_coins_earned: int = 0
+        self.lifetime_xp_earned: int = 0
         self.session_coins_earned: int = 0
         self.last_round_coins: int = 0
         self.session_xp_earned: int = 0
         self.last_round_xp: int = 0
         self.accumulated_uptime_seconds: int = 0
+        self.session_uptime_seconds: int = 0
+        self.session_rounds_played: int = 0
+        self.session_start_time: Optional[float] = None
+        self.session_start_time_str: str = ""
+        self.session_box_counts: Dict[str, int] = {
+            "wood": 0,
+            "silver": 0,
+            "gold": 0,
+            "rainbow": 0,
+            "total": 0,
+        }
+        self.session_round_history: deque = deque(maxlen=50)
 
         past_history = load_round_history_from_file(self.device_serial)
         if past_history:
             self.round_history.extend(past_history[:50])
             for h in past_history:
-                self.session_coins_earned += int(h.get("coins", 0) or 0)
-                self.session_xp_earned += int(h.get("xp", 0) or 0)
+                self.lifetime_coins_earned += int(h.get("coins", 0) or 0)
+                self.lifetime_xp_earned += int(h.get("xp", 0) or 0)
 
                 # Parse duration (e.g. '3m 3s' or '38s')
                 dur = str(h.get("duration", ""))
@@ -540,6 +554,20 @@ class BotEngine:
             self.is_running = True
             self.should_stop = False
             self.start_time = time.time()
+            self.session_start_time = self.start_time
+            self.session_start_time_str = datetime.now().strftime("%H:%M:%S")
+            self.session_coins_earned = 0
+            self.session_xp_earned = 0
+            self.session_rounds_played = 0
+            self.session_uptime_seconds = 0
+            self.session_box_counts = {
+                "wood": 0,
+                "silver": 0,
+                "gold": 0,
+                "rainbow": 0,
+                "total": 0,
+            }
+            self.session_round_history.clear()
             self.current_round_start_time = time.time()
             self.current_round_recorded = False
             self.current_stage = "INITIALIZING"
@@ -570,6 +598,7 @@ class BotEngine:
             self.current_stage = "IDLE"
             self.log("⏹️ Bot stopped", "info")
             session_sec = int(time.time() - self.start_time) if self.start_time else 0
+            self.session_uptime_seconds = session_sec
             self.accumulated_uptime_seconds += session_sec
             self.start_time = None
             hours, remainder = divmod(session_sec, 3600)
@@ -587,6 +616,7 @@ class BotEngine:
 
     def reset_stats(self):
         self.rounds_played = 0
+        self.session_rounds_played = 0
         self.mystery_boxes = 0
         self.box_counts = {
             "wood": 0,
@@ -595,12 +625,25 @@ class BotEngine:
             "rainbow": 0,
             "total": 0,
         }
+        self.session_box_counts = {
+            "wood": 0,
+            "silver": 0,
+            "gold": 0,
+            "rainbow": 0,
+            "total": 0,
+        }
+        self.lifetime_coins_earned = 0
         self.session_coins_earned = 0
         self.last_round_coins = 0
+        self.lifetime_xp_earned = 0
         self.session_xp_earned = 0
         self.last_round_xp = 0
         self.accumulated_uptime_seconds = 0
+        self.session_uptime_seconds = 0
+        self.session_start_time = None
+        self.session_start_time_str = ""
         self.round_history.clear()
+        self.session_round_history.clear()
         self.round_screenshots.clear()
         self.box_history.clear()
         self.current_round_boxes = []
@@ -636,31 +679,46 @@ class BotEngine:
         self.log("📊 ล้างข้อมูลสถิติ กล่องปริศนา เหรียญ EXP และการแก้แคปซ่าทั้งหมดเป็น 0 แล้ว", "info")
 
     def get_status(self) -> Dict[str, Any]:
-        session_sec = int(time.time() - self.start_time) if self.is_running and self.start_time else 0
-        total_uptime_sec = self.accumulated_uptime_seconds + session_sec
+        session_sec = int(time.time() - self.start_time) if self.is_running and self.start_time else (self.session_uptime_seconds or 0)
+        total_uptime_sec = self.accumulated_uptime_seconds + (session_sec if self.is_running else 0)
         hours, remainder = divmod(total_uptime_sec, 3600)
         minutes, seconds = divmod(remainder, 60)
         uptime_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
 
-        coins_per_hour = int(self.session_coins_earned / max(0.001, total_uptime_sec / 3600)) if (total_uptime_sec > 5) else 0
+        sh, sremainder = divmod(session_sec, 3600)
+        sm, ss = divmod(sremainder, 60)
+        session_uptime_str = f"{sh:02d}:{sm:02d}:{ss:02d}"
+
+        session_coins_per_hour = int(self.session_coins_earned / max(0.001, session_sec / 3600)) if (session_sec > 10) else 0
+        lifetime_coins_per_hour = int(self.lifetime_coins_earned / max(0.001, total_uptime_sec / 3600)) if (total_uptime_sec > 10) else 0
 
         return {
             "is_running": self.is_running,
             "current_stage": self.current_stage,
             "uptime": uptime_str,
+            "total_uptime": uptime_str,
             "uptime_seconds": total_uptime_sec,
+            "session_uptime": session_uptime_str,
             "session_uptime_seconds": session_sec,
+            "session_start_time": self.session_start_time_str,
+            "session_rounds": self.session_rounds_played,
             "rounds_played": self.rounds_played,
+            "session_mystery_boxes": self.session_box_counts.get("total", 0),
             "mystery_boxes": self.mystery_boxes,
+            "session_box_counts": self.session_box_counts,
             "box_counts": self.box_counts,
             "captcha_stats": self.captcha_stats,
             "coin_stats": {
                 "session_earned": self.session_coins_earned,
                 "session_xp_earned": self.session_xp_earned,
-                "coins_per_hour": coins_per_hour,
+                "lifetime_earned": self.lifetime_coins_earned,
+                "lifetime_xp_earned": self.lifetime_xp_earned,
+                "coins_per_hour": session_coins_per_hour,
+                "lifetime_coins_per_hour": lifetime_coins_per_hour,
                 "last_round": self.last_round_coins,
                 "last_round_xp": self.last_round_xp,
             },
+            "session_round_history": list(self.session_round_history),
             "round_history": list(self.round_history),
             "device_serial": self.device_serial,
             "device_ip": self.device_ip,
@@ -949,8 +1007,8 @@ class BotEngine:
                         continue
 
                     # Check Auto-Stop Goals before starting next round
-                    if self.stop_goal_rounds_enabled and self.rounds_played >= self.stop_goal_rounds_target:
-                        goal_msg = f"วิ่งครบตามเป้าหมาย {self.stop_goal_rounds_target} รอบ"
+                    if self.stop_goal_rounds_enabled and self.session_rounds_played >= self.stop_goal_rounds_target:
+                        goal_msg = f"วิ่งครบตามเป้าหมายเซสชัน {self.stop_goal_rounds_target} รอบ"
                         self.log(f"🎯 บรรลุเป้าหมาย: {goal_msg}! กำลังหยุดการทำงานบอทอัตโนมัติ...", "success")
                         uptime_sec = int(time.time() - self.start_time) if self.start_time else 0
                         hours, remainder = divmod(uptime_sec, 3600)
@@ -1034,6 +1092,7 @@ class BotEngine:
                     self._last_auto_action_time = time.time() + 1.0
 
                     self.rounds_played += 1
+                    self.session_rounds_played += 1
                     self.current_round_start_time = time.time()
                     self.current_round_recorded = False
                     self.current_round_boxes = []
@@ -1156,9 +1215,11 @@ class BotEngine:
                     # 5. [ขั้นตอนบันทึก - Record Stats] อัปเดตสถิติและประวัติการเล่น
                     if round_coins > 0:
                         self.session_coins_earned += round_coins
+                        self.lifetime_coins_earned += round_coins
                         self.last_round_coins = round_coins
                     if round_xp > 0:
                         self.session_xp_earned += round_xp
+                        self.lifetime_xp_earned += round_xp
                         self.last_round_xp = round_xp
 
                     # กำหนดกล่องปริศนาประจำรอบ
@@ -1170,7 +1231,9 @@ class BotEngine:
                         if not self.current_round_mystery_box_handled:
                             for b in round_boxes:
                                 self.box_counts[b] = self.box_counts.get(b, 0) + 1
+                                self.session_box_counts[b] = self.session_box_counts.get(b, 0) + 1
                             self.box_counts["total"] += len(round_boxes)
+                            self.session_box_counts["total"] += len(round_boxes)
                             self.mystery_boxes = self.box_counts["total"]
                     else:
                         round_boxes = []
@@ -1193,9 +1256,12 @@ class BotEngine:
                             entry["has_screenshot"] = True
                         self.current_round_recorded = True
                         save_round_history_to_file(self.device_serial, list(self.round_history), new_entry=entry)
+                        if self.session_round_history and self.session_round_history[0].get("round") == self.rounds_played:
+                            self.session_round_history[0].update(entry)
                     elif not self.current_round_recorded:
                         item = {
                             "round": self.rounds_played,
+                            "session_round": self.session_rounds_played,
                             "time": datetime.now().strftime("%H:%M:%S"),
                             "duration": dur_str,
                             "score": round_score,
@@ -1207,6 +1273,7 @@ class BotEngine:
                             "screenshot": saved_img_path or "",
                         }
                         self.round_history.appendleft(item)
+                        self.session_round_history.appendleft(item)
                         self.current_round_recorded = True
                         save_round_history_to_file(self.device_serial, list(self.round_history), new_entry=item)
 
@@ -1279,13 +1346,18 @@ class BotEngine:
                             if old_b in self.box_counts and self.box_counts[old_b] > 0:
                                 self.box_counts[old_b] -= 1
                                 self.box_counts["total"] = max(0, self.box_counts["total"] - 1)
+                            if old_b in self.session_box_counts and self.session_box_counts[old_b] > 0:
+                                self.session_box_counts[old_b] -= 1
+                                self.session_box_counts["total"] = max(0, self.session_box_counts["total"] - 1)
 
                     self.current_round_boxes = list(detected_grades)
                     self.current_round_mystery_box_handled = True
 
                     for g in detected_grades:
                         self.box_counts[g] = self.box_counts.get(g, 0) + 1
+                        self.session_box_counts[g] = self.session_box_counts.get(g, 0) + 1
                     self.box_counts["total"] += len(detected_grades)
+                    self.session_box_counts["total"] += len(detected_grades)
                     self.mystery_boxes = self.box_counts["total"]
 
                     dur_sec = int(time.time() - self.current_round_start_time) if self.current_round_start_time else 0
@@ -1306,18 +1378,24 @@ class BotEngine:
                         self.round_history[0]["boxes"] = list(detected_grades)
                         self.round_history[0]["box_count"] = len(detected_grades)
                         save_round_history_to_file(self.device_serial, list(self.round_history), new_entry=self.round_history[0])
+                        if self.session_round_history and self.session_round_history[0].get("round") == self.rounds_played:
+                            self.session_round_history[0]["boxes"] = list(detected_grades)
+                            self.session_round_history[0]["box_count"] = len(detected_grades)
                     else:
                         round_coins = extract_result_coins(device_screen) if device_screen is not None else 0
                         round_xp = extract_result_xp(device_screen) if device_screen is not None else 0
                         if round_coins > 0:
                             self.session_coins_earned += round_coins
+                            self.lifetime_coins_earned += round_coins
                             self.last_round_coins = round_coins
                         if round_xp > 0:
                             self.session_xp_earned += round_xp
+                            self.lifetime_xp_earned += round_xp
                             self.last_round_xp = round_xp
 
                         item = {
                             "round": self.rounds_played,
+                            "session_round": self.session_rounds_played,
                             "time": datetime.now().strftime("%H:%M:%S"),
                             "duration": dur_str,
                             "coins": round_coins,
@@ -1328,6 +1406,7 @@ class BotEngine:
                             "screenshot": "",
                         }
                         self.round_history.appendleft(item)
+                        self.session_round_history.appendleft(item)
                         self.current_round_recorded = True
                         save_round_history_to_file(self.device_serial, list(self.round_history), new_entry=item)
 

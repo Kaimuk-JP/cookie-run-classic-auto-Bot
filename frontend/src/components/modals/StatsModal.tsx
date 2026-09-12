@@ -12,7 +12,9 @@ import {
   AlertTriangle,
   Clock,
   Activity,
-  Layers
+  Layers,
+  Zap,
+  History,
 } from 'lucide-react';
 import { Device } from '../../types/bot';
 import { botApi } from '../../api/botApi';
@@ -28,6 +30,7 @@ interface StatsModalProps {
 
 export const StatsModal: React.FC<StatsModalProps> = ({ isOpen, onClose, device, onReset }) => {
   const [activeTab, setActiveTab] = useState<'chart' | 'summary'>('chart');
+  const [scope, setScope] = useState<'session' | 'all'>('session');
   const [isResetting, setIsResetting] = useState(false);
 
   if (!isOpen) return null;
@@ -54,9 +57,28 @@ export const StatsModal: React.FC<StatsModalProps> = ({ isOpen, onClose, device,
     }
   };
 
-  const boxes = device?.box_counts || { wood: 0, silver: 0, gold: 0, rainbow: 0, total: 0 };
-  const coins = device?.coin_stats?.session_earned ?? 0;
-  const xp = device?.coin_stats?.session_xp_earned ?? 0;
+  const isSession = scope === 'session';
+
+  const boxes = isSession
+    ? (device?.session_box_counts || { wood: 0, silver: 0, gold: 0, rainbow: 0, total: 0 })
+    : (device?.box_counts || { wood: 0, silver: 0, gold: 0, rainbow: 0, total: 0 });
+
+  const coins = isSession
+    ? (device?.coin_stats?.session_earned ?? 0)
+    : (device?.coin_stats?.lifetime_earned ?? device?.coin_stats?.session_earned ?? 0);
+
+  const xp = isSession
+    ? (device?.coin_stats?.session_xp_earned ?? 0)
+    : (device?.coin_stats?.lifetime_xp_earned ?? device?.coin_stats?.session_xp_earned ?? 0);
+
+  const chartHistory = isSession
+    ? (device?.session_round_history || [])
+    : (device?.round_history || []);
+
+  const coinsPerHour = isSession
+    ? (device?.coin_stats?.coins_per_hour ?? 0)
+    : (device?.coin_stats?.lifetime_coins_per_hour ?? device?.coin_stats?.coins_per_hour ?? 0);
+
   const captcha = device?.captcha_stats || {
     total_attempts: 0,
     success_count: 0,
@@ -84,7 +106,7 @@ export const StatsModal: React.FC<StatsModalProps> = ({ isOpen, onClose, device,
                 สถิติ & กราฟวิเคราะห์ (Analytics & Stats)
               </h3>
               <p className="text-xs text-slate-500">
-                วิเคราะห์อัตราการฟาร์ม สถิติสะสม และระบบปลดแคปซ่า • {device?.name || device?.serial || '-'}
+                วิเคราะห์อัตราการฟาร์ม สถิติรอบปัจจุบันและสะสม • {device?.name || device?.serial || '-'}
               </p>
             </div>
           </div>
@@ -96,8 +118,53 @@ export const StatsModal: React.FC<StatsModalProps> = ({ isOpen, onClose, device,
           </button>
         </div>
 
+        {/* Scope Selector: This Session vs All-Time */}
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-3 pb-2 border-b border-purple-50">
+          <div className="flex items-center p-1 bg-slate-100/90 rounded-2xl gap-1">
+            <button
+              onClick={() => setScope('session')}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                scope === 'session'
+                  ? 'bg-amber-500 text-white shadow-sm shadow-amber-200'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Zap className="w-3.5 h-3.5" />
+              <span>⚡ รอบปัจจุบัน (เซสชันนี้)</span>
+            </button>
+            <button
+              onClick={() => setScope('all')}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                scope === 'all'
+                  ? 'bg-purple-600 text-white shadow-sm shadow-purple-200'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <History className="w-3.5 h-3.5" />
+              <span>🏛️ สะสมทั้งหมด (All-Time)</span>
+            </button>
+          </div>
+
+          {/* Session quick info indicator */}
+          <div className="text-[11px] font-medium text-slate-500 flex items-center gap-2">
+            {isSession ? (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200 font-mono text-[11px]">
+                <Clock className="w-3 h-3 text-amber-600" />
+                เริ่ม: <strong>{device?.session_start_time || 'เพิ่งเริ่ม'}</strong>
+                <span className="text-amber-400">|</span>
+                วิ่ง: <strong>{device?.session_uptime || '00:00:00'}</strong>
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-purple-50 text-purple-800 border border-purple-200 font-mono text-[11px]">
+                <Layers className="w-3 h-3 text-purple-600" />
+                เวลารวม: <strong>{device?.total_uptime || device?.uptime || '00:00:00'}</strong>
+              </span>
+            )}
+          </div>
+        </div>
+
         {/* Tab Navigation */}
-        <div className="flex items-center gap-2 pt-3">
+        <div className="flex items-center gap-2 pt-2">
           <button
             onClick={() => setActiveTab('chart')}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
@@ -132,17 +199,27 @@ export const StatsModal: React.FC<StatsModalProps> = ({ isOpen, onClose, device,
           {activeTab === 'chart' ? (
             /* TAB 1: Analytics & Charts */
             <FarmingChart
-              history={device?.round_history || []}
-              coinsPerHour={device?.coin_stats?.coins_per_hour || 0}
+              history={chartHistory}
+              coinsPerHour={coinsPerHour}
+              scope={scope}
+              sessionStartTime={device?.session_start_time}
+              sessionUptime={device?.session_uptime}
+              allHistory={device?.round_history || []}
+              onSwitchToAll={() => setScope('all')}
             />
           ) : (
             /* TAB 2: Summary Stats & Captcha */
             <div className="space-y-4">
               {/* 4-Tier Mystery Box Cards with Real Images */}
               <div>
-                <h4 className="text-xs font-bold text-slate-700 mb-2 flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-amber-500"></span>
-                  กล่องปริศนาที่ได้รับแยกเกรด
+                <h4 className="text-xs font-bold text-slate-700 mb-2 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                    {isSession ? 'กล่องปริศนาที่ได้รับในรอบนี้ (เซสชันปัจจุบัน)' : 'กล่องปริศนาสะสมทั้งหมด (All-Time)'}
+                  </span>
+                  <span className="text-[11px] font-mono text-slate-500 font-normal">
+                    รวม {boxes.total ?? 0} กล่อง
+                  </span>
                 </h4>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center text-xs">
                   {/* Wood */}
@@ -203,7 +280,9 @@ export const StatsModal: React.FC<StatsModalProps> = ({ isOpen, onClose, device,
               <div className="grid grid-cols-2 gap-3 text-xs">
                 <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between shadow-xs">
                   <div>
-                    <span className="text-slate-500 font-medium">เหรียญสะสมทั้งหมด</span>
+                    <span className="text-slate-500 font-medium">
+                      {isSession ? 'เหรียญรอบนี้ (เซสชันปัจจุบัน)' : 'เหรียญสะสมทั้งหมด (All-Time)'}
+                    </span>
                     <div className="text-xl font-bold font-mono text-amber-600 mt-0.5">
                       +{coins.toLocaleString()} 🪙
                     </div>
@@ -213,7 +292,9 @@ export const StatsModal: React.FC<StatsModalProps> = ({ isOpen, onClose, device,
 
                 <div className="p-4 rounded-2xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-between shadow-xs">
                   <div>
-                    <span className="text-slate-500 font-medium">EXP สะสมทั้งหมด</span>
+                    <span className="text-slate-500 font-medium">
+                      {isSession ? 'EXP รอบนี้ (เซสชันปัจจุบัน)' : 'EXP สะสมทั้งหมด (All-Time)'}
+                    </span>
                     <div className="text-xl font-bold font-mono text-sky-600 mt-0.5">
                       +{xp.toLocaleString()} EXP
                     </div>

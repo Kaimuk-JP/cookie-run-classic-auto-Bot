@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, ScrollText, Image as ImageIcon, Trash2 } from 'lucide-react';
+import { X, ScrollText, Image as ImageIcon, Trash2, Coins, Star } from 'lucide-react';
 import { RoundHistoryItem } from '../../types/bot';
 import { renderBoxBadge } from '../dashboard/RoundHistory';
 import { botApi } from '../../api/botApi';
@@ -127,11 +127,13 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({
                         </span>
                       </div>
                       <div className="flex items-center gap-3 text-xs">
-                        <span className="text-amber-600 font-semibold font-mono">
-                          🪙 +{(r.coins || 0).toLocaleString()}
+                        <span className="inline-flex items-center gap-1 text-amber-600 font-semibold font-mono">
+                          <Coins className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                          <span>+{(r.coins || 0).toLocaleString()}</span>
                         </span>
-                        <span className="text-indigo-600 font-semibold font-mono">
-                          ⭐ +{(r.xp || 0).toLocaleString()} EXP
+                        <span className="inline-flex items-center gap-1 text-indigo-600 font-semibold font-mono">
+                          <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400 shrink-0" />
+                          <span>+{(r.xp || 0).toLocaleString()} EXP</span>
                         </span>
                         {r.score ? (
                           <span className="text-slate-500 font-mono">
@@ -176,9 +178,9 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({
               )}
             </div>
             {currentRound && (
-              <p className="text-xs text-slate-500 text-center font-mono italic">
-                รอบที่ {currentRound.round} ({currentRound.time || '-'}) • เหรียญ +
-                {(currentRound.coins || 0).toLocaleString()} 🪙
+              <p className="text-xs text-slate-500 text-center font-mono italic inline-flex items-center justify-center gap-1 w-full">
+                <span>รอบที่ {currentRound.round} ({currentRound.time || '-'}) • เหรียญ +{(currentRound.coins || 0).toLocaleString()}</span>
+                <Coins className="w-3.5 h-3.5 text-amber-500 inline shrink-0" />
               </p>
             )}
           </div>

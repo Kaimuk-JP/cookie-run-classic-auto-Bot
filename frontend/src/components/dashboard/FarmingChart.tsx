@@ -5,6 +5,11 @@ import { RoundHistoryItem } from '../../types/bot';
 interface FarmingChartProps {
   history: RoundHistoryItem[];
   coinsPerHour?: number;
+  scope?: 'session' | 'all';
+  sessionStartTime?: string;
+  sessionUptime?: string;
+  allHistory?: RoundHistoryItem[];
+  onSwitchToAll?: () => void;
 }
 
 type ChartMode = 'coins' | 'rate' | 'boxes';
@@ -12,6 +17,11 @@ type ChartMode = 'coins' | 'rate' | 'boxes';
 export const FarmingChart: React.FC<FarmingChartProps> = ({
   history,
   coinsPerHour = 0,
+  scope = 'session',
+  sessionStartTime,
+  sessionUptime,
+  allHistory,
+  onSwitchToAll,
 }) => {
   const [mode, setMode] = useState<ChartMode>('coins');
   const [hoveredRound, setHoveredRound] = useState<RoundHistoryItem | null>(null);
@@ -64,7 +74,7 @@ export const FarmingChart: React.FC<FarmingChartProps> = ({
         <div className="p-2.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 shadow-xs space-y-0.5">
           <div className="flex items-center gap-1.5 text-amber-800 font-semibold text-[11px]">
             <Zap className="w-3.5 h-3.5 text-amber-600" />
-            <span>ความเร็วฟาร์ม</span>
+            <span>{scope === 'session' ? 'ความเร็วเซสชันนี้' : 'ความเร็วฟาร์มเฉลี่ย'}</span>
           </div>
           <div className="text-base font-bold font-mono text-amber-700">
             {coinsPerHour.toLocaleString()} <span className="text-[10px] font-medium text-amber-600">🪙/ชม.</span>
@@ -107,7 +117,9 @@ export const FarmingChart: React.FC<FarmingChartProps> = ({
         <div className="flex items-center gap-1.5">
           <BarChart2 className="w-4 h-4 text-brand-600" />
           <h4 className="text-xs font-bold text-slate-800">
-            กราฟวิเคราะห์ย้อนหลัง {chartData.length} รอบล่าสุด
+            {scope === 'session'
+              ? `กราฟวิเคราะห์รอบปัจจุบัน (ตั้งแต่ ${sessionStartTime || 'เริ่มบอท'} • ${chartData.length} รอบ)`
+              : `กราฟวิเคราะห์สะสมทั้งหมด (${chartData.length} รอบล่าสุด)`}
           </h4>
         </div>
 
@@ -148,9 +160,30 @@ export const FarmingChart: React.FC<FarmingChartProps> = ({
       {/* Interactive SVG Chart Container */}
       <div className="relative bg-slate-50/70 rounded-2xl border border-purple-100 p-3 overflow-hidden shadow-inner">
         {chartData.length === 0 ? (
-          <div className="h-44 flex flex-col items-center justify-center text-slate-400 text-xs space-y-1">
-            <TrendingUp className="w-8 h-8 text-slate-300 stroke-[1.5]" />
-            <span>ยังไม่มีข้อมูลการเล่นในเซสชันนี้</span>
+          <div className="py-8 px-4 flex flex-col items-center justify-center text-center space-y-2.5">
+            <div className="w-10 h-10 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center shadow-xs">
+              <Zap className="w-5 h-5 animate-pulse" />
+            </div>
+            <div>
+              <h5 className="text-xs font-bold text-slate-800">
+                {scope === 'session' ? 'กำลังฟาร์มรอบแรกของเซสชันนี้' : 'ยังไม่มีประวัติการเล่น'}
+              </h5>
+              <p className="text-[11px] text-slate-500 mt-0.5 max-w-sm">
+                {scope === 'session'
+                  ? sessionStartTime
+                    ? `เริ่มบอทเมื่อ ${sessionStartTime} (${sessionUptime || 'กำลังวิ่ง'}) • กราฟจะแสดงผลทันทีเมื่อจบรอบ!`
+                    : 'เพิ่งเริ่มกดบอท • กราฟจะแสดงผลทันทีเมื่อจบรอบแรก!'
+                  : 'ยังไม่พบข้อมูลรอบการเล่นสะสม'}
+              </p>
+            </div>
+            {scope === 'session' && allHistory && allHistory.length > 0 && onSwitchToAll && (
+              <button
+                onClick={onSwitchToAll}
+                className="mt-1 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-purple-200 text-xs font-bold text-purple-700 hover:bg-purple-50 transition cursor-pointer shadow-xs"
+              >
+                <span>สลับดูกราฟสะสมทั้งหมด ({allHistory.length} รอบก่อนหน้า)</span>
+              </button>
+            )}
           </div>
         ) : (
           <div className="relative w-full">

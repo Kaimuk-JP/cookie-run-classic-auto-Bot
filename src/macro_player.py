@@ -98,50 +98,58 @@ class MacroPlayer:
             self._shell_pipe = PersistentShellPipe(self.target_serial)
         return self._shell_pipe
 
-    def _send_down(self, x: int, y: int):
-        """Send Touch Down event."""
-        # 1. Try Scrcpy control socket (< 0.2ms)
+    def _dispatch_jump(self):
+        """Fire-and-forget Jump tap (< 0.2ms with scrcpy, ~15ms with pipe) without blocking timeline."""
         try:
             from scrcpy_streamer import stream_manager
-
             streamer = stream_manager.get_streamer(self.target_serial)
             if streamer and streamer.client and hasattr(streamer.client, "control") and streamer.client.control:
                 import scrcpy
-
-                streamer.client.control.touch(int(x), int(y), scrcpy.ACTION_DOWN)
+                streamer.client.control.touch(self.JUMP_X, self.JUMP_Y, scrcpy.ACTION_DOWN)
+                streamer.client.control.touch(self.JUMP_X, self.JUMP_Y, scrcpy.ACTION_UP)
                 return
         except Exception:
             pass
 
-        # 2. Fallback to Persistent ADB Shell Pipe
-        pass
+        pipe = self._get_shell_pipe()
+        pipe.send_tap(self.JUMP_X, self.JUMP_Y)
 
-    def _send_up(self, x: int, y: int):
-        """Send Touch Up event."""
+    def _dispatch_slide_down(self, duration_sec: float = 0.40):
+        """Non-blocking Slide Down."""
         try:
             from scrcpy_streamer import stream_manager
-
             streamer = stream_manager.get_streamer(self.target_serial)
             if streamer and streamer.client and hasattr(streamer.client, "control") and streamer.client.control:
                 import scrcpy
-
-                streamer.client.control.touch(int(x), int(y), scrcpy.ACTION_UP)
+                streamer.client.control.touch(self.SLIDE_X, self.SLIDE_Y, scrcpy.ACTION_DOWN)
                 return
         except Exception:
             pass
 
-    def _send_tap(self, x: int, y: int, duration: float = 0.04):
-        """Send instant Tap (< 0.2ms with scrcpy, ~15ms with persistent pipe)."""
+        pipe = self._get_shell_pipe()
+        dur_ms = max(60, int(duration_sec * 1000))
+        # Non-blocking swipe command written to pipe stdin
+        pipe.send_swipe(self.SLIDE_X, self.SLIDE_Y, self.SLIDE_X, self.SLIDE_Y, dur_ms)
+
+    def _dispatch_slide_up(self):
+        """Send Slide Up release event."""
         try:
             from scrcpy_streamer import stream_manager
-
             streamer = stream_manager.get_streamer(self.target_serial)
             if streamer and streamer.client and hasattr(streamer.client, "control") and streamer.client.control:
                 import scrcpy
+                streamer.client.control.touch(self.SLIDE_X, self.SLIDE_Y, scrcpy.ACTION_UP)
+                return
+        except Exception:
+            pass
 
+    def _dispatch_tap(self, x: int, y: int, duration: float = 0.03):
+        try:
+            from scrcpy_streamer import stream_manager
+            streamer = stream_manager.get_streamer(self.target_serial)
+            if streamer and streamer.client and hasattr(streamer.client, "control") and streamer.client.control:
+                import scrcpy
                 streamer.client.control.touch(int(x), int(y), scrcpy.ACTION_DOWN)
-                if duration > 0:
-                    time.sleep(duration)
                 streamer.client.control.touch(int(x), int(y), scrcpy.ACTION_UP)
                 return
         except Exception:
@@ -150,40 +158,16 @@ class MacroPlayer:
         pipe = self._get_shell_pipe()
         pipe.send_tap(x, y)
 
-    def _send_hold(self, x: int, y: int, duration_sec: float):
-        """Hold touch position for duration_sec."""
-        try:
-            from scrcpy_streamer import stream_manager
-
-            streamer = stream_manager.get_streamer(self.target_serial)
-            if streamer and streamer.client and hasattr(streamer.client, "control") and streamer.client.control:
-                import scrcpy
-
-                streamer.client.control.touch(int(x), int(y), scrcpy.ACTION_DOWN)
-                end_t = time.perf_counter() + duration_sec
-                while time.perf_counter() < end_t and not self._stop_event.is_set():
-                    time.sleep(0.02)
-                streamer.client.control.touch(int(x), int(y), scrcpy.ACTION_UP)
-                return
-        except Exception:
-            pass
-
-        pipe = self._get_shell_pipe()
-        duration_ms = int(duration_sec * 1000)
-        pipe.send_swipe(x, y, x, y, duration_ms)
-        time.sleep(max(0.01, duration_sec))
-
     def jump(self):
-        self._send_tap(self.JUMP_X, self.JUMP_Y, duration=0.03)
+        self._dispatch_jump()
 
     def double_jump(self, air_time: float = 0.16):
-        eff_air = max(0.16, float(air_time))
-        self.jump()
-        time.sleep(eff_air)
-        self.jump()
+        self._dispatch_jump()
+        time.sleep(max(0.16, float(air_time)))
+        self._dispatch_jump()
 
     def slide(self, duration_sec: float = 0.4):
-        self._send_hold(self.SLIDE_X, self.SLIDE_Y, duration_sec)
+        self._dispatch_slide_down(duration_sec)
 
     def start(self, macro_data: Dict[str, Any]):
         """Start playing the macro immediately in a dedicated high-priority timeline thread."""
@@ -338,8 +322,15 @@ class MacroPlayer:
                         continue
 
                     elif stage == "GAME_START":
-                        log("🏁 [Macro Play] ตรวจพบ START! รอแอนิเมชันเริ่มวิ่ง (1.0s)...", "info")
-                        time.sleep(1.0)
+                        log("🏁 [Macro Play] ตรวจพบ START! กำลังซิงค์จังหวะเริ่มวิ่ง...", "info")
+                        from detection import detect_templates
+                        from config import STAGE_GAME_START_TEMPLATE, STAGE_GAME_START_REGION
+                        sw = time.time()
+                        while time.time() - sw < 2.0:
+                            f_screen = device_capture_screen(target, t_port)
+                            if f_screen is not None and not detect_templates(f_screen, STAGE_GAME_START_TEMPLATE, STAGE_GAME_START_REGION):
+                                break
+                            time.sleep(0.04)
                         log(f"▶️ [Macro Play] เข้าห้องวิ่งแล้ว! เริ่มเล่นตามมาโคร {self.macro_data.get('name')} (t=0.00s)...", "success")
                         in_game_started = True
                         break
@@ -361,9 +352,11 @@ class MacroPlayer:
             self.is_running = False
             return
 
-        # Phase 2: Start timeline execution
+        # Phase 2: Start timeline execution (Main phase)
+        main_actions = self.macro_data.get("main_actions") or self.macro_data.get("actions", [])
         self._play_thread = threading.Thread(
             target=self._playback_loop,
+            args=(main_actions,),
             name=f"MacroPlayerTimeline-{self.target_serial}",
             daemon=True,
         )
@@ -392,19 +385,45 @@ class MacroPlayer:
                         from actions import using_cookie_relay
                         using_cookie_relay()
                         time.sleep(1.2)
-                        # Restart timeline playback for relay cookie!
-                        log(f"▶️ [Macro Play] ผลัดคุกกี้สำเร็จ! เริ่มเล่นสเต็ปมาโคร {self.macro_data.get('name')} ต่อให้คุกกี้ตัวที่ 2...", "info")
-                        if self._play_thread and self._play_thread.is_alive():
-                            self._stop_event.set()
-                            self._play_thread.join(timeout=1.0)
-                        self._stop_event.clear()
-                        self._play_thread = threading.Thread(
-                            target=self._playback_loop,
-                            name=f"MacroPlayerTimelineRelay-{self.target_serial}",
-                            daemon=True,
-                        )
-                        self._play_thread.start()
-                        continue
+
+                        relay_actions = self.macro_data.get("relay_actions")
+                        is_loop = bool(self.macro_data.get("loop", False))
+
+                        if relay_actions:
+                            log(f"▶️ [Macro Play] ผลัดคุกกี้สำเร็จ! เริ่มเล่นท่อนคุกกี้ตัวที่ 2 (Relay Phase, {len(relay_actions)} แอ็กชัน) ที่ t=0.00s...", "success")
+                            if self._play_thread and self._play_thread.is_alive():
+                                self._stop_event.set()
+                                self._play_thread.join(timeout=1.0)
+                            self._stop_event.clear()
+                            self._play_thread = threading.Thread(
+                                target=self._playback_loop,
+                                args=(relay_actions,),
+                                name=f"MacroPlayerTimelineRelay-{self.target_serial}",
+                                daemon=True,
+                            )
+                            self._play_thread.start()
+                            continue
+                        elif is_loop:
+                            log("🔁 [Macro Play] โหมดวนลูป (Loop Mode): เริ่มวนซ้ำสเต็ปมาโครให้คุกกี้ตัวที่ 2...", "info")
+                            if self._play_thread and self._play_thread.is_alive():
+                                self._stop_event.set()
+                                self._play_thread.join(timeout=1.0)
+                            self._stop_event.clear()
+                            self._play_thread = threading.Thread(
+                                target=self._playback_loop,
+                                args=(None,),
+                                name=f"MacroPlayerTimelineLoop-{self.target_serial}",
+                                daemon=True,
+                            )
+                            self._play_thread.start()
+                            continue
+                        else:
+                            log("🍪 [Macro Play] ผลัดคุกกี้แล้ว (มาโครนี้ไม่มีท่อนตัวผลัด) -> วิ่งต่อจนจบเกม...", "info")
+                            if self._play_thread and self._play_thread.is_alive():
+                                self._stop_event.set()
+                                self._play_thread.join(timeout=1.0)
+                            self._play_thread = None
+                            continue
 
                     # 2. Game finished!
                     elif stage in ["GAME_COMPLETE", "CONGRATULATIONS", "MYSTERY_BOX"]:
@@ -493,69 +512,74 @@ class MacroPlayer:
             self._thread.join(timeout=1.0)
         self._thread = None
         # Clean up any stuck touches
-        self._send_up(self.SLIDE_X, self.SLIDE_Y)
-        self._send_up(self.JUMP_X, self.JUMP_Y)
+        self._dispatch_slide_up()
         if self._shell_pipe:
             self._shell_pipe.close()
             self._shell_pipe = None
 
-    def _playback_loop(self):
-        """High-precision execution loop using time.perf_counter()."""
-        actions = list(self.macro_data.get("actions", []))
-        if not actions:
+    def _playback_loop(self, actions_list: Optional[List[Dict[str, Any]]] = None):
+        """High-precision, 100% Non-Blocking Atomic Event Timeline Loop using time.perf_counter()."""
+        if actions_list is None:
+            actions_list = list(self.macro_data.get("main_actions") or self.macro_data.get("actions", []))
+
+        if not actions_list:
             self.is_running = False
             return
 
         loop = bool(self.macro_data.get("loop", False))
         duration = float(self.macro_data.get("duration_seconds", 0.0))
-        if duration <= 0 and actions:
-            duration = actions[-1].get("t", 0.0) + 2.0
+        if duration <= 0 and actions_list:
+            duration = actions_list[-1].get("t", 0.0) + 2.0
+
+        # Expand actions into sorted atomic events
+        events: List[tuple] = []  # (t, event_type, data_dict)
+        for act in actions_list:
+            act_type = act.get("action", "")
+            t = float(act.get("t", 0.0))
+            if act_type == "jump":
+                events.append((t, "jump", {}))
+            elif act_type == "double_jump":
+                air_time = float(act.get("air_time", 0.16))
+                events.append((t, "jump", {}))
+                events.append((t + air_time, "jump", {}))
+            elif act_type == "slide":
+                dur = float(act.get("duration", 0.40))
+                events.append((t, "slide_down", {"duration": dur}))
+                events.append((t + dur, "slide_up", {}))
+            elif act_type == "tap":
+                events.append((t, "tap", {"x": act.get("x", self.JUMP_X), "y": act.get("y", self.JUMP_Y), "duration": act.get("duration", 0.03)}))
+
+        events.sort(key=lambda e: e[0])
+        total_events = len(events)
 
         while not self._stop_event.is_set():
             start_perf = time.perf_counter()
-            last_jump_exec = 0.0
+            ev_idx = 0
 
-            for act in actions:
-                if self._stop_event.is_set():
-                    break
+            while not self._stop_event.is_set() and ev_idx < total_events:
+                now_perf = time.perf_counter()
+                elapsed = now_perf - start_perf
+                ev_t, ev_type, ev_data = events[ev_idx]
 
-                target_t = float(act.get("t", 0.0))
-                # High precision wait until target_t
-                while not self._stop_event.is_set():
-                    elapsed = time.perf_counter() - start_perf
-                    rem = target_t - elapsed
-                    if rem <= 0.001:  # Within 1ms, proceed to dispatch
-                        break
-                    elif rem > 0.015:
+                rem = ev_t - elapsed
+                if rem > 0.001:
+                    if rem > 0.015:
                         time.sleep(rem - 0.008)
                     else:
-                        time.sleep(0.001)
+                        time.sleep(0.0005)
+                    continue
 
-                if self._stop_event.is_set():
-                    break
+                # Instant non-blocking dispatch
+                if ev_type == "jump":
+                    self._dispatch_jump()
+                elif ev_type == "slide_down":
+                    self._dispatch_slide_down(ev_data.get("duration", 0.40))
+                elif ev_type == "slide_up":
+                    self._dispatch_slide_up()
+                elif ev_type == "tap":
+                    self._dispatch_tap(ev_data.get("x", self.JUMP_X), ev_data.get("y", self.JUMP_Y), ev_data.get("duration", 0.03))
 
-                # Execute action
-                action_type = act.get("action", "")
-                if action_type == "jump":
-                    now_p = time.perf_counter()
-                    if last_jump_exec > 0:
-                        gap = now_p - last_jump_exec
-                        if gap < 0.16:
-                            time.sleep(0.16 - gap)
-                    self.jump()
-                    last_jump_exec = time.perf_counter()
-                elif action_type == "double_jump":
-                    air_time = float(act.get("air_time", 0.16))
-                    self.double_jump(air_time=air_time)
-                    last_jump_exec = time.perf_counter()
-                elif action_type == "slide":
-                    dur = float(act.get("duration", 0.40))
-                    self.slide(duration_sec=dur)
-                elif action_type == "tap":
-                    tx = int(act.get("x", self.JUMP_X))
-                    ty = int(act.get("y", self.JUMP_Y))
-                    dur = float(act.get("duration", 0.03))
-                    self._send_tap(tx, ty, duration=dur)
+                ev_idx += 1
 
             if not loop or self._stop_event.is_set():
                 break

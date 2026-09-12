@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Terminal, Trash2, Wifi, WifiOff } from 'lucide-react';
 import { LogEntry } from '../../types/bot';
 import { botApi } from '../../api/botApi';
+import { FormattedTextWithIcons } from '../../utils/iconMap';
 
 interface LogsConsoleProps {
   deviceSerial?: string;
@@ -261,7 +262,7 @@ export const LogsConsole: React.FC<LogsConsoleProps> = ({ deviceSerial }) => {
                       : 'text-slate-300'
                   }`}
                 >
-                  {cleanMsg || msg}
+                  <FormattedTextWithIcons text={cleanMsg || msg} />
                 </div>
               </div>
             );

@@ -110,10 +110,15 @@ export const MetricsCards: React.FC<MetricsCardsProps> = ({ device, onOpenStats 
           <div className="space-y-1">
             <p className="text-xs font-medium text-slate-400">รอบที่เล่นแล้ว</p>
             <h4 className="text-xl sm:text-2xl font-bold text-slate-800 font-mono">
-              {device?.rounds_played ?? 0}
+              {isRunning
+                ? (device?.session_rounds ?? 0)
+                : (device?.rounds_played ?? 0)}
+              <span className="text-xs font-normal text-slate-400 ml-1">รอบ</span>
             </h4>
             <span className="text-[11px] font-semibold text-emerald-600 flex items-center gap-0.5">
-              ↑ สะสมในเซสชัน
+              {isRunning
+                ? `↑ รอบเซสชันนี้ (สะสม ${device?.rounds_played ?? 0} รอบ)`
+                : `↑ สะสมทั้งหมด ${device?.rounds_played ?? 0} รอบ`}
             </span>
           </div>
           <div className="w-12 h-12 rounded-2xl bg-amber-50 flex items-center justify-center shrink-0 shadow-xs border border-amber-100">
@@ -136,10 +141,15 @@ export const MetricsCards: React.FC<MetricsCardsProps> = ({ device, onOpenStats 
             <ArrowUpRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-brand-600 transition" />
           </div>
           <h4 className="text-xl sm:text-2xl font-bold text-slate-800 font-mono">
-            {device?.mystery_boxes ?? 0}
+            {isRunning
+              ? (device?.session_mystery_boxes ?? device?.mystery_boxes ?? 0)
+              : (device?.mystery_boxes ?? 0)}
+            <span className="text-xs font-normal text-slate-400 ml-1">กล่อง</span>
           </h4>
           <span className="text-[11px] font-semibold text-purple-600">
-            ดูสถิติสะสม &gt;
+            {isRunning
+              ? `รอบนี้ (สะสม ${device?.mystery_boxes ?? 0}) >`
+              : 'ดูสถิติสะสม >'}
           </span>
         </div>
         <div className="w-12 h-12 rounded-2xl bg-purple-50 flex items-center justify-center shrink-0 shadow-xs border border-purple-100 group-hover:scale-105 transition">
@@ -152,7 +162,9 @@ export const MetricsCards: React.FC<MetricsCardsProps> = ({ device, onOpenStats 
         <div className="space-y-1">
           <p className="text-xs font-medium text-slate-400">เวลาการทำงานบอท</p>
           <h4 className="text-lg sm:text-xl font-bold text-slate-800 font-mono">
-            {device?.uptime || '00:00:00'}
+            {isRunning
+              ? (device?.session_uptime || device?.uptime || '00:00:00')
+              : (device?.uptime || '00:00:00')}
           </h4>
           <span
             className={`text-[11px] font-semibold flex items-center gap-1 ${
@@ -164,7 +176,11 @@ export const MetricsCards: React.FC<MetricsCardsProps> = ({ device, onOpenStats 
                 isFarmer ? 'bg-pink-500 animate-pulse' : isRunning ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'
               }`}
             ></span>
-            {isFarmer ? 'กำลังปั้มหัวใจ' : isRunning ? 'กำลังทำงาน' : 'พร้อมทำงาน'}
+            {isFarmer
+              ? 'กำลังปั้มหัวใจ'
+              : isRunning
+              ? (device?.session_start_time ? `เริ่ม ${device.session_start_time} (สะสม ${device.total_uptime || device.uptime})` : 'กำลังทำงาน')
+              : 'พร้อมทำงาน'}
           </span>
         </div>
         <div

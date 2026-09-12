@@ -137,6 +137,14 @@ class ScrcpyDeviceStreamer:
                 pass
         return False
 
+    def get_latest_frame(self) -> Optional[np.ndarray]:
+        """Return the latest decoded frame from scrcpy video stream (zero overhead, pure RAM buffer)."""
+        with self._lock:
+            self.last_access_time = time.time()
+            if not self.is_running:
+                self.start()
+        return self.latest_frame
+
     def add_subscriber(self):
         with self._lock:
             self.subscribers += 1

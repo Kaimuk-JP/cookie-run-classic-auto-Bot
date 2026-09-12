@@ -9,13 +9,17 @@ export interface BoxCounts {
 export interface CoinStats {
   session_earned: number;
   session_xp_earned: number;
+  lifetime_earned?: number;
+  lifetime_xp_earned?: number;
   coins_per_hour: number;
+  lifetime_coins_per_hour?: number;
   last_round: number;
   last_round_xp: number;
 }
 
 export interface RoundHistoryItem {
   round: number;
+  session_round?: number;
   time: string;
   duration: string;
   score?: number;
@@ -65,11 +69,18 @@ export interface Device {
   activity_description?: string;
   current_stage: string;
   rounds_played: number;
+  session_rounds?: number;
   mystery_boxes: number;
+  session_mystery_boxes?: number;
   uptime: string;
+  session_uptime?: string;
+  total_uptime?: string;
+  session_start_time?: string;
   box_counts: BoxCounts;
+  session_box_counts?: BoxCounts;
   coin_stats: CoinStats;
   round_history: RoundHistoryItem[];
+  session_round_history?: RoundHistoryItem[];
   captcha_stats?: CaptchaStats;
   heart_stats?: HeartStats;
   cleaner_stats?: CleanerStats;

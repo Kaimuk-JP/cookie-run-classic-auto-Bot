@@ -17,7 +17,11 @@ import {
   FileCode,
   Radio,
   Gamepad2,
-  RefreshCw
+  RefreshCw,
+  Circle,
+  Rocket,
+  ChevronsUp,
+  ChevronsDown
 } from 'lucide-react';
 import { botApi } from '../../api/botApi';
 import { MacroProfile, MacroAction } from '../../types/bot';
@@ -605,7 +609,7 @@ export const MacroModal: React.FC<MacroModalProps> = ({
                               }`}
                             >
                               <Check className="w-3.5 h-3.5" />
-                              {isActive ? '✅ ใช้งานอยู่ (Active)' : '📌 เลือกใช้สำหรับบอท'}
+                              <span>{isActive ? 'ใช้งานอยู่ (Active)' : 'เลือกใช้สำหรับบอท'}</span>
                             </button>
 
                             <button
@@ -617,8 +621,8 @@ export const MacroModal: React.FC<MacroModalProps> = ({
                               }`}
                               title={isTestingThis ? 'คลิกเพื่อหยุดรัน' : 'ทดสอบเล่นตามมาโครทันที'}
                             >
-                              <Play className="w-3.5 h-3.5" />
-                              {isTestingThis ? '⏹️ หยุด' : '▶️ รันตอนนี้'}
+                              {isTestingThis ? <Square className="w-3.5 h-3.5 fill-current" /> : <Play className="w-3.5 h-3.5 fill-current" />}
+                              <span>{isTestingThis ? 'หยุด' : 'รันตอนนี้'}</span>
                             </button>
                           </div>
 
@@ -682,17 +686,20 @@ export const MacroModal: React.FC<MacroModalProps> = ({
                   <div className="flex items-center gap-2">
                     {recordStatus === 'IDLE' && (
                       <span className="text-xs px-3 py-1.5 rounded-xl bg-slate-800 text-slate-300 border border-slate-700 font-bold flex items-center gap-1.5 w-full justify-center">
-                        ⚪ พร้อมบันทึก
+                        <Circle className="w-2.5 h-2.5 text-slate-400 fill-slate-400 shrink-0" />
+                        <span>พร้อมบันทึก</span>
                       </span>
                     )}
                     {recordStatus === 'ARMED' && (
                       <span className="text-xs px-3 py-1.5 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold flex items-center gap-1.5 w-full justify-center animate-pulse">
-                        🟡 รอเข้าหน้าวิ่งในเกม...
+                        <Circle className="w-2.5 h-2.5 text-amber-400 fill-amber-400 shrink-0 animate-ping" />
+                        <span>รอเข้าหน้าวิ่งในเกม...</span>
                       </span>
                     )}
                     {recordStatus === 'RECORDING' && (
                       <span className="text-xs px-3 py-1.5 rounded-xl bg-rose-600 text-white font-bold font-mono flex items-center gap-1.5 w-full justify-center shadow-lg shadow-rose-600/40">
-                        🔴 กำลังอัด {recordElapsed}s
+                        <Circle className="w-2.5 h-2.5 text-white fill-white shrink-0 animate-pulse" />
+                        <span>กำลังอัด {recordElapsed}s</span>
                       </span>
                     )}
                   </div>
@@ -707,7 +714,7 @@ export const MacroModal: React.FC<MacroModalProps> = ({
                     className="flex-1 py-3 px-5 text-sm font-bold rounded-2xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white shadow-xl shadow-rose-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
                   >
                     <Radio className="w-4 h-4" />
-                    🔴 เตรียมเริ่มบันทึก (รอตรวจจับหน้าเกมวิ่งอัตโนมัติ)
+                    <span>เตรียมเริ่มบันทึก (รอตรวจจับหน้าเกมวิ่งอัตโนมัติ)</span>
                   </button>
                 )}
 
@@ -724,7 +731,8 @@ export const MacroModal: React.FC<MacroModalProps> = ({
                       onClick={handleTriggerRecordingNow}
                       className="py-2.5 px-4 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg transition-all flex items-center gap-1.5"
                     >
-                      ⚡ กำลังวิ่งอยู่ในเกมแล้ว เริ่มจับเวลาเลย!
+                      <Zap className="w-3.5 h-3.5 text-amber-300" />
+                      <span>กำลังวิ่งอยู่ในเกมแล้ว เริ่มจับเวลาเลย!</span>
                     </button>
 
                     <button
@@ -741,8 +749,9 @@ export const MacroModal: React.FC<MacroModalProps> = ({
                 {recordStatus === 'RECORDING' && (
                   <>
                     <div className="flex items-center gap-3">
-                      <span className="text-xl font-bold font-mono text-rose-400">
-                        ⏱️ {recordElapsed}s
+                      <span className="text-xl font-bold font-mono text-rose-400 flex items-center gap-1">
+                        <Clock className="w-4 h-4 inline" />
+                        <span>{recordElapsed}s</span>
                       </span>
                       <span className="text-xs px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 font-mono">
                         บันทึกแล้ว {recordActionCount} แอ็กชัน
@@ -754,7 +763,7 @@ export const MacroModal: React.FC<MacroModalProps> = ({
                       className="py-2.5 px-5 text-xs font-bold rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-lg shadow-emerald-600/30 transition-all flex items-center gap-2 active:scale-98 cursor-pointer"
                     >
                       <Save className="w-4 h-4" />
-                      💾 หยุดและบันทึกเป็น JSON ทันที
+                      <span>หยุดและบันทึกเป็น JSON ทันที</span>
                     </button>
                   </>
                 )}
@@ -780,7 +789,7 @@ export const MacroModal: React.FC<MacroModalProps> = ({
                     }}
                     className="h-28 rounded-2xl bg-gradient-to-br from-purple-900/60 to-indigo-900/60 hover:from-purple-800/80 hover:to-indigo-800/80 border-2 border-purple-500/50 hover:border-purple-400 text-white flex flex-col items-center justify-center gap-1 shadow-xl active:scale-95 transition-all cursor-pointer select-none group"
                   >
-                    <span className="text-2xl group-hover:scale-110 transition-transform">🦘</span>
+                    <ChevronsUp className="w-8 h-8 text-purple-300 group-hover:scale-110 transition-transform" />
                     <span className="text-sm font-bold">กระโดด (Jump)</span>
                     <span className="text-[11px] text-purple-300/80 font-mono">กดปุ่ม Space / Z</span>
                   </button>
@@ -801,7 +810,7 @@ export const MacroModal: React.FC<MacroModalProps> = ({
                     }}
                     className="h-28 rounded-2xl bg-gradient-to-br from-amber-900/60 to-orange-900/60 hover:from-amber-800/80 hover:to-orange-800/80 border-2 border-amber-500/50 hover:border-amber-400 text-white flex flex-col items-center justify-center gap-1 shadow-xl active:scale-95 transition-all cursor-pointer select-none group"
                   >
-                    <span className="text-2xl group-hover:scale-110 transition-transform">🛹</span>
+                    <ChevronsDown className="w-8 h-8 text-amber-300 group-hover:scale-110 transition-transform" />
                     <span className="text-sm font-bold">สไลด์ (Slide - กดค้าง)</span>
                     <span className="text-[11px] text-amber-300/80 font-mono">กดค้างปุ่ม X / ลูกศรลง</span>
                   </button>
@@ -819,10 +828,25 @@ export const MacroModal: React.FC<MacroModalProps> = ({
                         className="px-2.5 py-1 rounded-lg bg-slate-800 text-xs font-mono border border-slate-700 flex items-center gap-1.5 animate-fadeIn"
                       >
                         <span className="text-purple-400 font-bold">{act.t}s:</span>
-                        <span className="text-white font-semibold">
-                          {act.action === 'jump' && '🦘 Jump'}
-                          {act.action === 'double_jump' && `🚀 Double Jump (${act.air_time}s)`}
-                          {act.action === 'slide' && `🛹 Slide (${act.duration}s)`}
+                        <span className="text-white font-semibold inline-flex items-center gap-1">
+                          {act.action === 'jump' && (
+                            <>
+                              <ChevronsUp className="w-3.5 h-3.5 text-cyan-400" />
+                              <span>Jump</span>
+                            </>
+                          )}
+                          {act.action === 'double_jump' && (
+                            <>
+                              <Rocket className="w-3.5 h-3.5 text-indigo-400" />
+                              <span>Double Jump ({act.air_time}s)</span>
+                            </>
+                          )}
+                          {act.action === 'slide' && (
+                            <>
+                              <ChevronsDown className="w-3.5 h-3.5 text-pink-400" />
+                              <span>Slide ({act.duration}s)</span>
+                            </>
+                          )}
                         </span>
                       </span>
                     ))}
@@ -898,21 +922,24 @@ export const MacroModal: React.FC<MacroModalProps> = ({
                     disabled={testingAction !== null}
                     className="px-3 py-1.5 text-xs font-semibold rounded-xl bg-purple-600/30 hover:bg-purple-600/60 text-purple-200 border border-purple-500/40 transition-all flex items-center gap-1.5"
                   >
-                    🦘 ทดสอบ Jump
+                    <ChevronsUp className="w-3.5 h-3.5 text-purple-400" />
+                    <span>ทดสอบ Jump</span>
                   </button>
                   <button
                     onClick={() => handleTestAction('double_jump', 0.15)}
                     disabled={testingAction !== null}
                     className="px-3 py-1.5 text-xs font-semibold rounded-xl bg-indigo-600/30 hover:bg-indigo-600/60 text-indigo-200 border border-indigo-500/40 transition-all flex items-center gap-1.5"
                   >
-                    🚀 ทดสอบ Double Jump
+                    <Rocket className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>ทดสอบ Double Jump</span>
                   </button>
                   <button
                     onClick={() => handleTestAction('slide', undefined, 0.4)}
                     disabled={testingAction !== null}
                     className="px-3 py-1.5 text-xs font-semibold rounded-xl bg-amber-600/30 hover:bg-amber-600/60 text-amber-200 border border-amber-500/40 transition-all flex items-center gap-1.5"
                   >
-                    🛹 ทดสอบ Slide (0.4s)
+                    <ChevronsDown className="w-3.5 h-3.5 text-amber-400" />
+                    <span>ทดสอบ Slide (0.4s)</span>
                   </button>
                 </div>
               </div>
@@ -922,7 +949,7 @@ export const MacroModal: React.FC<MacroModalProps> = ({
                 <div className="flex items-center gap-2">
                   <Clock className="w-4 h-4 text-amber-400" />
                   <div>
-                    <span className="text-xs font-bold text-slate-200">⏱️ ปรับชดเชยดีเลย์ทั้งมาโคร (Time Offset):</span>
+                    <span className="text-xs font-bold text-slate-200">ปรับชดเชยดีเลย์ทั้งมาโคร (Time Offset):</span>
                     <p className="text-[11px] text-slate-400">เลื่อนเวลาทุกแอ็กชันเร็วขึ้น (-) หรือช้าลง (+) ในคลิกเดียว</p>
                   </div>
                 </div>
@@ -1040,9 +1067,9 @@ export const MacroModal: React.FC<MacroModalProps> = ({
                             onChange={(e) => handleUpdateAction(idx, { action: e.target.value as any })}
                             className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-700 text-white font-semibold focus:border-purple-500 focus:outline-none"
                           >
-                            <option value="jump">🦘 กระโดด (Jump)</option>
-                            <option value="double_jump">🚀 กระโดด 2 จังหวะ (Double Jump)</option>
-                            <option value="slide">🛹 สไลด์ (Slide)</option>
+                            <option value="jump">กระโดด (Jump)</option>
+                            <option value="double_jump">กระโดด 2 จังหวะ (Double Jump)</option>
+                            <option value="slide">สไลด์ (Slide)</option>
                           </select>
                         </div>
 

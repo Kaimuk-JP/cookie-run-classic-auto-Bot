@@ -19,6 +19,7 @@ interface QuickActionsProps {
   onStart: () => void;
   onStop: () => void;
   onOpenSettings: () => void;
+  onOpenMacro: () => void;
   onOpenDiscord: () => void;
   onOpenTools: () => void;
 }
@@ -29,6 +30,7 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
   onStart,
   onStop,
   onOpenSettings,
+  onOpenMacro,
   onOpenDiscord,
   onOpenTools,
 }) => {
@@ -155,14 +157,23 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
         </button>
       </div>
 
-      {/* Settings, Discord, Heart Farmer modal launcher shortcuts */}
-      <div className="pt-2 border-t border-purple-50 grid grid-cols-3 gap-2 text-xs">
+      {/* Settings, Macro, Discord, Heart Farmer modal launcher shortcuts */}
+      <div className="pt-2 border-t border-purple-50 grid grid-cols-4 gap-2 text-xs">
         <button
           onClick={onOpenSettings}
           className="flex flex-col items-center gap-1 py-2 px-1 rounded-xl hover:bg-slate-50 text-slate-600 transition"
         >
           <Settings className="w-4 h-4 text-brand-600" />
           <span className="text-[11px] font-medium">ตั้งค่าบอท</span>
+        </button>
+
+        <button
+          onClick={onOpenMacro}
+          className="flex flex-col items-center gap-1 py-2 px-1 rounded-xl bg-purple-50/70 hover:bg-purple-100/80 border border-purple-200 text-purple-700 transition active:scale-95 shadow-2xs"
+          title="ระบบมาโครเล่นตามไทม์ไลน์ (Zero Delay)"
+        >
+          <Sparkles className="w-4 h-4 text-purple-600" />
+          <span className="text-[11px] font-bold">มาโครวิ่ง</span>
         </button>
 
         <button
@@ -178,7 +189,7 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
           className="flex flex-col items-center gap-1 py-2 px-1 rounded-xl hover:bg-slate-50 text-slate-600 transition"
         >
           <Heart className="w-4 h-4 text-pink-600" />
-          <span className="text-[11px] font-medium">ปั๊มหัวใจ/เพื่อน</span>
+          <span className="text-[11px] font-medium">ปั๊มหัวใจ</span>
         </button>
       </div>
     </div>

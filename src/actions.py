@@ -52,6 +52,7 @@ from config import (
     CLOSE_ANNOUNCEMENT_DIALOG_BUTTON,
     CLOSE_SEND_LIFE_DIALOG_BUTTON,
     COMPLETE_FINISH_BUTTON,
+    REPLAY_BUTTON,
     CONFIRM_SEND_LIFE_BUTTON,
     CONFIRM_SEND_LIFE_REGION,
     CONFIRM_SEND_LIFE_TEMPLATE,
@@ -379,6 +380,12 @@ def complete_finish(screen=None):
     time.sleep(random.uniform(1.2, 1.8))
 
 
+def replay_game():
+    print("🔄 Replaying the game (Tapping Replay)...")
+    safe_device_tap(*get_device_context(), REPLAY_BUTTON[0], REPLAY_BUTTON[1])
+    time.sleep(random.uniform(1.0, 1.5))
+
+
 def accept_mystery_box():
     print("🎁 Opening Mystery Boxes...")
     # 1. Tap Open All button
@@ -494,12 +501,13 @@ def handle_anti_bot(screen):
 
     for idx in odd_indices:
         cx, cy = card_coords[idx]
-        margin = 20
-        tx = random.randint(cx + margin, cx + ANTI_BOT_CARD_WIDTH - margin)
-        ty = random.randint(cy + margin, cy + ANTI_BOT_CARD_HEIGHT - margin)
+        center_x = cx + ANTI_BOT_CARD_WIDTH // 2
+        center_y = cy + ANTI_BOT_CARD_HEIGHT // 2
+        tx = random.randint(center_x - 30, center_x + 30)
+        ty = random.randint(center_y - 40, center_y + 40)
         print(f"  👆 Tapping Card {idx + 1} at ({tx}, {ty})")
         safe_device_tap(*get_device_context(), tx, ty)
-        time.sleep(random.uniform(10, 15))
+        time.sleep(random.uniform(0.6, 1.0))
 
     print("✅ Anti-Bot captcha solved!")
     time.sleep(random.uniform(0.8, 1.4))

@@ -51,7 +51,7 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({
 
   const currentRound = selectedRound || (history.length > 0 ? history[0] : null);
   const screenshotUrl = currentRound
-    ? `/api/round-screenshot/${currentRound.round}?device=${encodeURIComponent(deviceSerial)}`
+    ? `/api/round-screenshot/${currentRound.round}?device=${encodeURIComponent(deviceSerial || '')}&file=${encodeURIComponent(currentRound.screenshot || '')}`
     : '';
 
   return (

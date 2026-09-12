@@ -24,7 +24,9 @@ export const MetricsCards: React.FC<MetricsCardsProps> = ({ device, onOpenStats 
     ? (device?.cleaner_stats?.current_step || 'กำลังเตรียมการลบเพื่อน...')
     : isFarmer
     ? (device?.heart_stats?.current_step || 'กำลังวนลูปปั้มหัวใจ...')
-    : (device?.name || device?.serial || 'ยังไม่ได้เลือกจอ');
+    : isRunning
+    ? `กำลังฟาร์มเหรียญ • รอบที่ ${device?.rounds_played || 0}`
+    : `จอ: ${device?.name || device?.serial || 'จอจำลอง'} • พร้อมเริ่มงาน`;
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

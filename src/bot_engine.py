@@ -354,8 +354,18 @@ class BotEngine:
                 self.auto_action_mode = str(init_cfg.get("auto_action_mode", "both"))
                 self.auto_action_interval = float(init_cfg.get("auto_action_interval", 1.5))
                 self.enable_realtime_dodging = bool(init_cfg.get("enable_realtime_dodging", False))
+                self.macro_enabled = bool(init_cfg.get("macro_enabled", False))
+                self.selected_macro_id = str(init_cfg.get("selected_macro_id", "preset_basic_run"))
             except Exception:
                 pass
+
+        if not hasattr(self, "macro_enabled"):
+            self.macro_enabled = False
+        if not hasattr(self, "selected_macro_id"):
+            self.selected_macro_id = "preset_basic_run"
+
+        from macro_player import MacroPlayer
+        self.macro_player = MacroPlayer(self.device_serial or self.device_ip)
 
         # Runtime Stats
         self.start_time: Optional[float] = None
@@ -436,10 +446,13 @@ class BotEngine:
             "target": target,
         }
         self.logs.append(log_entry)
-        dev_tag = f"[{target}] " if target else ""
+        dev_tag = f"[{target}]" if target else ""
         _in_bot_log.active = True
         try:
-            print(f"[{timestamp}] [{level.upper()}] {dev_tag}{message}")
+            if dev_tag:
+                print(f"[{timestamp}]  {dev_tag}\n{message}")
+            else:
+                print(f"[{timestamp}]\n{message}")
         finally:
             _in_bot_log.active = False
 
@@ -520,6 +533,8 @@ class BotEngine:
             self.stop_goal_rounds_target = int(user_config.get("stop_goal_rounds_target", 50))
             self.stop_goal_time_enabled = bool(user_config.get("stop_goal_time_enabled", False))
             self.stop_goal_time_hours = float(user_config.get("stop_goal_time_hours", 2.0))
+            self.macro_enabled = bool(user_config.get("macro_enabled", getattr(self, "macro_enabled", False)))
+            self.selected_macro_id = str(user_config.get("selected_macro_id", getattr(self, "selected_macro_id", "preset_basic_run")))
 
             # Device context is set per-thread in _run_loop
             self.is_running = True
@@ -546,6 +561,9 @@ class BotEngine:
 
         if self.thread and self.thread.is_alive():
             self.thread.join(timeout=3.0)
+
+        if hasattr(self, "macro_player") and self.macro_player:
+            self.macro_player.stop()
 
         with self.lock:
             self.is_running = False
@@ -731,6 +749,8 @@ class BotEngine:
             ("auto_action_enabled", "วิ่ง+กระโดด/สไลด์ อัตโนมัติ", bool, lambda v: "เปิด" if v else "ปิด"),
             ("auto_action_mode", "โหมดแอ็กชันขณะวิ่ง", str, lambda v: {"jump_only": "กระโดดอย่างเดียว", "slide_only": "สไลด์อย่างเดียว", "both": "กระโดด + สไลด์"}.get(v, v)),
             ("auto_action_interval", "เวลาหน่วงแอ็กชัน", float, lambda v: f"{v:g} วินาที"),
+            ("macro_enabled", "โหมดเล่นตามมาโคร", bool, lambda v: "เปิด" if v else "ปิด"),
+            ("selected_macro_id", "มาโครที่เลือก", str, lambda v: str(v)),
         ]
 
         with self.lock:
@@ -832,6 +852,8 @@ class BotEngine:
                         except Exception as err:
                             self.log(f"⚠️ บันทึก error log ไม่สำเร็จ: {err}", "warning")
 
+                        if hasattr(self, "macro_player") and self.macro_player.is_running:
+                            self.macro_player.stop()
                         device_reset_app(target, self.device_port)
                         if self.interruptible_sleep(2.0):
                             break
@@ -848,21 +870,25 @@ class BotEngine:
                 elif self.current_stage not in ("STARTING", "STOPPING"):
                     self.current_stage = f"{detection_group} (Searching...)"
 
-                # 🏃 Auto Jump / Slide during active in-game running
-                if detection_group == "IN_GAME" and stage is None and self.auto_action_enabled:
-                    now = time.time()
-                    if now - self._last_auto_action_time >= max(0.2, self.auto_action_interval):
-                        self._last_auto_action_time = now
-                        if self.auto_action_mode == "jump_only":
-                            perform_auto_jump()
-                        elif self.auto_action_mode == "slide_only":
-                            perform_auto_slide(250)
-                        else:  # "both"
-                            if not self._auto_action_toggle:
+                # 🏃 Auto Jump / Slide or Macro playback during active in-game running
+                if detection_group == "IN_GAME" and stage is None:
+                    if self.macro_enabled and hasattr(self, "macro_player") and self.macro_player.is_running:
+                        # Macro player is actively executing timeline in its dedicated thread
+                        pass
+                    elif self.auto_action_enabled:
+                        now = time.time()
+                        if now - self._last_auto_action_time >= max(0.2, self.auto_action_interval):
+                            self._last_auto_action_time = now
+                            if self.auto_action_mode == "jump_only":
                                 perform_auto_jump()
-                            else:
+                            elif self.auto_action_mode == "slide_only":
                                 perform_auto_slide(250)
-                            self._auto_action_toggle = not self._auto_action_toggle
+                            else:  # "both"
+                                if not self._auto_action_toggle:
+                                    perform_auto_jump()
+                                else:
+                                    perform_auto_slide(250)
+                                self._auto_action_toggle = not self._auto_action_toggle
 
                 if stage == last_stage:
                     if self.interruptible_sleep(0.1):
@@ -1006,6 +1032,7 @@ class BotEngine:
                     play_game()
                     detection_group = "IN_GAME"
                     self._last_auto_action_time = time.time() + 1.0
+
                     self.rounds_played += 1
                     self.current_round_start_time = time.time()
                     self.current_round_recorded = False
@@ -1024,14 +1051,57 @@ class BotEngine:
                     detection_group = "IN_GAME"
                     self._last_auto_action_time = time.time() + 1.0
 
+                    try:
+                        from macro_recorder import macro_recorder_manager
+                        rec = macro_recorder_manager.get_recorder(target)
+                        if rec.status == "ARMED":
+                            if rec.trigger_in_game_start():
+                                self.log("🔴 [Macro Record] เข้าสู่หน้าเกมวิ่งแล้ว! เริ่มจับเวลาและบันทึกมาโคร (t=0.00s)...", "success")
+                    except Exception:
+                        pass
+
+                    if self.macro_enabled and self.selected_macro_id and not self.macro_player.is_running:
+                        try:
+                            from macro_manager import get_macro
+                            mdata = get_macro(self.selected_macro_id)
+                            if mdata:
+                                time.sleep(1.0)  # Wait for START! banner to clear so cookie is running
+                                self.log(f"▶️ [Macro] เริ่มเล่นตามมาโคร: {mdata.get('name', self.selected_macro_id)}", "info")
+                                self.macro_player.start(mdata)
+                        except Exception as e:
+                            self.log(f"⚠️ ไม่สามารถเริ่มมาโคร: {e}", "warning")
+
                 elif stage == "GAME_RELAY":
                     self.log("🔄 Detected Stage: GAME_RELAY (Cookie Relay Triggered)", "stage")
                     if self.use_cookie_relay:
                         using_cookie_relay()
                     detection_group = "IN_GAME"
                     self._last_auto_action_time = time.time() + 1.0
+                    if self.macro_enabled and self.selected_macro_id:
+                        try:
+                            from macro_manager import get_macro
+                            mdata = get_macro(self.selected_macro_id)
+                            if mdata:
+                                self.log(f"▶️ [Macro] ผลัดคุกกี้ - เล่นตามมาโครต่อ", "info")
+                                self.macro_player.start(mdata)
+                        except Exception as e:
+                            pass
 
                 elif stage == "GAME_COMPLETE":
+                    if hasattr(self, "macro_player") and self.macro_player.is_running:
+                        self.macro_player.stop()
+
+                    # Auto save macro if recording was in progress
+                    try:
+                        from macro_recorder import macro_recorder_manager
+                        rec = macro_recorder_manager.get_recorder(target)
+                        if rec.status == "RECORDING":
+                            saved = rec.stop_and_save()
+                            if saved:
+                                self.log(f"💾 [Macro Record] จบเกมแล้ว! บันทึกมาโครลงไฟล์ JSON สำเร็จ: {saved.get('name')} ({len(saved.get('actions', []))} แอ็กชัน)", "success")
+                    except Exception:
+                        pass
+
                     self.log("📊 ตรวจพบหน้าจอสรุปผล (Result Screen) — กำลังรอตัวเลขคะแนนและเหรียญขึ้นครบ...", "stage")
 
                     # ตรวจสอบการตั้งค่าใหม่เมื่อจบรอบ
@@ -1377,7 +1447,7 @@ class BotEngine:
                     verify_screen = device_capture_screen(target, self.device_port)
                     still_anti_bot = False
                     if verify_screen is not None:
-                        post_stage = detect_game_stage(verify_screen)
+                        post_stage = detect_stage(verify_screen)
                         still_anti_bot = (post_stage == "ANTI_BOT")
 
                     now_str = datetime.now().strftime("%H:%M:%S")
@@ -1472,3 +1542,7 @@ class EngineManager:
 engine_manager = EngineManager()
 # Global default instance for backwards compatibility
 bot_engine = engine_manager.get_or_create_engine(f"{config.DEVICE_IP}:{config.DEVICE_PORT}")
+
+
+def get_engine_for_device(device_serial: str) -> Optional[BotEngine]:
+    return engine_manager.get_or_create_engine(device_serial)

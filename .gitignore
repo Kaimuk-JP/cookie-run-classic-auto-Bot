@@ -53,6 +53,7 @@ history/*.json
 *.log
 *.tmp
 *.temp
+/macros/*.json
 
 # ==========================================
 # Root-level Temporary / Debug Images

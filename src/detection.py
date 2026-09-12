@@ -232,8 +232,14 @@ def detect_anti_bot_odd_cards(screen):
 
     screen_bgr = _normalize(screen)
     crops = []
+    margin_y = 40
+    margin_x_left = 35
+    margin_x_right = 45
     for cx, cy in card_coords:
-        crop = screen_bgr[cy:cy + ANTI_BOT_CARD_HEIGHT, cx:cx + ANTI_BOT_CARD_WIDTH]
+        crop = screen_bgr[
+            cy + margin_y : cy + ANTI_BOT_CARD_HEIGHT - margin_y,
+            cx + margin_x_left : cx + ANTI_BOT_CARD_WIDTH - margin_x_right,
+        ]
         gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
         crops.append(gray)
 

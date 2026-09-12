@@ -204,5 +204,93 @@ export const botApi = {
     const res = await fetch('/api/cleaner/status');
     if (!res.ok) return { is_running: false };
     return res.json();
+  },
+
+  async getMacros(): Promise<{ success: boolean; macros: any[] }> {
+    const res = await fetch('/api/macros');
+    if (!res.ok) throw new Error('Failed to load macros');
+    return res.json();
+  },
+
+  async getMacro(id: string): Promise<{ success: boolean; macro: any }> {
+    const res = await fetch(`/api/macros/${encodeURIComponent(id)}`);
+    if (!res.ok) throw new Error('Failed to load macro details');
+    return res.json();
+  },
+
+  async saveMacro(macro: any): Promise<{ success: boolean; id: string; message: string }> {
+    const res = await fetch('/api/macros/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(macro),
+    });
+    return res.json();
+  },
+
+  async deleteMacro(id: string): Promise<{ success: boolean; message: string }> {
+    const res = await fetch(`/api/macros/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
+    return res.json();
+  },
+
+  async testMacroAction(params: { device_serial?: string; action: string; air_time?: number; duration?: number; macro_id?: string }): Promise<{ success: boolean; message: string }> {
+    const res = await fetch('/api/macros/test', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    });
+    return res.json();
+  },
+
+  async selectMacro(serial: string, macroId: string, enabled: boolean = true): Promise<any> {
+    const res = await fetch('/api/macros/select', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ device_serial: serial, macro_id: macroId, enabled }),
+    });
+    return res.json();
+  },
+
+  async armMacroRecording(serial: string, name?: string): Promise<any> {
+    const res = await fetch('/api/macros/record/arm', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ device_serial: serial, name }),
+    });
+    return res.json();
+  },
+
+  async triggerMacroRecording(serial: string): Promise<any> {
+    const res = await fetch('/api/macros/record/trigger', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ device_serial: serial }),
+    });
+    return res.json();
+  },
+
+  async recordMacroAction(serial: string, action: string, extra?: { air_time?: number; duration?: number }): Promise<any> {
+    const res = await fetch('/api/macros/record/action', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ device_serial: serial, action, ...(extra || {}) }),
+    });
+    return res.json();
+  },
+
+  async stopMacroRecording(serial: string, name?: string): Promise<any> {
+    const res = await fetch('/api/macros/record/stop', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ device_serial: serial, name }),
+    });
+    return res.json();
+  },
+
+  async getMacroRecordStatus(serial: string): Promise<any> {
+    const res = await fetch(`/api/macros/record/status?device=${encodeURIComponent(serial)}`);
+    if (!res.ok) return { status: 'IDLE', elapsed: 0, action_count: 0 };
+    return res.json();
   }
 };

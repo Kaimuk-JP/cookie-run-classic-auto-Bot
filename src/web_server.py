@@ -7,7 +7,7 @@ import time
 from typing import Any, Dict, List, Optional
 
 import cv2
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -208,6 +208,8 @@ class StartBotRequest(BaseModel):
     auto_action_enabled: Optional[bool] = None
     auto_action_mode: Optional[str] = None
     auto_action_interval: Optional[float] = None
+    macro_enabled: Optional[bool] = None
+    selected_macro_id: Optional[str] = None
 
 
 BotSettings = StartBotRequest
@@ -299,6 +301,8 @@ DEFAULT_BOT_SETTINGS = {
     "auto_action_enabled": False,
     "auto_action_mode": "both",
     "auto_action_interval": 1.5,
+    "macro_enabled": False,
+    "selected_macro_id": "preset_basic_run",
 }
 
 
@@ -1213,28 +1217,325 @@ def get_screenshot(device: Optional[str] = None):
 
 
 @app.get("/api/round-screenshot/{round_num}")
-def get_round_screenshot(round_num: int, device: Optional[str] = None):
+def get_round_screenshot(round_num: int, device: Optional[str] = None, file: Optional[str] = None):
     eng = get_engine_for_device(device)
-    jpeg_bytes = eng.round_screenshots.get(round_num)
+
+    # 1. Check in-memory buffer if available
+    jpeg_bytes = getattr(eng, "round_screenshots", {}).get(round_num)
     if jpeg_bytes is not None:
         return Response(content=jpeg_bytes, media_type="image/jpeg")
 
-    # Check disk for saved screenshot
-    import glob
-    pattern = os.path.join(screenshots_path, f"round_{round_num}_*.png")
-    matches = glob.glob(pattern)
-    if matches:
+    # 2. Check disk in all known screenshot directories
+    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    search_dirs = [
+        os.path.join(os.path.dirname(__file__), "screenshots"),
+        os.path.join(base_dir, "screenshots"),
+        os.path.abspath("screenshots"),
+        os.path.abspath("src/screenshots"),
+    ]
+
+    target_basename = None
+    if file:
+        target_basename = os.path.basename(file.strip())
+
+    # If filename not given in param, check round_history JSON file
+    if not target_basename:
+        dev_name = str(device or getattr(eng, "device_serial", "") or "emulator-5562").replace(":", "_").replace("/", "_")
+        history_file = os.path.join(base_dir, "history", f"round_history_{dev_name}.json")
+        if os.path.isfile(history_file):
+            try:
+                with open(history_file, "r", encoding="utf-8") as hf:
+                    hdata = json.load(hf)
+                    for item in hdata:
+                        if item.get("round") == round_num and item.get("screenshot"):
+                            target_basename = os.path.basename(item["screenshot"])
+                            break
+            except Exception:
+                pass
+
+    found_path = None
+    if target_basename:
+        for sdir in search_dirs:
+            candidate = os.path.join(sdir, target_basename)
+            if os.path.isfile(candidate):
+                found_path = candidate
+                break
+
+    # If still not found, search with glob for matching round number
+    if not found_path:
+        import glob
+        all_matches = []
+        for sdir in search_dirs:
+            if os.path.isdir(sdir):
+                all_matches.extend(glob.glob(os.path.join(sdir, f"round_{round_num}_*.png")))
+                all_matches.extend(glob.glob(os.path.join(sdir, f"round_{round_num}_*.jpg")))
+        if all_matches:
+            # Sort newest first by file modification time
+            all_matches.sort(key=lambda p: os.path.getmtime(p), reverse=True)
+            found_path = all_matches[0]
+
+    if found_path and os.path.isfile(found_path):
         try:
-            with open(matches[0], "rb") as f:
-                return Response(content=f.read(), media_type="image/png")
+            with open(found_path, "rb") as img_file:
+                media = "image/jpeg" if found_path.lower().endswith(".jpg") else "image/png"
+                return Response(content=img_file.read(), media_type=media)
         except Exception:
             pass
 
+    # 3. Fallback placeholder image
     blank = np.zeros((480, 854, 3), dtype=np.uint8)
     blank[:] = (20, 24, 35)
-    cv2.putText(blank, f"No screenshot for Round #{round_num}", (220, 240), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (180, 180, 190), 2, cv2.LINE_AA)
+    cv2.putText(blank, f"No screenshot for Round #{round_num}", (180, 240), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (180, 180, 190), 2, cv2.LINE_AA)
     _, buf = cv2.imencode(".jpg", blank)
     return Response(content=buf.tobytes(), media_type="image/jpeg")
+# -------------------------------------------------------------
+# MACRO SYSTEM API ENDPOINTS
+# -------------------------------------------------------------
+@app.get("/api/macros")
+def api_get_macros():
+    """List all available macro profiles."""
+    import macro_manager
+    return {"success": True, "macros": macro_manager.list_macros()}
+
+
+@app.get("/api/macros/{macro_id}")
+def api_get_macro(macro_id: str):
+    """Get specific macro profile details."""
+    import macro_manager
+    data = macro_manager.get_macro(macro_id)
+    if not data:
+        raise HTTPException(status_code=404, detail="ไม่พบไฟล์มาโครที่ระบุ")
+    return {"success": True, "macro": data}
+
+
+@app.post("/api/macros/save")
+def api_save_macro(payload: Dict[str, Any] = Body(...)):
+    """Create or update a macro profile."""
+    import macro_manager
+    ok, res = macro_manager.save_macro(payload)
+    if not ok:
+        raise HTTPException(status_code=400, detail=f"บันทึกไม่สำเร็จ: {res}")
+    return {"success": True, "id": res, "message": "บันทึกมาโครสำเร็จ"}
+
+
+@app.delete("/api/macros/{macro_id}")
+def api_delete_macro(macro_id: str):
+    """Delete a macro profile."""
+    import macro_manager
+    ok = macro_manager.delete_macro(macro_id)
+    if not ok:
+        raise HTTPException(status_code=400, detail="ไม่สามารถลบไฟล์มาโครได้")
+    return {"success": True, "message": "ลบมาโครสำเร็จ"}
+
+
+@app.post("/api/macros/select")
+def api_select_macro(payload: Dict[str, Any] = Body(...)):
+    """Select and activate a macro for a device with persistent settings save and hot-reload."""
+    device = payload.get("device_serial") or payload.get("device") or "127.0.0.1:7555"
+    macro_id = payload.get("macro_id", "")
+    enabled = bool(payload.get("enabled", True))
+
+    dev = str(device).strip()
+    eng = get_engine_for_device(dev)
+
+    # 1. Update settings file
+    settings_dict = load_bot_settings(dev)
+    settings_dict["macro_enabled"] = enabled
+    if macro_id:
+        settings_dict["selected_macro_id"] = str(macro_id)
+    save_bot_settings_to_file(settings_dict, dev)
+
+    # 2. Hot reload into engine
+    eng.check_and_apply_settings_update({
+        "macro_enabled": enabled,
+        "selected_macro_id": str(macro_id) if macro_id else eng.selected_macro_id,
+    })
+
+    import macro_manager
+    mdata = macro_manager.get_macro(macro_id) if macro_id else None
+    mname = mdata.get("name") if mdata else macro_id
+    eng.log(f"▶️ [Macro] {'เปิดใช้งาน' if enabled else 'ปิดใช้งาน'}มาโคร: {mname}", "success")
+
+    # 3. If bot is currently in-game, start playing immediately!
+    if enabled and mdata and eng.is_running and eng.current_stage in ["IN_GAME", "GAME_START", "STAGE_IN_GAME", "GAME_RELAY"]:
+        if not eng.macro_player.is_running:
+            eng.log(f"⚡ [Macro] กำลังวิ่งอยู่ในเกมพอดี! เริ่มรันสเต็ปมาโคร {mname} ทันที...", "info")
+            eng.macro_player.start(mdata)
+
+    return {"success": True, "macro_enabled": enabled, "selected_macro_id": macro_id, "name": mname}
+
+
+@app.post("/api/macros/test")
+def api_test_macro(payload: Dict[str, Any] = Body(...)):
+    """Test-run a single macro or single action on a device."""
+    device_serial = payload.get("device_serial") or payload.get("device") or "127.0.0.1:7555"
+    action_type = payload.get("action", "jump")
+    macro_id = payload.get("macro_id")
+
+    eng = get_engine_for_device(device_serial)
+    player = getattr(eng, "macro_player", None)
+    if not player:
+        from macro_player import MacroPlayer
+        player = MacroPlayer(device_serial)
+
+    if action_type == "jump":
+        player.jump()
+    elif action_type == "double_jump":
+        player.double_jump(float(payload.get("air_time", 0.16)))
+    elif action_type == "slide":
+        player.slide(float(payload.get("duration", 0.40)))
+    elif action_type == "stop":
+        player.stop()
+        eng.log("⏹️ [Macro] สั่งหยุดการรันมาโครแล้ว", "info")
+        return {"success": True, "message": "หยุดการรันมาโครแล้ว"}
+    elif action_type == "test_macro" and macro_id:
+        import macro_manager
+        mdata = macro_manager.get_macro(macro_id)
+        if mdata:
+            player.stop()
+            eng.log(f"▶️ [Macro Run] เริ่มเตรียมเข้าห้องวิ่งและรันมาโคร: {mdata.get('name')} บนจอ {device_serial}", "info")
+            player.start_with_navigation(mdata, device_serial, eng.device_port, log_fn=eng.log)
+            return {"success": True, "message": f"กำลังเริ่มรันมาโคร {mdata.get('name')}"}
+        else:
+            raise HTTPException(status_code=404, detail="ไม่พบมาโคร")
+    return {"success": True, "message": f"ทดสอบส่งแอ็กชัน {action_type} สำเร็จ"}
+
+
+# -------------------------------------------------------------
+# INTERACTIVE TAP & MACRO RECORDER API ENDPOINTS
+# -------------------------------------------------------------
+@app.post("/api/tap")
+def api_tap_screen(payload: TapRequest):
+    device = payload.device_serial or payload.device or "127.0.0.1:7555"
+    eng = get_engine_for_device(device)
+    target = eng.device_serial or eng.device_ip or device
+
+    # Check if macro recording is active
+    from macro_recorder import macro_recorder_manager
+    rec = macro_recorder_manager.get_recorder(target)
+    if rec.status == "RECORDING":
+        if payload.x < 450 and payload.y > 450:
+            rec.record_jump()
+        elif payload.x > 750 and payload.y > 450:
+            rec.record_slide_instant(0.4)
+        else:
+            rec.actions.append({
+                "t": round(time.perf_counter() - rec.start_perf, 2) if rec.start_perf > 0 else 0.0,
+                "action": "tap",
+                "x": payload.x,
+                "y": payload.y
+            })
+
+    # Try fast scrcpy tap first (< 1ms)
+    try:
+        streamer = stream_manager.get_streamer(target)
+        if streamer and streamer.tap(payload.x, payload.y):
+            return {"success": True, "method": "scrcpy"}
+    except Exception:
+        pass
+
+    # Fallback to safe_device_tap
+    try:
+        from actions import safe_device_tap
+        safe_device_tap(target, eng.device_port, payload.x, payload.y)
+        return {"success": True, "method": "adb"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/macros/record/arm")
+def api_record_arm(payload: Dict[str, Any] = Body(...)):
+    """Arm the recorder to wait for the in-game running screen, auto-tapping Play from Lobby."""
+    device = payload.get("device_serial") or payload.get("device") or "127.0.0.1:7555"
+    name = payload.get("name", "")
+    from macro_recorder import macro_recorder_manager
+    rec = macro_recorder_manager.get_recorder(device)
+    eng = get_engine_for_device(device)
+    rec.set_log_fn(eng.log)
+    rec.arm(name=name)
+
+    eng.log("🟡 [Macro Record] เข้าสู่โหมดเตรียมบันทึก — กำลังตรวจจับหน้าจอและกด Play หน้าล็อบบี้เพื่อพาเข้าห้องวิ่งให้อัตโนมัติ...", "info")
+    rec.start_auto_flow(device, eng.device_port, log_fn=eng.log)
+    return {"success": True, "status": rec.status, "message": "เตรียมพร้อมบันทึก กำลังกดเริ่มเกมและรอเข้าห้องวิ่ง..."}
+
+
+@app.post("/api/macros/record/trigger")
+def api_record_trigger(payload: Dict[str, Any] = Body(...)):
+    """Force start recording right now (t=0)."""
+    device = payload.get("device_serial") or payload.get("device") or "127.0.0.1:7555"
+    from macro_recorder import macro_recorder_manager
+    rec = macro_recorder_manager.get_recorder(device)
+    eng = get_engine_for_device(device)
+    rec.set_log_fn(eng.log)
+    rec.status = "ARMED"
+    rec.trigger_in_game_start()
+
+    eng.log("🟢 [Macro Record] เริ่มจับเวลาและบันทึกมาโครสดแล้ว (t=0.00s)", "success")
+    return {"success": True, "status": rec.status}
+
+
+@app.post("/api/macros/record/action")
+def api_record_action(payload: Dict[str, Any] = Body(...)):
+    """Record an action (jump, double_jump, slide_down, slide_up, slide)."""
+    device = payload.get("device_serial") or payload.get("device") or "127.0.0.1:7555"
+    action = payload.get("action", "jump")
+    from macro_recorder import macro_recorder_manager
+    rec = macro_recorder_manager.get_recorder(device)
+
+    # Also send tap to real emulator so character actually jumps/slides!
+    from macro_player import MacroPlayer
+    player = MacroPlayer(device)
+
+    result = {}
+    if action == "jump":
+        result = rec.record_jump()
+        player.jump()
+    elif action == "double_jump":
+        air_time = float(payload.get("air_time", 0.15))
+        result = {
+            "t": round(time.perf_counter() - rec.start_perf, 2) if rec.start_perf > 0 else 0.0,
+            "action": "double_jump",
+            "air_time": air_time
+        }
+        rec.actions.append(result)
+        player.double_jump(air_time)
+    elif action == "slide_down":
+        rec.record_slide_down()
+        player._send_down(player.SLIDE_X, player.SLIDE_Y)
+    elif action == "slide_up":
+        result = rec.record_slide_up()
+        player._send_up(player.SLIDE_X, player.SLIDE_Y)
+    elif action == "slide":
+        dur = float(payload.get("duration", 0.40))
+        result = rec.record_slide_instant(dur)
+        player.slide(dur)
+
+    return {"success": True, "recorded": result, "status": rec.get_status()}
+
+
+@app.post("/api/macros/record/stop")
+def api_record_stop(payload: Dict[str, Any] = Body(...)):
+    """Stop recording and save JSON profile."""
+    device = payload.get("device_serial") or payload.get("device") or "127.0.0.1:7555"
+    custom_name = payload.get("name", "")
+    from macro_recorder import macro_recorder_manager
+    rec = macro_recorder_manager.get_recorder(device)
+    saved = rec.stop_and_save(custom_name)
+
+    eng = get_engine_for_device(device)
+    if saved:
+        eng.log(f"💾 [Macro Record] บันทึกมาโครลงไฟล์ JSON สำเร็จ: {saved.get('name')} ({len(saved.get('actions', []))} แอ็กชัน)", "success")
+        return {"success": True, "macro": saved, "message": "บันทึกมาโครลงไฟล์ JSON สำเร็จ"}
+    return {"success": False, "message": "ไม่มีข้อมูลการบันทึก"}
+
+
+@app.get("/api/macros/record/status")
+def api_record_status(device: Optional[str] = None):
+    """Check recorder status for device."""
+    target = device or "127.0.0.1:7555"
+    from macro_recorder import macro_recorder_manager
+    rec = macro_recorder_manager.get_recorder(target)
+    return rec.get_status()
 
 
 @app.get("/api/logs")

@@ -13,6 +13,7 @@ import { HistoryModal } from './components/modals/HistoryModal';
 import { SettingsModal } from './components/modals/SettingsModal';
 import { DiscordModal } from './components/modals/DiscordModal';
 import { ToolsModal } from './components/modals/ToolsModal';
+import { MacroModal } from './components/modals/MacroModal';
 
 import { Device } from './types/bot';
 import { botApi } from './api/botApi';
@@ -29,6 +30,7 @@ export function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isDiscordOpen, setIsDiscordOpen] = useState(false);
   const [isToolsOpen, setIsToolsOpen] = useState(false);
+  const [isMacroOpen, setIsMacroOpen] = useState(false);
 
   // Fetch devices poll
   const fetchDevices = async () => {
@@ -186,8 +188,6 @@ export function App() {
               history={activeDevice?.round_history || []}
               onOpenHistoryModal={() => setIsHistoryOpen(true)}
             />
-
-            <LogsConsole deviceSerial={activeDevice?.serial} />
           </div>
 
           {/* Right Action Panel */}
@@ -198,9 +198,12 @@ export function App() {
               onStart={handleStartCurrent}
               onStop={handleStopCurrent}
               onOpenSettings={() => setIsSettingsOpen(true)}
+              onOpenMacro={() => setIsMacroOpen(true)}
               onOpenDiscord={() => setIsDiscordOpen(true)}
               onOpenTools={() => setIsToolsOpen(true)}
             />
+
+            <LogsConsole deviceSerial={activeDevice?.serial} />
           </div>
         </div>
       </main>
@@ -230,6 +233,20 @@ export function App() {
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
         deviceSerial={activeDevice?.serial || ''}
+      />
+
+      <MacroModal
+        isOpen={isMacroOpen}
+        onClose={() => setIsMacroOpen(false)}
+        deviceSerial={activeDevice?.serial || ''}
+        onSelectMacro={async (macroId) => {
+          try {
+            await botApi.selectMacro(activeDevice?.serial || '', macroId, true);
+            fetchDevices();
+          } catch {
+            // ignore
+          }
+        }}
       />
 
       <DiscordModal

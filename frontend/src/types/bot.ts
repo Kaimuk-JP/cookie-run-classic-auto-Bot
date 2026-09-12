@@ -101,6 +101,29 @@ export interface BotSettings {
   auto_action_enabled?: boolean;
   auto_action_mode?: 'jump_only' | 'slide_only' | 'both';
   auto_action_interval?: number;
+  macro_enabled?: boolean;
+  selected_macro_id?: string;
+}
+
+export interface MacroAction {
+  t: number;
+  action: 'jump' | 'double_jump' | 'slide' | 'tap';
+  air_time?: number;
+  duration?: number;
+  x?: number;
+  y?: number;
+}
+
+export interface MacroProfile {
+  id: string;
+  name: string;
+  description?: string;
+  author?: string;
+  created_at?: string;
+  duration_seconds?: number;
+  loop?: boolean;
+  action_count?: number;
+  actions?: MacroAction[];
 }
 
 export interface LogEntry {

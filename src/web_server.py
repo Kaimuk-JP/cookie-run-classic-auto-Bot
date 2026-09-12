@@ -205,6 +205,9 @@ class StartBotRequest(BaseModel):
     stop_goal_rounds_target: Optional[int] = None
     stop_goal_time_enabled: Optional[bool] = None
     stop_goal_time_hours: Optional[float] = None
+    auto_action_enabled: Optional[bool] = None
+    auto_action_mode: Optional[str] = None
+    auto_action_interval: Optional[float] = None
 
 
 BotSettings = StartBotRequest
@@ -293,6 +296,9 @@ DEFAULT_BOT_SETTINGS = {
     "stop_goal_rounds_target": 50,
     "stop_goal_time_enabled": False,
     "stop_goal_time_hours": 2.0,
+    "auto_action_enabled": False,
+    "auto_action_mode": "both",
+    "auto_action_interval": 1.5,
 }
 
 
@@ -349,8 +355,14 @@ def save_bot_settings_to_file(settings: dict, device_serial: Optional[str] = Non
     """Save settings per device inside the settings/ directory."""
     target_file = get_device_settings_path(device_serial) if device_serial else SETTINGS_FILE
     try:
+        os.makedirs(os.path.dirname(target_file), exist_ok=True)
+        current = load_bot_settings(device_serial)
+        clean_update = {k: v for k, v in settings.items() if v is not None}
+        current.update(clean_update)
+        if device_serial:
+            current["device_serial"] = device_serial
         with open(target_file, "w", encoding="utf-8") as f:
-            json.dump(settings, f, indent=2, ensure_ascii=False)
+            json.dump(current, f, indent=2, ensure_ascii=False)
     except Exception as e:
         print(f"Failed to save bot settings to {target_file}: {e}")
 
@@ -619,11 +631,25 @@ def get_settings(device: Optional[str] = None):
     return load_bot_settings(dev)
 
 
+@app.post("/api/settings")
 @app.post("/api/settings/save")
 def save_settings(settings: BotSettings, device: Optional[str] = None):
-    dev = device.strip() if device and device.strip() else None
-    save_bot_settings_to_file(settings.model_dump(), dev)
-    return {"success": True, "message": "Settings saved"}
+    dev = (device.strip() if device and device.strip() else None) or \
+          (settings.device_serial.strip() if settings.device_serial and settings.device_serial.strip() else None) or \
+          (settings.device.strip() if settings.device and settings.device.strip() else None)
+    
+    settings_dict = {k: v for k, v in settings.model_dump().items() if v is not None}
+    save_bot_settings_to_file(settings_dict, dev)
+
+    # Immediately hot-reload settings into engine if running or initialized
+    try:
+        eng = get_engine_for_device(dev) if dev else bot_engine
+        if eng:
+            eng.check_and_apply_settings_update(settings_dict)
+    except Exception as e:
+        print(f"[WebServer] Hot reload settings error: {e}")
+
+    return {"success": True, "message": "บันทึกการตั้งค่าเรียบร้อยแล้ว"}
 
 
 @app.post("/api/settings/reset")
@@ -635,7 +661,15 @@ def reset_settings(device: Optional[str] = None):
             os.remove(target_file)
         except Exception:
             pass
-    return {"success": True, "settings": load_bot_settings(dev)}
+    def_settings = load_bot_settings(dev)
+    try:
+        eng = get_engine_for_device(dev) if dev else bot_engine
+        if eng:
+            eng.check_and_apply_settings_update(def_settings)
+    except Exception as e:
+        print(f"[WebServer] Hot reload reset settings error: {e}")
+
+    return {"success": True, "message": "รีเซ็ตการตั้งค่าเรียบร้อยแล้ว", "settings": def_settings}
 
 
 @app.post("/api/start")

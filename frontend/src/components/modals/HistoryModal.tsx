@@ -3,6 +3,7 @@ import { X, ScrollText, Image as ImageIcon, Trash2 } from 'lucide-react';
 import { RoundHistoryItem } from '../../types/bot';
 import { renderBoxBadge } from '../dashboard/RoundHistory';
 import { botApi } from '../../api/botApi';
+import { toast, confirmModal } from '../../context/ToastContext';
 
 interface HistoryModalProps {
   isOpen: boolean;
@@ -27,18 +28,22 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({
   if (!isOpen) return null;
 
   const handleResetHistory = async () => {
-    if (!confirm(`ต้องการลบประวัติการเล่นทั้งหมดของจอ ${deviceSerial || 'ทั้งหมด'} ใช่หรือไม่?`)) {
-      return;
-    }
+    const ok = await confirmModal({
+      title: 'ลบประวัติการเล่น',
+      message: `ต้องการลบประวัติการเล่นทั้งหมดของจอ ${deviceSerial || 'ทั้งหมด'} ใช่หรือไม่?`,
+      confirmText: 'ลบประวัติ',
+      type: 'danger',
+    });
+    if (!ok) return;
 
     setIsResetting(true);
     try {
       const res = await botApi.resetStats(deviceSerial);
-      alert(res.message || 'ลบประวัติเรียบร้อยแล้ว');
+      toast.success(res.message || 'ลบประวัติเรียบร้อยแล้ว');
       if (onReset) onReset();
       onClose();
     } catch (e: any) {
-      alert('ลบไม่สำเร็จ: ' + e.message);
+      toast.error('ลบไม่สำเร็จ: ' + e.message);
     } finally {
       setIsResetting(false);
     }

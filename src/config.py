@@ -292,6 +292,8 @@ BOOST_DIALOG_ITEMS = {
     "magnetic":     {"tap": (750, 370), "check": (665, 370), "name": "Magnetic Aura"},
 }
 BOOST_DIALOG_COORDS = {k: v["tap"] for k, v in BOOST_DIALOG_ITEMS.items()}
+JUMP_BUTTON = (143, 653)
+SLIDE_BUTTON = (1130, 660)
 FAST_START_USE_BUTTON = (655, 340)
 COOKIE_RELAY_USE_BUTTON = (655, 340)
 COMPLETE_FINISH_BUTTON = (460, 625)

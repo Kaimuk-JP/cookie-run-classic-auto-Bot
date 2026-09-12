@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Heart, UserMinus, Play, Square, PlayCircle, Clipboard, Smartphone, RefreshCw } from 'lucide-react';
 import { botApi } from '../../api/botApi';
 import { Device } from '../../types/bot';
+import { toast, confirmModal } from '../../context/ToastContext';
 
 interface ToolsModalProps {
   isOpen: boolean;
@@ -23,19 +24,20 @@ export const ToolsModal: React.FC<ToolsModalProps> = ({
     rounds: number;
     success_count: number;
     current_step?: string;
-  }>({ running: false, rounds: 0, success_count: 0, current_step: '' });
+  }>({ running: false, rounds: 0, success_count: 0 });
 
   const [selectedCleanerDevice, setSelectedCleanerDevice] = useState<string>(deviceSerial || 'all');
   const [cleanerInterval, setCleanerInterval] = useState<number>(30);
   const [cleanerStatus, setCleanerStatus] = useState<{
     is_running: boolean;
-    next_run?: string;
-    next_run_seconds?: number;
+    is_busy: boolean;
     current_device?: string | null;
     current_step?: string;
+    next_run?: string | null;
+    next_run_seconds?: number;
     target_devices?: string[];
     history?: any[];
-  }>({ is_running: false });
+  }>({ is_running: false, is_busy: false });
 
   const [loading, setLoading] = useState<string | null>(null);
 
@@ -47,55 +49,57 @@ export const ToolsModal: React.FC<ToolsModalProps> = ({
     }
   }, [deviceSerial]);
 
-  // Load saved invite link from device settings
+  // Load defaults from first available device
   useEffect(() => {
-    if (!isOpen) return;
-    const targetDev = selectedFarmerDevice !== 'all' ? selectedFarmerDevice : (devices[0]?.serial || deviceSerial);
-    if (targetDev) {
-      botApi.getSettings(targetDev).then((cfg) => {
-        if (cfg && cfg.heart_farmer_invite && cfg.heart_farmer_invite !== 'ใส่ลิงก์เชิญเพื่อนของคุณ') {
-          setInviteUrl(cfg.heart_farmer_invite);
-        }
-      }).catch(() => {});
-    }
-  }, [isOpen, selectedFarmerDevice]);
-
-  // Poll status while modal is open
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const poll = async () => {
-      try {
-        const fStat = await botApi.getFarmerStatus(selectedFarmerDevice);
-        if (fStat) {
-          setFarmerStatus({
-            running: !!fStat.running || !!fStat.any_running,
-            rounds: fStat.rounds ?? fStat.total_rounds ?? 0,
-            success_count: fStat.success_count ?? fStat.total_success ?? 0,
-            current_step: fStat.current_step ?? '',
-          });
-        }
-        const cStat = await botApi.getCleanerStatus();
-        if (cStat) {
-          setCleanerStatus({
-            is_running: !!cStat.is_running,
-            next_run: cStat.next_run,
-            next_run_seconds: cStat.next_run_seconds,
-            current_device: cStat.current_device,
-            current_step: cStat.current_step,
-            target_devices: cStat.target_devices,
-            history: cStat.history,
-          });
-        }
-      } catch (e) {
-        // ignore
+    if (isOpen) {
+      const dev = deviceSerial || devices[0]?.serial;
+      if (dev) {
+        botApi.getSettings(dev).then((s) => {
+          if (s && s.heart_farmer_invite && s.heart_farmer_invite !== 'ใส่ลิงก์เชิญเพื่อนของคุณ') {
+            setInviteUrl(s.heart_farmer_invite);
+          }
+        }).catch(() => {});
       }
-    };
+      refreshStatus();
+    }
+  }, [isOpen, deviceSerial, devices]);
 
-    poll();
-    const interval = setInterval(poll, 2500);
-    return () => clearInterval(interval);
-  }, [isOpen, selectedFarmerDevice]);
+  // Polling status when open
+  useEffect(() => {
+    if (!isOpen) return;
+    const t = setInterval(refreshStatus, 2000);
+    return () => clearInterval(t);
+  }, [isOpen, selectedFarmerDevice, selectedCleanerDevice]);
+
+  const refreshStatus = async () => {
+    try {
+      const devList = await botApi.getDevices();
+      // Farmer status
+      const fDev = selectedFarmerDevice === 'all'
+        ? devList.find((d: any) => d.heart_stats?.running) || devList[0]
+        : devList.find((d: any) => d.serial === selectedFarmerDevice);
+
+      if (fDev?.heart_stats) {
+        setFarmerStatus({
+          running: !!fDev.heart_stats.running,
+          rounds: fDev.heart_stats.rounds || 0,
+          success_count: fDev.heart_stats.success_count || 0,
+          current_step: fDev.heart_stats.current_step || '',
+        });
+      }
+
+      // Cleaner status
+      const cleanerRes = await botApi.getCleanerStatus();
+      if (cleanerRes) {
+        setCleanerStatus(cleanerRes);
+        if (cleanerRes.interval_minutes) {
+          setCleanerInterval(cleanerRes.interval_minutes);
+        }
+      }
+    } catch (e) {
+      // ignore poll error
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -117,7 +121,12 @@ export const ToolsModal: React.FC<ToolsModalProps> = ({
   const handleStartFarmer = async () => {
     const trimmedInvite = inviteUrl.trim();
     if (!trimmedInvite || trimmedInvite === 'ใส่ลิงก์เชิญเพื่อนของคุณ' || trimmedInvite === 'ลิงก์เชิญเพื่อน') {
-      const confirmRun = confirm('คุณยังไม่ได้ใส่ลิงก์เชิญเพื่อนจริง (ยังเป็นข้อความดีฟอลต์) ต้องการดำเนินการต่อหรือไม่?');
+      const confirmRun = await confirmModal({
+        title: 'ตรวจสอบลิงก์เชิญเพื่อน',
+        message: 'คุณยังไม่ได้ใส่ลิงก์เชิญเพื่อนจริง (ยังเป็นข้อความดีฟอลต์) ต้องการดำเนินการต่อหรือไม่?',
+        confirmText: 'ดำเนินการต่อ',
+        type: 'warning',
+      });
       if (!confirmRun) return;
     }
 
@@ -141,10 +150,10 @@ export const ToolsModal: React.FC<ToolsModalProps> = ({
         }).catch(() => {});
       }
 
-      alert(res.message || 'สั่งเริ่มระบบปั๊มหัวใจเรียบร้อยแล้ว');
+      toast.success(res.message || 'สั่งเริ่มระบบปั๊มหัวใจเรียบร้อยแล้ว');
       setFarmerStatus((prev) => ({ ...prev, running: true }));
     } catch (e: any) {
-      alert('เริ่มไม่สำเร็จ: ' + e.message);
+      toast.error('เริ่มไม่สำเร็จ: ' + e.message);
     } finally {
       setLoading(null);
     }
@@ -158,9 +167,9 @@ export const ToolsModal: React.FC<ToolsModalProps> = ({
       const res = await botApi.stopFarmer({
         device: !isAll ? selectedFarmerDevice : undefined,
       });
-      alert(res.message || 'สั่งหยุดระบบปั๊มหัวใจทันทีเรียบร้อย');
+      toast.success(res.message || 'สั่งหยุดระบบปั๊มหัวใจทันทีเรียบร้อย');
     } catch {
-      alert('สั่งหยุดระบบปั๊มหัวใจทันทีเรียบร้อยแล้ว');
+      toast.success('สั่งหยุดระบบปั๊มหัวใจทันทีเรียบร้อยแล้ว');
     } finally {
       setLoading(null);
     }
@@ -179,7 +188,7 @@ export const ToolsModal: React.FC<ToolsModalProps> = ({
         interval_minutes: Number(cleanerInterval) || 30,
         run_immediately: true,
       });
-      alert(res.message || 'สั่งเริ่มระบบลบเพื่อนเวล 1 เรียบร้อย');
+      toast.success(res.message || 'สั่งเริ่มระบบลบเพื่อนเวล 1 เรียบร้อย');
       setCleanerStatus((prev) => ({
         ...prev,
         is_running: true,
@@ -188,7 +197,7 @@ export const ToolsModal: React.FC<ToolsModalProps> = ({
         target_devices: targetDevs || (targetDev ? [targetDev] : []),
       }));
     } catch (e: any) {
-      alert('เริ่มไม่สำเร็จ: ' + e.message);
+      toast.error('เริ่มไม่สำเร็จ: ' + e.message);
     } finally {
       setLoading(null);
     }
@@ -198,7 +207,7 @@ export const ToolsModal: React.FC<ToolsModalProps> = ({
     setLoading('cleaner_stop');
     try {
       const res = await botApi.stopFriendCleaner();
-      alert(res.message || 'สั่งหยุดระบบลบเพื่อนเรียบร้อย');
+      toast.success(res.message || 'สั่งหยุดระบบลบเพื่อนเรียบร้อย');
       setCleanerStatus((prev) => ({
         ...prev,
         is_running: false,
@@ -206,7 +215,7 @@ export const ToolsModal: React.FC<ToolsModalProps> = ({
         current_step: 'หยุดการทำงานเรียบร้อยแล้ว',
       }));
     } catch (e: any) {
-      alert('หยุดไม่สำเร็จ: ' + e.message);
+      toast.error('หยุดไม่สำเร็จ: ' + e.message);
     } finally {
       setLoading(null);
     }
@@ -214,7 +223,7 @@ export const ToolsModal: React.FC<ToolsModalProps> = ({
 
   const handleRunOnceCleaner = async () => {
     const targetDev = selectedCleanerDevice !== 'all' ? selectedCleanerDevice : devices[0]?.serial;
-    if (!targetDev) return alert('กรุณาเลือกจอก่อน');
+    if (!targetDev) return toast.warning('กรุณาเลือกจอก่อน');
 
     setLoading('cleaner_once');
     setCleanerStatus((prev) => ({
@@ -224,9 +233,9 @@ export const ToolsModal: React.FC<ToolsModalProps> = ({
     }));
     try {
       const res = await botApi.runOnceFriendCleaner(targetDev);
-      alert(res.message || `ส่งคำสั่งลบเพื่อนเวล 1 บนจอ ${targetDev} เรียบร้อยแล้ว`);
+      toast.success(res.message || `ส่งคำสั่งลบเพื่อนเวล 1 บนจอ ${targetDev} เรียบร้อยแล้ว`);
     } catch (e: any) {
-      alert('เริ่มไม่สำเร็จ: ' + e.message);
+      toast.error('เริ่มไม่สำเร็จ: ' + e.message);
     } finally {
       setLoading(null);
     }

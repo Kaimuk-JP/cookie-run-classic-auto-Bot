@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Bell, Send, Save } from 'lucide-react';
 import { DiscordSettings } from '../../types/bot';
 import { botApi } from '../../api/botApi';
+import { toast } from '../../context/ToastContext';
 
 interface DiscordModalProps {
   isOpen: boolean;
@@ -32,23 +33,23 @@ export const DiscordModal: React.FC<DiscordModalProps> = ({ isOpen, onClose }) =
     setIsSaving(true);
     try {
       const res = await botApi.saveDiscordSettings(settings);
-      alert(res.message || 'บันทึกการตั้งค่า Discord เรียบร้อย');
+      toast.success(res.message || 'บันทึกการตั้งค่า Discord เรียบร้อย');
       onClose();
     } catch (e: any) {
-      alert('บันทึกไม่สำเร็จ: ' + e.message);
+      toast.error('บันทึกไม่สำเร็จ: ' + e.message);
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleTest = async () => {
-    if (!settings.webhook_url.trim()) return alert('กรุณาระบุ Webhook URL ก่อน');
+    if (!settings.webhook_url.trim()) return toast.warning('กรุณาระบุ Webhook URL ก่อน');
     setIsTesting(true);
     try {
       const res = await botApi.testDiscordWebhook(settings.webhook_url.trim());
-      alert(res.message || 'ส่งข้อความทดสอบสำเร็จ');
+      toast.success(res.message || 'ส่งข้อความทดสอบสำเร็จ');
     } catch (e: any) {
-      alert('ทดสอบไม่สำเร็จ: ' + e.message);
+      toast.error('ทดสอบไม่สำเร็จ: ' + e.message);
     } finally {
       setIsTesting(false);
     }

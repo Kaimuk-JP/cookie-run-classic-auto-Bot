@@ -1,39 +1,101 @@
-# Python
+# ==========================================
+# Byte-compiled / Python Cache
+# ==========================================
 __pycache__/
+*/__pycache__/
 *.py[cod]
 *$py.class
-*.pyc
-.env
+*.so
+.Python
+*.manifest
+*.spec
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# ==========================================
+# Virtual Environments & Env Variables
+# ==========================================
+.venv/
 venv/
 env/
+ENV/
+*.bak/
+.env
+.env.*
+!.env.example
 
-# Runtime screenshots, history, logs
+# ==========================================
+# Device-Specific & Sensitive Settings
+# ==========================================
+# Ignore per-device auto-generated settings while preserving the base template
+settings/bot_settings_*.json
+!settings/bot_settings.json
+settings/discord_config.json
+settings/*.local.json
+
+# ==========================================
+# Runtime Screenshots, Logs & History
+# ==========================================
 screenshots/
-src/screenshots/
+**/screenshots/
 logs_error/
+**/logs_error/
+debug_screens/
+**/debug_screens/
 scratch/
+**/scratch/
 history/*.csv
 history/*.json
+!history/.gitkeep
 *.log
+*.tmp
+*.temp
 
-# Sensitive configs
-settings/discord_config.json
+# ==========================================
+# Root-level Temporary / Debug Images
+# ==========================================
+/*.png
+/*.jpg
+/*.jpeg
+/*.bmp
+/*.webp
 
-# Node / Frontend
+# ==========================================
+# Node / Frontend Build & Caches
+# ==========================================
 node_modules/
 frontend/node_modules/
+**/node_modules/
 frontend/.vite/
+**/.vite/
+*.tsbuildinfo
+frontend/tsconfig.tsbuildinfo
+.eslintcache
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
 
-# Root level images / debug dumps
-/*.png
-/*.jpg
-
-# OS / Editor
+# ==========================================
+# Operating System & IDE
+# ==========================================
 Thumbs.db
+[Dd]esktop.ini
 .DS_Store
 .vscode/
 .idea/
+*.swp
+*.swo
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
 
+# ==========================================
+# Agent & Local IDE Metadata
+# ==========================================
+.gemini/
+.agents/

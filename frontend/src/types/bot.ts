@@ -98,6 +98,9 @@ export interface BotSettings {
   stop_goal_rounds_target: number;
   stop_goal_time_enabled: boolean;
   stop_goal_time_hours: number;
+  auto_action_enabled?: boolean;
+  auto_action_mode?: 'jump_only' | 'slide_only' | 'both';
+  auto_action_interval?: number;
 }
 
 export interface LogEntry {

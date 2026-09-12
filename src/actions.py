@@ -30,7 +30,7 @@ def get_device_context():
     return ip, port
 
 import config
-from adb import safe_device_tap, safe_device_scroll, device_capture_screen
+from adb import safe_device_tap, safe_device_scroll, safe_device_hold, device_capture_screen
 from config import (
     ACCEPT_ALL_LIVES_RECEIVED_AND_SENT_BUTTON,
     ACCEPT_CONGRATULATIONS_BUTTON,
@@ -376,7 +376,7 @@ def complete_finish(screen=None):
                 break
 
     safe_device_tap(*get_device_context(), target_x, target_y)
-    time.sleep(random.uniform(0.3, 0.5))
+    time.sleep(random.uniform(1.2, 1.8))
 
 
 def accept_mystery_box():
@@ -632,4 +632,14 @@ def handle_clean_level1_friends(target_device: Optional[str] = None):
     except Exception as e:
         print(f"❌ Error in handle_clean_level1_friends: {e}", flush=True)
         return {"success": False, "message": str(e)}
+ 
+ 
+def perform_auto_jump():
+    """Execute single jump during in-game run."""
+    safe_device_tap(*get_device_context(), config.JUMP_BUTTON[0], config.JUMP_BUTTON[1])
+
+
+def perform_auto_slide(duration_ms: int = 250):
+    """Execute slide/crouch during in-game run."""
+    safe_device_hold(*get_device_context(), config.SLIDE_BUTTON[0], config.SLIDE_BUTTON[1], duration=duration_ms)
 

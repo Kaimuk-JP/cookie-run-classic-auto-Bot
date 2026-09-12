@@ -515,6 +515,21 @@ def safe_device_scroll(ip: str, port: int = 5555, x: int = 0, y: int = 0, direct
     )
 
 
+def safe_device_hold(ip: str, port: int = 5555, x: int = 0, y: int = 0, duration: int = 250):
+    """Hold a touch position for duration ms (used for slide/crouch in game)."""
+    jx = x + random.randint(-10, 10)
+    jy = y + random.randint(-10, 10)
+    target = _format_target(ip, port)
+    adb = get_adb_path()
+    _run_cmd(
+        [adb, "-s", target, "shell", "input", "swipe",
+         str(jx), str(jy), str(jx), str(jy), str(duration)],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+
+
 def device_is_app_running(ip: str, port: int = 5555, package: str = "com.devsisters.crg") -> bool:
     target = _format_target(ip, port)
     adb = get_adb_path()

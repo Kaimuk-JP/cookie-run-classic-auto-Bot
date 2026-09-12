@@ -17,6 +17,7 @@ import {
 import { Device } from '../../types/bot';
 import { botApi } from '../../api/botApi';
 import { FarmingChart } from '../dashboard/FarmingChart';
+import { toast, confirmModal } from '../../context/ToastContext';
 
 interface StatsModalProps {
   isOpen: boolean;
@@ -32,18 +33,22 @@ export const StatsModal: React.FC<StatsModalProps> = ({ isOpen, onClose, device,
   if (!isOpen) return null;
 
   const handleResetStats = async () => {
-    if (!confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบสถิติสะสม (เหรียญ, EXP, กล่องปริศนา, แคปซ่า) ทั้งหมดของจอ ${device?.serial || 'ทั้งหมด'}?`)) {
-      return;
-    }
+    const ok = await confirmModal({
+      title: 'รีเซ็ตสถิติสะสม',
+      message: `คุณแน่ใจหรือไม่ว่าต้องการลบสถิติสะสม (เหรียญ, EXP, กล่องปริศนา, แคปซ่า) ทั้งหมดของจอ ${device?.serial || 'ทั้งหมด'}?`,
+      confirmText: 'ลบสถิติทั้งหมด',
+      type: 'danger',
+    });
+    if (!ok) return;
 
     setIsResetting(true);
     try {
       const res = await botApi.resetStats(device?.serial);
-      alert(res.message || 'ลบสถิติทั้งหมดเรียบร้อยแล้ว');
+      toast.success(res.message || 'ลบสถิติทั้งหมดเรียบร้อยแล้ว');
       if (onReset) onReset();
       onClose();
     } catch (e: any) {
-      alert('ลบสถิติไม่สำเร็จ: ' + e.message);
+      toast.error('ลบสถิติไม่สำเร็จ: ' + e.message);
     } finally {
       setIsResetting(false);
     }

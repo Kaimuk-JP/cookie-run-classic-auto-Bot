@@ -74,18 +74,36 @@ export const botApi = {
     return res.json();
   },
 
-  async getSettings(serial: string): Promise<BotSettings> {
-    const res = await fetch(`/api/settings?device=${encodeURIComponent(serial)}`);
+  async getSettings(serial?: string): Promise<BotSettings> {
+    const devQuery = serial ? `?device=${encodeURIComponent(serial)}` : '';
+    const res = await fetch(`/api/settings${devQuery}`);
     if (!res.ok) throw new Error('Failed to fetch settings');
     return res.json();
   },
 
-  async saveSettings(serial: string, settings: BotSettings): Promise<{ success: boolean; message: string }> {
-    const res = await fetch(`/api/settings?device=${encodeURIComponent(serial)}`, {
+  async saveSettings(serial?: string, settings?: BotSettings): Promise<{ success: boolean; message: string }> {
+    const devQuery = serial ? `?device=${encodeURIComponent(serial)}` : '';
+    const res = await fetch(`/api/settings/save${devQuery}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(settings),
+      body: JSON.stringify(settings || {}),
     });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || err.message || `บันทึกไม่สำเร็จ (HTTP ${res.status})`);
+    }
+    return res.json();
+  },
+
+  async resetSettings(serial?: string): Promise<{ success: boolean; message: string; settings: BotSettings }> {
+    const devQuery = serial ? `?device=${encodeURIComponent(serial)}` : '';
+    const res = await fetch(`/api/settings/reset${devQuery}`, {
+      method: 'POST',
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || err.message || `รีเซ็ตไม่สำเร็จ (HTTP ${res.status})`);
+    }
     return res.json();
   },
 

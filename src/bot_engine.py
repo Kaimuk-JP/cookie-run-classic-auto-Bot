@@ -37,6 +37,8 @@ from actions import (
     handle_quick_receive_and_send_lives,
     handle_send_friend_life,
     open_relic_complete,
+    perform_auto_jump,
+    perform_auto_slide,
     play_game,
     purchase_cookie_relay,
     purchase_desired_random_boost,
@@ -310,6 +312,11 @@ class BotEngine:
         self.stop_goal_rounds_target: int = 50
         self.stop_goal_time_enabled: bool = False
         self.stop_goal_time_hours: float = 2.0
+        self.auto_action_enabled: bool = False
+        self.auto_action_mode: str = "both"  # "jump_only", "slide_only", "both"
+        self.auto_action_interval: float = 1.5
+        self._last_auto_action_time: float = 0.0
+        self._auto_action_toggle: bool = False
 
         # Load device-specific settings if present (check settings/ first, then legacy src/)
         dev_file = get_device_settings_path(self.device_serial)
@@ -343,6 +350,9 @@ class BotEngine:
                 self.stop_goal_rounds_target = int(init_cfg.get("stop_goal_rounds_target", 50))
                 self.stop_goal_time_enabled = bool(init_cfg.get("stop_goal_time_enabled", False))
                 self.stop_goal_time_hours = float(init_cfg.get("stop_goal_time_hours", 2.0))
+                self.auto_action_enabled = bool(init_cfg.get("auto_action_enabled", False))
+                self.auto_action_mode = str(init_cfg.get("auto_action_mode", "both"))
+                self.auto_action_interval = float(init_cfg.get("auto_action_interval", 1.5))
                 self.enable_realtime_dodging = bool(init_cfg.get("enable_realtime_dodging", False))
             except Exception:
                 pass
@@ -718,6 +728,9 @@ class BotEngine:
             ("stop_goal_rounds_target", "เป้าหมายจำนวนรอบ", int, lambda v: f"{v} รอบ"),
             ("stop_goal_time_enabled", "หยุดเมื่อครบเวลา", bool, lambda v: "เปิด" if v else "ปิด"),
             ("stop_goal_time_hours", "เป้าหมายเวลา", float, lambda v: f"{v} ชม."),
+            ("auto_action_enabled", "วิ่ง+กระโดด/สไลด์ อัตโนมัติ", bool, lambda v: "เปิด" if v else "ปิด"),
+            ("auto_action_mode", "โหมดแอ็กชันขณะวิ่ง", str, lambda v: {"jump_only": "กระโดดอย่างเดียว", "slide_only": "สไลด์อย่างเดียว", "both": "กระโดด + สไลด์"}.get(v, v)),
+            ("auto_action_interval", "เวลาหน่วงแอ็กชัน", float, lambda v: f"{v:g} วินาที"),
         ]
 
         with self.lock:
@@ -798,35 +811,58 @@ class BotEngine:
                 else:
                     last_detected_time = time.time()
 
-                # 🚨 Auto-Recovery Watchdog: If game is stuck / unplayable / button not found > 25 seconds (outside active run)
-                if detection_group != "IN_GAME" and stage is None and (time.time() - last_detected_time >= 25.0):
-                    self.log("🚨 [Watchdog] ตรวจพบเกมกดเล่นไม่ได้ หรือติดค้างหาปุ่มไม่เจอเกิน 25 วินาที — กำลังบันทึกรูปและสาเหตุลง logs_error/ และรีสตาร์ทแอป...", "error")
-                    try:
-                        record_game_error(
-                            device_serial=target,
-                            reason="เกมกดเล่นไม่ได้ หรือติดค้างหาปุ่มไม่เจอเกิน 25 วินาที",
-                            details=f"ติดค้างอยู่ที่สถานะ {self.current_stage} ไม่สามารถเริ่มเกมหรือดำเนินการต่อได้",
-                            screen_img=device_screen,
-                            action_taken="บันทึกภาพหน้าจอลง logs_error/ และบังคับรีสตาร์ทแอปเกม CookieRun"
-                        )
-                    except Exception as err:
-                        self.log(f"⚠️ บันทึก error log ไม่สำเร็จ: {err}", "warning")
+                # 🚨 Auto-Recovery Watchdog: If game is stuck / unplayable / button not found (outside active run)
+                if detection_group != "IN_GAME" and stage is None:
+                    stuck_sec = time.time() - last_detected_time
+                    # Soft Recovery: at 30 seconds, try closing any popup or news dialog (e.g. New Packages, Event, Announcement)
+                    if stuck_sec >= 30.0 and stuck_sec < 35.0:
+                        self.log("⚠️ ไม่พบปุ่มนำทางเกิน 30 วินาที — กำลังลองกดปิดป๊อปอัปแจ้งเตือน...", "warning")
+                        close_announcement_dialog()
+                    # Hard Recovery: only if truly stuck with no buttons for > 90 seconds
+                    elif stuck_sec >= 90.0:
+                        self.log("🚨 [Watchdog] ตรวจพบเกมติดค้างหาปุ่มไม่เจอเกิน 90 วินาที — กำลังบันทึกรูปและรีสตาร์ทแอป...", "error")
+                        try:
+                            record_game_error(
+                                device_serial=target,
+                                reason="เกมกดเล่นไม่ได้ หรือติดค้างหาปุ่มไม่เจอเกิน 90 วินาที",
+                                details=f"ติดค้างอยู่ที่สถานะ {self.current_stage} ไม่สามารถเริ่มเกมหรือดำเนินการต่อได้",
+                                screen_img=device_screen,
+                                action_taken="บันทึกภาพหน้าจอลง logs_error/ และบังคับรีสตาร์ทแอปเกม CookieRun"
+                            )
+                        except Exception as err:
+                            self.log(f"⚠️ บันทึก error log ไม่สำเร็จ: {err}", "warning")
 
-                    device_reset_app(target, self.device_port)
-                    if self.interruptible_sleep(2.0):
-                        break
-                    close_announcement_dialog()
-                    last_detected_time = time.time()
-                    last_lives_time = time.time()
-                    detection_group = "PRE_GAME"
-                    last_stage = None
-                    is_first_game = True
-                    continue
+                        device_reset_app(target, self.device_port)
+                        if self.interruptible_sleep(2.0):
+                            break
+                        close_announcement_dialog()
+                        last_detected_time = time.time()
+                        last_lives_time = time.time()
+                        detection_group = "PRE_GAME"
+                        last_stage = None
+                        is_first_game = True
+                        continue
 
                 if stage:
                     self.current_stage = stage
                 elif self.current_stage not in ("STARTING", "STOPPING"):
                     self.current_stage = f"{detection_group} (Searching...)"
+
+                # 🏃 Auto Jump / Slide during active in-game running
+                if detection_group == "IN_GAME" and stage is None and self.auto_action_enabled:
+                    now = time.time()
+                    if now - self._last_auto_action_time >= max(0.2, self.auto_action_interval):
+                        self._last_auto_action_time = now
+                        if self.auto_action_mode == "jump_only":
+                            perform_auto_jump()
+                        elif self.auto_action_mode == "slide_only":
+                            perform_auto_slide(250)
+                        else:  # "both"
+                            if not self._auto_action_toggle:
+                                perform_auto_jump()
+                            else:
+                                perform_auto_slide(250)
+                            self._auto_action_toggle = not self._auto_action_toggle
 
                 if stage == last_stage:
                     if self.interruptible_sleep(0.1):
@@ -878,8 +914,13 @@ class BotEngine:
                         last_stage = None
                         continue
 
+                    # When returning to MAINMENU after a completed game, give the lobby time to stabilize
                     if detection_group == "POST_GAME":
                         detection_group = "PRE_GAME"
+                        last_stage = None
+                        if self.interruptible_sleep(2.5):
+                            break
+                        continue
 
                     # Check Auto-Stop Goals before starting next round
                     if self.stop_goal_rounds_enabled and self.rounds_played >= self.stop_goal_rounds_target:
@@ -920,7 +961,9 @@ class BotEngine:
                     is_first_game = False
                     start_game()
                     detection_group = "PRE_GAME"
-                    last_stage = None
+                    # Keep last_stage = "MAINMENU" and wait 2.0s so transition animation does not cause duplicate click
+                    if self.interruptible_sleep(2.0):
+                        break
 
                 elif stage == "PURCHASE_ITEM":
                     self.log("🛒 Detected Stage: PURCHASE_ITEM", "stage")
@@ -962,6 +1005,7 @@ class BotEngine:
                             purchase_desired_random_boost(desired_boost_template, desired_boost_name, self.desired_boost_id, log_fn=self.log)
                     play_game()
                     detection_group = "IN_GAME"
+                    self._last_auto_action_time = time.time() + 1.0
                     self.rounds_played += 1
                     self.current_round_start_time = time.time()
                     self.current_round_recorded = False
@@ -978,12 +1022,14 @@ class BotEngine:
                     if self.use_fast_start:
                         using_fast_start()
                     detection_group = "IN_GAME"
+                    self._last_auto_action_time = time.time() + 1.0
 
                 elif stage == "GAME_RELAY":
                     self.log("🔄 Detected Stage: GAME_RELAY (Cookie Relay Triggered)", "stage")
                     if self.use_cookie_relay:
                         using_cookie_relay()
                     detection_group = "IN_GAME"
+                    self._last_auto_action_time = time.time() + 1.0
 
                 elif stage == "GAME_COMPLETE":
                     self.log("📊 ตรวจพบหน้าจอสรุปผล (Result Screen) — กำลังรอตัวเลขคะแนนและเหรียญขึ้นครบ...", "stage")
@@ -991,12 +1037,12 @@ class BotEngine:
                     # ตรวจสอบการตั้งค่าใหม่เมื่อจบรอบ
                     self.check_and_apply_settings_update()
 
-                    # 1. ข้ามแอนิเมชันนับคะแนนเบื้องต้น
-                    time.sleep(0.3)
+                    # 1. รอแอนิเมชันหน้าจอสรุปผลเปิดสมบูรณ์ และแตะข้ามแอนิเมชันคะแนน/โบนัส
+                    time.sleep(random.uniform(0.8, 1.2))
                     device_tap(target, self.device_port, 640, 260)
-                    time.sleep(0.4)
+                    time.sleep(random.uniform(0.8, 1.2))
                     device_tap(target, self.device_port, 640, 260)
-                    time.sleep(0.4)
+                    time.sleep(0.6)
 
                     # 2. จับภาพหน้าจอสรุปผลที่สมบูรณ์
                     device_screen = device_capture_screen(target, self.device_port)
@@ -1113,9 +1159,13 @@ class BotEngine:
                         screen_img=device_screen,
                     )
 
-                    # 6. กดปุ่ม OK เพื่อปิดหน้าต่างสรุปผลทันที
+                    # 6. หน่วงเวลาให้ผู้ใช้ได้ดูผลลัพธ์ทั้งหมด (Result Card) ให้ชัดเจนก่อนกด OK
+                    self.log("⏳ บันทึกผลลัพธ์เรียบร้อย — กำลังแสดงหน้า Result ให้ดูทั้งหมดก่อนกด OK...", "info")
+                    if self.interruptible_sleep(random.uniform(2.5, 3.5)):
+                        break
+
+                    # 7. กดปุ่ม OK เพื่อดำเนินการต่อ
                     self.log("👉 กดปุ่ม OK เพื่อดำเนินการต่อ", "info")
-                    time.sleep(0.2)
                     complete_finish(device_screen)
                     detection_group = "POST_GAME"
                     last_stage = None

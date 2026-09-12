@@ -16,6 +16,7 @@ import { ToolsModal } from './components/modals/ToolsModal';
 
 import { Device } from './types/bot';
 import { botApi } from './api/botApi';
+import { toast, confirmModal } from './context/ToastContext';
 
 export function App() {
   const [devices, setDevices] = useState<Device[]>([]);
@@ -58,18 +59,31 @@ export function App() {
   };
 
   const handleStartAll = async () => {
-    if (!confirm('ต้องการเริ่มบอททุกจอพร้อมกันหรือไม่?')) return;
+    const ok = await confirmModal({
+      title: 'เริ่มการทำงานทุกจอ',
+      message: 'ต้องการเริ่มบอททุกจอพร้อมกันหรือไม่?',
+      confirmText: 'เริ่มทุกจอ',
+      type: 'info',
+    });
+    if (!ok) return;
     try {
       const res = await botApi.startAllBots();
-      alert(res.message || 'สั่งการเรียบร้อย');
+      toast.success(res.message || 'สั่งการเริ่มบอททุกจอเรียบร้อยแล้ว');
       fetchDevices();
     } catch (e: any) {
-      alert('เริ่มไม่สำเร็จ: ' + e.message);
+      toast.error('เริ่มไม่สำเร็จ: ' + e.message);
     }
   };
 
   const handleStopAll = async () => {
-    if (!confirm('ต้องการหยุดบอททุกจอทันทีหรือไม่?')) return;
+    const ok = await confirmModal({
+      title: 'สั่งหยุดบอททุกจอ',
+      message: 'ต้องการสั่งหยุดบอททุกจอทันทีหรือไม่?',
+      confirmText: 'หยุดทุกจอ',
+      type: 'danger',
+    });
+    if (!ok) return;
+
     // Instantly reflect stopped state on all devices
     setDevices((prev) =>
       prev.map((d) => ({
@@ -82,27 +96,31 @@ export function App() {
     );
     try {
       const res = await botApi.stopAllBots();
-      alert(res.message || 'สั่งหยุดทุกจอทันทีเรียบร้อย');
+      toast.success(res.message || 'สั่งหยุดทุกจอทันทีเรียบร้อยแล้ว');
     } catch {
-      alert('สั่งหยุดทุกจอทันทีเรียบร้อยแล้ว');
+      toast.success('สั่งหยุดทุกจอทันทีเรียบร้อยแล้ว');
     } finally {
       fetchDevices();
     }
   };
 
   const handleStartCurrent = async () => {
-    if (!activeDevice) return alert('กรุณาเลือกจอก่อน');
+    if (!activeDevice) return toast.warning('กรุณาเลือกจอก่อน');
     try {
       const res = await botApi.startBot(activeDevice.serial);
-      if (!res.success) alert(res.message);
+      if (!res.success) {
+        toast.error(res.message);
+      } else {
+        toast.success(res.message || `เริ่มบอทจอ ${activeDevice.serial} เรียบร้อยแล้ว`);
+      }
       fetchDevices();
     } catch (e: any) {
-      alert('เริ่มบอทไม่สำเร็จ: ' + e.message);
+      toast.error('เริ่มบอทไม่สำเร็จ: ' + e.message);
     }
   };
 
   const handleStopCurrent = async () => {
-    if (!activeDevice) return alert('กรุณาเลือกจอก่อน');
+    if (!activeDevice) return toast.warning('กรุณาเลือกจอก่อน');
     // Instantly reflect stopped state on current device
     setDevices((prev) =>
       prev.map((d) =>
@@ -119,9 +137,9 @@ export function App() {
     );
     try {
       const res = await botApi.stopBot(activeDevice.serial);
-      alert(res.message || `สั่งหยุดจอ ${activeDevice.serial} ทันทีเรียบร้อย`);
+      toast.success(res.message || `สั่งหยุดจอ ${activeDevice.serial} ทันทีเรียบร้อยแล้ว`);
     } catch {
-      alert(`สั่งหยุดจอ ${activeDevice.serial} ทันทีเรียบร้อยแล้ว`);
+      toast.success(`สั่งหยุดจอ ${activeDevice.serial} ทันทีเรียบร้อยแล้ว`);
     } finally {
       fetchDevices();
     }

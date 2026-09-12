@@ -11,6 +11,7 @@ import {
   Heart,
 } from 'lucide-react';
 import { botApi } from '../../api/botApi';
+import { toast, confirmModal } from '../../context/ToastContext';
 
 interface QuickActionsProps {
   deviceSerial: string;
@@ -37,43 +38,50 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
     setLoadingAction('ram');
     try {
       const res = await botApi.clearRam();
-      alert(res.message || 'เคลียร์ RAM เรียบร้อย');
+      toast.success(res.message || 'เคลียร์ RAM เรียบร้อย');
     } catch (e: any) {
-      alert('เคลียร์ RAM ไม่สำเร็จ: ' + e.message);
+      toast.error('เคลียร์ RAM ไม่สำเร็จ: ' + e.message);
     } finally {
       setLoadingAction(null);
     }
   };
 
   const handleResetApp = async () => {
-    if (!deviceSerial) return alert('กรุณาเลือกจอก่อน');
-    if (!confirm('ต้องการบังคับปิดและเปิดเกม CookieRun ใหม่หรือไม่?')) return;
+    if (!deviceSerial) return toast.warning('กรุณาเลือกจอก่อน');
+    const ok = await confirmModal({
+      title: 'รีสตาร์ทเกม CookieRun',
+      message: 'ต้องการบังคับปิดและเปิดเกม CookieRun ใหม่ทันทีหรือไม่?',
+      confirmText: 'รีสตาร์ทเกม',
+      type: 'warning',
+    });
+    if (!ok) return;
+
     setLoadingAction('reset');
     try {
       const res = await botApi.resetApp(deviceSerial);
-      alert(res.message || 'รีสตาร์ทเกมเรียบร้อย');
+      toast.success(res.message || 'รีสตาร์ทเกมเรียบร้อย');
     } catch (e: any) {
-      alert('รีสตาร์ทเกมไม่สำเร็จ: ' + e.message);
+      toast.error('รีสตาร์ทเกมไม่สำเร็จ: ' + e.message);
     } finally {
       setLoadingAction(null);
     }
   };
 
   const handleTestAdb = async () => {
-    if (!deviceSerial) return alert('กรุณาเลือกจอก่อน');
+    if (!deviceSerial) return toast.warning('กรุณาเลือกจอก่อน');
     setLoadingAction('adb');
     try {
       const res = await botApi.testConnection(deviceSerial);
-      alert(res.message || 'ADB ทำงานปกติ');
+      toast.success(res.message || 'ADB ทำงานปกติ');
     } catch (e: any) {
-      alert('ตรวจสอบ ADB ไม่สำเร็จ: ' + e.message);
+      toast.error('ตรวจสอบ ADB ไม่สำเร็จ: ' + e.message);
     } finally {
       setLoadingAction(null);
     }
   };
 
   const handleCaptureScreen = () => {
-    if (!deviceSerial) return alert('กรุณาเลือกจอก่อน');
+    if (!deviceSerial) return toast.warning('กรุณาเลือกจอก่อน');
     window.open(`/api/screen?device=${encodeURIComponent(deviceSerial)}&download=1`, '_blank');
   };
 

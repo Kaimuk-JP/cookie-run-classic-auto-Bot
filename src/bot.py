@@ -273,11 +273,11 @@ def main():
             elif stage == "GAME_COMPLETE":
                 print("✅ Detected Stage: GAME_COMPLETE")
                 # 1. รอแอนิเมชันนับคะแนนและเหรียญขึ้นครบ
-                time.sleep(random.uniform(0.4, 0.6))
+                time.sleep(random.uniform(0.8, 1.2))
                 device_tap(DEVICE_IP, DEVICE_PORT, 640, 260)
                 time.sleep(random.uniform(0.8, 1.2))
                 device_tap(DEVICE_IP, DEVICE_PORT, 640, 260)
-                time.sleep(0.8)
+                time.sleep(0.6)
 
                 # 2. จับภาพหน้าจอสรุปผลที่สมบูรณ์
                 device_screen = device_capture_screen(DEVICE_IP, DEVICE_PORT)
@@ -336,9 +336,9 @@ def main():
                 except Exception as err:
                     print(f"⚠️ ไม่สามารถบันทึกประวัติการเล่น: {err}")
 
-                # 6. หน่วงเวลาให้การบันทึกเสร็จสมบูรณ์ ก่อนกด OK
-                print("⏳ บันทึกผลลัพธ์เรียบร้อย — รอสักครู่ก่อนกด OK...")
-                time.sleep(1.5)
+                # 6. หน่วงเวลาให้ดูผลลัพธ์ทั้งหมด (Score, Coins, XP, Boxes) ชัดเจนก่อนกด OK
+                print("⏳ บันทึกผลลัพธ์เรียบร้อย — กำลังแสดงหน้า Result ให้ดูทั้งหมดก่อนกด OK...")
+                time.sleep(random.uniform(2.5, 3.5))
 
                 # 7. กดปุ่ม OK เพื่อดำเนินการต่อ
                 print("👉 กดปุ่ม OK เพื่อดำเนินการต่อ")

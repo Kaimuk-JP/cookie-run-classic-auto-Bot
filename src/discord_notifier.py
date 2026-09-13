@@ -342,5 +342,30 @@ class DiscordNotifier:
         }
         self._async_send({"username": "CookieRun Bot", "embeds": [embed]})
 
+    def send_tunnel_started(self, tunnel_url: str, local_ip: str = "", port: int = 8000):
+        self.load_config()
+        if not self.webhook_url:
+            return
+
+        embed = {
+            "title": "🌐 ลิงก์ดูบอทผ่านมือถือ (Online Dashboard)",
+            "description": f"เปิดบอทเรียบร้อยแล้ว! สามารถกดลิงก์ด้านล่างเพื่อเปิด Web Dashboard ผ่านมือถือได้ทันที:\n\n👉 **[คลิกเพื่อเปิด Web Dashboard บนมือถือ]({tunnel_url})**",
+            "color": 0x10B981,  # Emerald Green
+            "fields": [
+                {"name": "📱 Mobile Web Link", "value": f"[คลิกเปิดที่นี่]({tunnel_url})\n`{tunnel_url}`", "inline": False},
+                {"name": "🏠 Wi-Fi ในบ้าน", "value": f"http://{local_ip}:{port}" if local_ip and local_ip != "127.0.0.1" else f"http://127.0.0.1:{port}", "inline": True},
+                {"name": "💻 คอมพิวเตอร์ (PC)", "value": f"http://127.0.0.1:{port}", "inline": True},
+                {"name": "⏰ เวลาเปิดบอท", "value": datetime.now().strftime("%H:%M:%S"), "inline": True},
+            ],
+            "footer": {"text": "CookieRun Classic Bot - Remote Mobile Control"},
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+        }
+        payload = {
+            "username": "CookieRun Bot Monitor",
+            "content": f"🚀 **บอทเปิดทำงานแล้ว! ลิงก์สำหรับดูผ่านมือถือ:** {tunnel_url}",
+            "embeds": [embed]
+        }
+        self._async_send(payload)
+
 
 discord_notifier = DiscordNotifier()

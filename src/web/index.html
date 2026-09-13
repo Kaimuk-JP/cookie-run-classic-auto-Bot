@@ -620,12 +620,11 @@
                 <th class="py-2.5 px-3">เหรียญ</th>
                 <th class="py-2.5 px-3">EXP</th>
                 <th class="py-2.5 px-3">กล่องปริศนา</th>
-                <th class="py-2.5 px-3">ผลลัพธ์</th>
               </tr>
             </thead>
             <tbody id="recent-history-tbody" class="divide-y divide-purple-50 font-medium text-slate-700">
               <tr>
-                <td colspan="7" class="py-6 text-center text-slate-400 italic">
+                <td colspan="6" class="py-6 text-center text-slate-400 italic">
                   ยังไม่มีประวัติการเล่นในเซสชันนี้
                 </td>
               </tr>
@@ -1983,28 +1982,24 @@
 
     function getBoxBadgeHtml(b) {
       const type = String(b || '').toLowerCase();
-      if (type === 'gold') {
-        return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-xl border border-yellow-200 bg-yellow-50 text-yellow-900 text-[11px] font-bold shadow-xs">
+      if (type === 'gold' || type.includes('gold') || type.includes('ทอง')) {
+        return `<span title="กล่องทอง" class="inline-flex items-center justify-center p-1 rounded-xl border border-yellow-200 bg-yellow-50 shadow-xs hover:scale-110 transition shrink-0">
           <img src="/templates/BOX_GOLD.png" alt="กล่องทอง" class="w-5 h-5 object-contain inline-block drop-shadow-xs">
-          <span>กล่องทอง</span>
         </span>`;
       }
-      if (type === 'silver') {
-        return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-xl border border-slate-200 bg-slate-100 text-slate-800 text-[11px] font-bold shadow-xs">
+      if (type === 'silver' || type.includes('silver') || type.includes('เงิน')) {
+        return `<span title="กล่องเงิน" class="inline-flex items-center justify-center p-1 rounded-xl border border-slate-200 bg-slate-100 shadow-xs hover:scale-110 transition shrink-0">
           <img src="/templates/BOX_SILVER.png" alt="กล่องเงิน" class="w-5 h-5 object-contain inline-block drop-shadow-xs">
-          <span>กล่องเงิน</span>
         </span>`;
       }
-      if (type === 'rainbow') {
-        return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-xl border border-pink-200 bg-gradient-to-r from-pink-50 to-purple-50 text-purple-900 text-[11px] font-bold shadow-xs">
+      if (type === 'rainbow' || type.includes('rainbow') || type.includes('รุ้ง')) {
+        return `<span title="กล่องรุ้ง" class="inline-flex items-center justify-center p-1 rounded-xl border border-pink-200 bg-gradient-to-r from-pink-50 to-purple-50 shadow-xs hover:scale-110 transition shrink-0">
           <img src="/templates/BOX_RAINBOW.png" alt="กล่องรุ้ง" class="w-5 h-5 object-contain inline-block drop-shadow-xs">
-          <span>กล่องรุ้ง</span>
         </span>`;
       }
       // default / wood
-      return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-xl border border-amber-200 bg-amber-50 text-amber-900 text-[11px] font-bold shadow-xs">
+      return `<span title="กล่องไม้" class="inline-flex items-center justify-center p-1 rounded-xl border border-amber-200 bg-amber-50 shadow-xs hover:scale-110 transition shrink-0">
         <img src="/templates/BOX_WOOD.png" alt="กล่องไม้" class="w-5 h-5 object-contain inline-block drop-shadow-xs">
-        <span>กล่องไม้</span>
       </span>`;
     }
 
@@ -2012,7 +2007,7 @@
       const tbody = document.getElementById('recent-history-tbody');
       if (!tbody) return;
       if (!history || history.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" class="py-6 text-center text-slate-400 italic">ยังไม่มีประวัติการเล่นในเซสชันนี้</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-slate-400 italic">ยังไม่มีประวัติการเล่นในเซสชันนี้</td></tr>`;
         return;
       }
       // Show newest 5 rounds
@@ -2036,9 +2031,6 @@
             <td class="py-2.5 px-3 text-amber-600 font-semibold font-mono">🪙 ${(r.coins || 0).toLocaleString()}</td>
             <td class="py-2.5 px-3 text-indigo-600 font-semibold font-mono">⭐ ${(r.xp || 0).toLocaleString()}</td>
             <td class="py-2.5 px-3 font-semibold">${boxHtml}</td>
-            <td class="py-2.5 px-3">
-              <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">สำเร็จ</span>
-            </td>
           </tr>
         `;
       }).join('');

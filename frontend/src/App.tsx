@@ -6,6 +6,7 @@ import { StreamPlayer } from './components/dashboard/StreamPlayer';
 import { QuickActions } from './components/dashboard/QuickActions';
 import { RoundHistory } from './components/dashboard/RoundHistory';
 import { LogsConsole } from './components/dashboard/LogsConsole';
+import { Play, Square, Settings, Sparkles, Heart } from 'lucide-react';
 
 // Modals
 import { StatsModal } from './components/modals/StatsModal';
@@ -123,7 +124,6 @@ export function App() {
 
   const handleStopCurrent = async () => {
     if (!activeDevice) return toast.warning('กรุณาเลือกจอก่อน');
-    // Instantly reflect stopped state on current device
     setDevices((prev) =>
       prev.map((d) =>
         d.serial === activeDevice.serial
@@ -160,7 +160,7 @@ export function App() {
       />
 
       {/* Main Container */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 w-full grow">
+      <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-4 sm:space-y-6 w-full grow pb-24 lg:pb-8">
         {/* Device Switcher Tabs */}
         <DeviceTabs
           devices={devices}
@@ -168,30 +168,45 @@ export function App() {
           onSelectDevice={(s) => setSelectedSerial(s)}
         />
 
-        {/* Top 4 Metrics Summary Cards */}
-        <MetricsCards
-          device={activeDevice}
-          onOpenStats={() => setIsStatsOpen(true)}
-        />
+        {/* Desktop: Top 4 Metrics Summary Cards */}
+        <div className="hidden lg:block">
+          <MetricsCards
+            device={activeDevice}
+            devices={devices}
+            onOpenStats={() => setIsStatsOpen(true)}
+          />
+        </div>
 
-        {/* Main Grid: Stream & History on Left (8 cols), Quick Actions & Controls on Right (4 cols) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          {/* Left Canvas & History Area */}
-          <div className="lg:col-span-8 space-y-6">
+        {/* Main Responsive Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 items-start">
+          {/* Stream Section (Top priority on mobile) */}
+          <div className="lg:col-span-8 space-y-4 sm:space-y-6">
             <StreamPlayer
               deviceSerial={activeDevice?.serial || ''}
               stageName={activeDevice?.current_stage || ''}
               isRunning={activeDevice?.is_running || false}
             />
 
-            <RoundHistory
-              history={activeDevice?.round_history || []}
-              onOpenHistoryModal={() => setIsHistoryOpen(true)}
-            />
+            {/* Mobile: Metrics Cards right below Stream */}
+            <div className="block lg:hidden">
+              <MetricsCards
+                device={activeDevice}
+                devices={devices}
+                onOpenStats={() => setIsStatsOpen(true)}
+              />
+            </div>
+
+            {/* Desktop: Round History on Left */}
+            <div className="hidden lg:block">
+              <RoundHistory
+                history={activeDevice?.round_history || []}
+                onOpenHistoryModal={() => setIsHistoryOpen(true)}
+              />
+            </div>
           </div>
 
-          {/* Right Action Panel */}
-          <div className="lg:col-span-4 space-y-6">
+          {/* Controls & Logs Section */}
+          <div className="lg:col-span-4 space-y-4 sm:space-y-6">
             <QuickActions
               deviceSerial={activeDevice?.serial || ''}
               isRunning={activeDevice?.is_running || false}
@@ -203,15 +218,77 @@ export function App() {
               onOpenTools={() => setIsToolsOpen(true)}
             />
 
+            {/* Mobile: Round History below QuickActions */}
+            <div className="block lg:hidden">
+              <RoundHistory
+                history={activeDevice?.round_history || []}
+                onOpenHistoryModal={() => setIsHistoryOpen(true)}
+              />
+            </div>
+
             <LogsConsole deviceSerial={activeDevice?.serial} />
           </div>
         </div>
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-purple-100/60 bg-white/70 py-4 text-center text-xs text-slate-400">
-        CookieRun AutoBot Pro • Powered by Vite + React + FastAPI
+      <footer className="border-t border-purple-100/60 bg-white/70 py-4 text-center text-xs text-slate-400 hidden lg:block">
+        CookieRun AutoBot Pro • Mobile Ready Dashboard
       </footer>
+
+      {/* Sticky Mobile Bottom Quick Bar (Visible only on Mobile & Tablets) */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-purple-100 shadow-2xl px-3 py-2 flex items-center justify-between gap-2 safe-bottom">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></div>
+          <span className="text-xs font-bold text-slate-800 truncate">
+            {activeDevice?.name || activeDevice?.serial || 'ยังไม่เลือกจอ'}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-1.5 shrink-0">
+          <button
+            onClick={() => setIsMacroOpen(true)}
+            className="p-2 rounded-xl bg-purple-50 text-purple-700 hover:bg-purple-100 transition active:scale-95"
+            title="มาโครวิ่ง"
+          >
+            <Sparkles className="w-4 h-4" />
+          </button>
+
+          <button
+            onClick={() => setIsToolsOpen(true)}
+            className="p-2 rounded-xl bg-pink-50 text-pink-600 hover:bg-pink-100 transition active:scale-95"
+            title="ปั๊มหัวใจ"
+          >
+            <Heart className="w-4 h-4" />
+          </button>
+
+          <button
+            onClick={() => setIsSettingsOpen(true)}
+            className="p-2 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 transition active:scale-95"
+            title="ตั้งค่าบอท"
+          >
+            <Settings className="w-4 h-4" />
+          </button>
+
+          {activeDevice?.is_running ? (
+            <button
+              onClick={handleStopCurrent}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-md shadow-rose-600/30 transition active:scale-95 cursor-pointer"
+            >
+              <Square className="w-3.5 h-3.5 fill-current" />
+              <span>หยุด</span>
+            </button>
+          ) : (
+            <button
+              onClick={handleStartCurrent}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 text-white font-bold text-xs shadow-md shadow-brand-500/30 transition active:scale-95 cursor-pointer"
+            >
+              <Play className="w-3.5 h-3.5 fill-current" />
+              <span>เริ่มบอท</span>
+            </button>
+          )}
+        </div>
+      </nav>
 
       {/* Modals */}
       <StatsModal

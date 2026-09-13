@@ -70,6 +70,85 @@ def find_free_port(start_port=8000, max_attempts=30):
                 continue
     return start_port
 
+def get_local_ip():
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return "127.0.0.1"
+
+_tunnel_process = None
+
+def start_cloudflared_tunnel(port):
+    global _tunnel_process
+    root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    candidates = [
+        os.path.join(root_dir, "bin", "cloudflared.exe"),
+        os.path.join(root_dir, "bin", "cloudflared-windows-amd64.exe"),
+        os.path.join(os.path.expanduser("~"), "Downloads", "cloudflared.exe"),
+        os.path.join(os.path.expanduser("~"), "Downloads", "cloudflared-windows-amd64.exe"),
+    ]
+    exe_path = None
+    for p in candidates:
+        if os.path.exists(p):
+            exe_path = p
+            break
+
+    if not exe_path:
+        return
+
+    import subprocess
+    import re
+    import atexit
+
+    cmd = [exe_path, "tunnel", "--url", f"http://localhost:{port}"]
+    try:
+        proc = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            encoding="utf-8",
+            errors="replace"
+        )
+        _tunnel_process = proc
+    except Exception:
+        return
+
+    def kill_tunnel():
+        global _tunnel_process
+        if _tunnel_process:
+            try:
+                _tunnel_process.terminate()
+            except Exception:
+                pass
+    atexit.register(kill_tunnel)
+
+    def monitor_tunnel():
+        url_pattern = re.compile(r'https://[a-zA-Z0-9-]+\.trycloudflare\.com')
+        start_time = time.time()
+        found_url = None
+        while time.time() - start_time < 25:
+            line = proc.stderr.readline()
+            if not line and proc.poll() is not None:
+                break
+            if line:
+                m = url_pattern.search(line)
+                if m:
+                    found_url = m.group(0)
+                    break
+        if found_url:
+            print("\n" + "=" * 65, flush=True)
+            print("  >>>  ลิงก์สำหรับดูผ่านมือถือ (Cloudflare Tunnel)  <<<", flush=True)
+            print(f"\n   📱  {found_url}  📱\n", flush=True)
+            print("  * เปิดดูผ่าน Safari / Chrome บนมือถือได้ทันที (4G/5G/Wi-Fi)", flush=True)
+            print("=" * 65 + "\n", flush=True)
+
+    threading.Thread(target=monitor_tunnel, daemon=True).start()
+
 def open_browser(port):
     time.sleep(1.0)
     url = f"http://127.0.0.1:{port}"
@@ -84,16 +163,22 @@ def open_browser(port):
 
 if __name__ == "__main__":
     port = find_free_port(8000)
+    local_ip = get_local_ip()
 
-    print("=" * 60)
-    print("🍪 CookieRun Classic Bot - Web Dashboard")
-    print("=" * 60)
-    print(f"🚀 เซิร์ฟเวอร์เริ่มทำงานแล้วที่: http://127.0.0.1:{port}")
-    print(f"💡 สามารถเปิดดูบนมือถือผ่าน Wi-Fi เดียวกันได้")
-    print("=" * 60)
+    print("=" * 65)
+    print("🍪 CookieRun Classic Bot - Web Dashboard (All-in-One)")
+    print("=" * 65)
+    print(f"🚀 คอมพิวเตอร์เครื่องนี้ (PC):     http://127.0.0.1:{port}")
+    if local_ip and local_ip != "127.0.0.1":
+        print(f"🏠 มือถือ (Wi-Fi บ้านเดียวกัน):    http://{local_ip}:{port}")
+    print("=" * 65)
+
+    # Start Cloudflare tunnel automatically in background if available
+    start_cloudflared_tunnel(port)
 
     # Launch browser automatically in background
     threading.Thread(target=open_browser, args=(port,), daemon=True).start()
 
     # Run FastAPI app (reload=False to prevent background bots from being killed on file changes)
     uvicorn.run("web_server:app", host="0.0.0.0", port=port, reload=False, log_level="warning")
+

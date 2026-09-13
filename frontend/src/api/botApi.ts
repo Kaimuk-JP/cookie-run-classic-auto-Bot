@@ -129,11 +129,15 @@ export const botApi = {
   },
 
   async saveDiscordSettings(settings: DiscordSettings): Promise<{ success: boolean; message: string }> {
-    const res = await fetch('/api/discord', {
+    const res = await fetch('/api/discord/save', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(settings),
     });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: 'Failed to save Discord settings' }));
+      throw new Error(err.detail || 'บันทึกการตั้งค่า Discord ไม่สำเร็จ');
+    }
     return res.json();
   },
 

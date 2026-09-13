@@ -1110,9 +1110,11 @@ def get_discord_settings():
     }
 
 
+@app.post("/api/discord")
 @app.post("/api/discord/save")
 def save_discord_settings(req: DiscordSettingsRequest):
-    discord_notifier.update_settings(req.dict())
+    data = req.model_dump() if hasattr(req, "model_dump") else req.dict()
+    discord_notifier.update_settings(data)
     return {"success": True, "message": "บันทึกการตั้งค่า Discord สำเร็จ"}
 
 
@@ -1145,10 +1147,12 @@ async def video_feed(device: Optional[str] = None, fps: int = 60):
         async def scrcpy_generator():
             streamer.add_subscriber()
             interval = 1.0 / max(1, fps)
+            last_jpeg = None
             try:
                 while True:
                     jpeg = streamer.latest_jpeg
-                    if jpeg is not None:
+                    if jpeg is not None and jpeg is not last_jpeg:
+                        last_jpeg = jpeg
                         if streamer.latest_frame is not None:
                             eng.latest_frame = streamer.latest_frame
                             eng.latest_frame_jpeg = jpeg

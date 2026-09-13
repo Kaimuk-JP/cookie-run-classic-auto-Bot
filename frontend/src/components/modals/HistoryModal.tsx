@@ -58,28 +58,28 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
       <div className="bg-white rounded-3xl max-w-4xl w-full p-6 space-y-4 shadow-2xl border border-purple-100 max-h-[90vh] overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150">
         {/* Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-purple-100 shrink-0">
-          <div className="flex items-center gap-2">
-            <ScrollText className="w-6 h-6 text-brand-600" />
-            <div>
-              <h3 className="text-base font-bold text-slate-900">
+        <div className="flex items-center justify-between pb-3 border-b border-purple-100 shrink-0 gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <ScrollText className="w-5 h-5 sm:w-6 sm:h-6 text-brand-600 shrink-0" />
+            <div className="min-w-0">
+              <h3 className="text-sm sm:text-base font-bold text-slate-900 truncate">
                 ประวัติการเล่นย้อนหลัง 50 รอบ
               </h3>
-              <p className="text-xs text-slate-500">
-                คลิกที่แต่ละรอบเพื่อดูภาพสกรีนช็อตสรุปผล • {deviceSerial}
+              <p className="text-[11px] sm:text-xs text-slate-500 truncate">
+                คลิกดูภาพสรุปผล • {deviceSerial}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             {history.length > 0 && (
               <button
                 onClick={handleResetHistory}
                 disabled={isResetting}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-xs border border-rose-200 transition active:scale-95 cursor-pointer disabled:opacity-50"
+                className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-xs border border-rose-200 transition active:scale-95 cursor-pointer disabled:opacity-50"
                 title="ลบประวัติการเล่นทั้งหมดของจอนี้"
               >
                 <Trash2 className="w-3.5 h-3.5" />
-                <span>{isResetting ? 'กำลังลบ...' : 'ลบประวัติ'}</span>
+                <span className="text-[11px] sm:text-xs">{isResetting ? 'กำลังลบ...' : 'ลบประวัติ'}</span>
               </button>
             )}
             <button

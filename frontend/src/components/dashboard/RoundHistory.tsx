@@ -1,5 +1,5 @@
 import React from 'react';
-import { ScrollText, ChevronRight, Check, Coins, Star } from 'lucide-react';
+import { ScrollText, ChevronRight, Coins, Star } from 'lucide-react';
 import { RoundHistoryItem } from '../../types/bot';
 
 interface RoundHistoryProps {
@@ -15,10 +15,10 @@ export const renderBoxBadge = (b: string, index?: number) => {
     return (
       <span
         key={index}
-        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-xl border border-yellow-200 bg-yellow-50 text-yellow-900 text-[11px] font-bold shadow-xs"
+        title="กล่องทอง"
+        className="inline-flex items-center justify-center p-1 rounded-xl border border-yellow-200 bg-yellow-50 shadow-xs hover:scale-110 transition shrink-0"
       >
-        <img src="/templates/BOX_GOLD.png" alt="กล่องทอง" className="w-5 h-5 object-contain inline-block drop-shadow-xs" />
-        <span>กล่องทอง</span>
+        <img src="/templates/BOX_GOLD.png" alt="กล่องทอง" className="w-5 h-5 sm:w-6 sm:h-6 object-contain drop-shadow-xs" />
       </span>
     );
   }
@@ -26,10 +26,10 @@ export const renderBoxBadge = (b: string, index?: number) => {
     return (
       <span
         key={index}
-        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-xl border border-slate-200 bg-slate-100 text-slate-800 text-[11px] font-bold shadow-xs"
+        title="กล่องเงิน"
+        className="inline-flex items-center justify-center p-1 rounded-xl border border-slate-200 bg-slate-100 shadow-xs hover:scale-110 transition shrink-0"
       >
-        <img src="/templates/BOX_SILVER.png" alt="กล่องเงิน" className="w-5 h-5 object-contain inline-block drop-shadow-xs" />
-        <span>กล่องเงิน</span>
+        <img src="/templates/BOX_SILVER.png" alt="กล่องเงิน" className="w-5 h-5 sm:w-6 sm:h-6 object-contain drop-shadow-xs" />
       </span>
     );
   }
@@ -37,10 +37,10 @@ export const renderBoxBadge = (b: string, index?: number) => {
     return (
       <span
         key={index}
-        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-xl border border-pink-200 bg-gradient-to-r from-pink-50 to-purple-50 text-purple-900 text-[11px] font-bold shadow-xs"
+        title="กล่องรุ้ง"
+        className="inline-flex items-center justify-center p-1 rounded-xl border border-pink-200 bg-gradient-to-r from-pink-50 to-purple-50 shadow-xs hover:scale-110 transition shrink-0"
       >
-        <img src="/templates/BOX_RAINBOW.png" alt="กล่องรุ้ง" className="w-5 h-5 object-contain inline-block drop-shadow-xs" />
-        <span>กล่องรุ้ง</span>
+        <img src="/templates/BOX_RAINBOW.png" alt="กล่องรุ้ง" className="w-5 h-5 sm:w-6 sm:h-6 object-contain drop-shadow-xs" />
       </span>
     );
   }
@@ -48,10 +48,10 @@ export const renderBoxBadge = (b: string, index?: number) => {
     return (
       <span
         key={index}
-        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-xl border border-amber-200 bg-amber-50 text-amber-900 text-[11px] font-bold shadow-xs"
+        title="กล่องไม้"
+        className="inline-flex items-center justify-center p-1 rounded-xl border border-amber-200 bg-amber-50 shadow-xs hover:scale-110 transition shrink-0"
       >
-        <img src="/templates/BOX_WOOD.png" alt="กล่องไม้" className="w-5 h-5 object-contain inline-block drop-shadow-xs" />
-        <span>กล่องไม้</span>
+        <img src="/templates/BOX_WOOD.png" alt="กล่องไม้" className="w-5 h-5 sm:w-6 sm:h-6 object-contain drop-shadow-xs" />
       </span>
     );
   }
@@ -91,14 +91,13 @@ export const RoundHistory: React.FC<RoundHistoryProps> = ({
               <th className="py-2.5 px-3">รอบที่</th>
               <th className="py-2.5 px-3">เหรียญ</th>
               <th className="py-2.5 px-3">EXP</th>
-              <th className="py-2.5 px-3">กล่องปริศนา</th>
-              <th className="py-2.5 px-3">ผลลัพธ์</th>
+              <th className="py-2.5 px-3 pr-4">กล่องปริศนา</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-purple-50 font-medium text-slate-700">
             {recentRounds.length === 0 ? (
               <tr>
-                <td colSpan={7} className="py-8 text-center text-slate-400 italic">
+                <td colSpan={6} className="py-8 text-center text-slate-400 italic">
                   ยังไม่มีประวัติการเล่นในเซสชันนี้
                 </td>
               </tr>
@@ -124,7 +123,7 @@ export const RoundHistory: React.FC<RoundHistoryProps> = ({
                         <span>{(r.xp || 0).toLocaleString()}</span>
                       </span>
                     </td>
-                    <td className="py-2.5 px-3">
+                    <td className="py-2.5 px-3 pr-4">
                       {hasBoxes ? (
                         <div className="flex flex-wrap items-center gap-1.5">
                           {r.boxes.map((b, bIdx) => renderBoxBadge(b, bIdx))}
@@ -132,12 +131,6 @@ export const RoundHistory: React.FC<RoundHistoryProps> = ({
                       ) : (
                         <span className="text-slate-400 font-normal">-</span>
                       )}
-                    </td>
-                    <td className="py-2.5 px-3">
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">
-                        <Check className="w-2.5 h-2.5" />
-                        <span>สำเร็จ</span>
-                      </span>
                     </td>
                   </tr>
                 );

@@ -63,10 +63,10 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({
             <ScrollText className="w-5 h-5 sm:w-6 sm:h-6 text-brand-600 shrink-0" />
             <div className="min-w-0">
               <h3 className="text-sm sm:text-base font-bold text-slate-900 truncate">
-                ประวัติการเล่นย้อนหลัง 50 รอบ
+                ประวัติการเล่น 50 รอบ
               </h3>
               <p className="text-[11px] sm:text-xs text-slate-500 truncate">
-                คลิกดูภาพสรุปผล • {deviceSerial}
+                คลิกดูภาพสรุป • {deviceSerial}
               </p>
             </div>
           </div>
@@ -76,7 +76,7 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({
                 onClick={handleResetHistory}
                 disabled={isResetting}
                 className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-xs border border-rose-200 transition active:scale-95 cursor-pointer disabled:opacity-50"
-                title="ลบประวัติการเล่นทั้งหมดของจอนี้"
+                title="ลบประวัติ"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 <span className="text-[11px] sm:text-xs">{isResetting ? 'กำลังลบ...' : 'ลบประวัติ'}</span>
@@ -97,7 +97,7 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({
           <div className="md:col-span-7 space-y-2 overflow-y-auto custom-scrollbar pr-2 max-h-[460px]">
             {history.length === 0 ? (
               <div className="p-8 text-center text-slate-400 italic">
-                ยังไม่มีประวัติการเล่นที่บันทึกไว้
+                ยังไม่มีประวัติการเล่น
               </div>
             ) : (
               history.map((r, i) => {

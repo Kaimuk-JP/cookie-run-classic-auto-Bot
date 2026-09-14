@@ -147,7 +147,7 @@ class DiscordNotifier:
             "description": "🚀 เริ่มต้นการทำงานของบอทฟาร์ม CookieRun Classic",
             "color": 0x22C55E,  # Green
             "fields": [
-                {"name": "📱 อุปกรณ์", "value": f"`{device_ip}:{device_port}`", "inline": True},
+                {"name": "อุปกรณ์", "value": f"`{device_ip}:{device_port}`", "inline": True},
                 {"name": "⏰ เวลาเริ่มต้น", "value": datetime.now().strftime("%H:%M:%S"), "inline": True},
             ],
             "footer": {"text": "CookieRun Classic Bot"},
@@ -312,7 +312,7 @@ class DiscordNotifier:
             "description": f"บอทกำลังรีเซ็ตและเปิดเกม CookieRun ใหม่อัตโนมัติ...",
             "color": 0xEF4444,  # Red
             "fields": [
-                {"name": "📱 อุปกรณ์", "value": f"`{device_ip}:{device_port}`", "inline": True},
+                {"name": "อุปกรณ์", "value": f"`{device_ip}:{device_port}`", "inline": True},
                 {"name": "⏰ เวลา", "value": datetime.now().strftime("%H:%M:%S"), "inline": True},
             ],
             "footer": {"text": "CookieRun Classic Bot"},
@@ -352,7 +352,7 @@ class DiscordNotifier:
             "description": f"เปิดบอทเรียบร้อยแล้ว! สามารถกดลิงก์ด้านล่างเพื่อเปิด Web Dashboard ผ่านมือถือได้ทันที:\n\n👉 **[คลิกเพื่อเปิด Web Dashboard บนมือถือ]({tunnel_url})**",
             "color": 0x10B981,  # Emerald Green
             "fields": [
-                {"name": "📱 Mobile Web Link", "value": f"[คลิกเปิดที่นี่]({tunnel_url})\n`{tunnel_url}`", "inline": False},
+                {"name": "Mobile Web Link", "value": f"[คลิกเปิดที่นี่]({tunnel_url})\n`{tunnel_url}`", "inline": False},
                 {"name": "🏠 Wi-Fi ในบ้าน", "value": f"http://{local_ip}:{port}" if local_ip and local_ip != "127.0.0.1" else f"http://127.0.0.1:{port}", "inline": True},
                 {"name": "💻 คอมพิวเตอร์ (PC)", "value": f"http://127.0.0.1:{port}", "inline": True},
                 {"name": "⏰ เวลาเปิดบอท", "value": datetime.now().strftime("%H:%M:%S"), "inline": True},

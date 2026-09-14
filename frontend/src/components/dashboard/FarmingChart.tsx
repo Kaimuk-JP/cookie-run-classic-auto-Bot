@@ -74,7 +74,7 @@ export const FarmingChart: React.FC<FarmingChartProps> = ({
         <div className="p-2.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 shadow-xs space-y-0.5">
           <div className="flex items-center gap-1.5 text-amber-800 font-semibold text-[11px]">
             <Zap className="w-3.5 h-3.5 text-amber-600" />
-            <span>{scope === 'session' ? 'ความเร็วเซสชันนี้' : 'ความเร็วฟาร์มเฉลี่ย'}</span>
+            <span>{scope === 'session' ? 'ความเร็วรอบนี้' : 'ความเร็วเฉลี่ย'}</span>
           </div>
           <div className="text-base font-bold font-mono text-amber-700">
             {coinsPerHour.toLocaleString()} <span className="text-[10px] font-medium text-amber-600">🪙/ชม.</span>
@@ -84,7 +84,7 @@ export const FarmingChart: React.FC<FarmingChartProps> = ({
         <div className="p-2.5 rounded-2xl bg-brand-50 border border-brand-200 shadow-xs space-y-0.5">
           <div className="flex items-center gap-1.5 text-brand-800 font-semibold text-[11px]">
             <Coins className="w-3.5 h-3.5 text-brand-600" />
-            <span>เหรียญเฉลี่ย / รอบ</span>
+            <span>เฉลี่ยเหรียญ/รอบ</span>
           </div>
           <div className="text-base font-bold font-mono text-brand-700">
             {avgCoins.toLocaleString()} <span className="text-[10px] font-medium text-brand-600">🪙</span>
@@ -94,7 +94,7 @@ export const FarmingChart: React.FC<FarmingChartProps> = ({
         <div className="p-2.5 rounded-2xl bg-sky-50 border border-sky-200 shadow-xs space-y-0.5">
           <div className="flex items-center gap-1.5 text-sky-800 font-semibold text-[11px]">
             <Clock className="w-3.5 h-3.5 text-sky-600" />
-            <span>เวลาเฉลี่ย / รอบ</span>
+            <span>เฉลี่ยเวลา/รอบ</span>
           </div>
           <div className="text-base font-bold font-mono text-sky-700">
             {avgDurStr}
@@ -104,7 +104,7 @@ export const FarmingChart: React.FC<FarmingChartProps> = ({
         <div className="p-2.5 rounded-2xl bg-emerald-50 border border-emerald-200 shadow-xs space-y-0.5">
           <div className="flex items-center gap-1.5 text-emerald-800 font-semibold text-[11px]">
             <Package className="w-3.5 h-3.5 text-emerald-600" />
-            <span>ดรอปกล่อง / รอบ</span>
+            <span>เฉลี่ยกล่อง/รอบ</span>
           </div>
           <div className="text-base font-bold font-mono text-emerald-700">
             {avgBoxesPerRound} <span className="text-[10px] font-medium text-emerald-600">กล่อง</span>
@@ -118,8 +118,8 @@ export const FarmingChart: React.FC<FarmingChartProps> = ({
           <BarChart2 className="w-4 h-4 text-brand-600" />
           <h4 className="text-xs font-bold text-slate-800">
             {scope === 'session'
-              ? `กราฟวิเคราะห์รอบปัจจุบัน (ตั้งแต่ ${sessionStartTime || 'เริ่มบอท'} • ${chartData.length} รอบ)`
-              : `กราฟวิเคราะห์สะสมทั้งหมด (${chartData.length} รอบล่าสุด)`}
+              ? `กราฟรอบปัจจุบัน (${chartData.length} รอบ)`
+              : `กราฟสะสมทั้งหมด (${chartData.length} รอบ)`}
           </h4>
         </div>
 
@@ -132,7 +132,7 @@ export const FarmingChart: React.FC<FarmingChartProps> = ({
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            เหรียญต่อรอบ
+            เหรียญ
           </button>
           <button
             onClick={() => setMode('rate')}
@@ -142,7 +142,7 @@ export const FarmingChart: React.FC<FarmingChartProps> = ({
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            อัตราความเร็ว
+            ความเร็ว
           </button>
           <button
             onClick={() => setMode('boxes')}
@@ -152,7 +152,7 @@ export const FarmingChart: React.FC<FarmingChartProps> = ({
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            กล่องปริศนา
+            กล่องสมบัติ
           </button>
         </div>
       </div>
@@ -166,13 +166,13 @@ export const FarmingChart: React.FC<FarmingChartProps> = ({
             </div>
             <div>
               <h5 className="text-xs font-bold text-slate-800">
-                {scope === 'session' ? 'กำลังฟาร์มรอบแรกของเซสชันนี้' : 'ยังไม่มีประวัติการเล่น'}
+                {scope === 'session' ? 'กำลังฟาร์มรอบแรก' : 'ยังไม่มีประวัติ'}
               </h5>
               <p className="text-[11px] text-slate-500 mt-0.5 max-w-sm">
                 {scope === 'session'
                   ? sessionStartTime
-                    ? `เริ่มบอทเมื่อ ${sessionStartTime} (${sessionUptime || 'กำลังวิ่ง'}) • กราฟจะแสดงผลทันทีเมื่อจบรอบ!`
-                    : 'เพิ่งเริ่มกดบอท • กราฟจะแสดงผลทันทีเมื่อจบรอบแรก!'
+                    ? `เริ่มบอทเมื่อ ${sessionStartTime} (${sessionUptime || 'กำลังวิ่ง'}) • กราฟจะแสดงผลเมื่อจบรอบ`
+                    : 'เพิ่งเริ่มกดบอท • กราฟจะแสดงผลเมื่อจบรอบแรก'
                   : 'ยังไม่พบข้อมูลรอบการเล่นสะสม'}
               </p>
             </div>
@@ -181,7 +181,7 @@ export const FarmingChart: React.FC<FarmingChartProps> = ({
                 onClick={onSwitchToAll}
                 className="mt-1 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-purple-200 text-xs font-bold text-purple-700 hover:bg-purple-50 transition cursor-pointer shadow-xs"
               >
-                <span>สลับดูกราฟสะสมทั้งหมด ({allHistory.length} รอบก่อนหน้า)</span>
+                <span>ดูกราฟสะสม ({allHistory.length} รอบ)</span>
               </button>
             )}
           </div>

@@ -16,7 +16,7 @@ export const DeviceTabs: React.FC<DeviceTabsProps> = ({
   if (devices.length === 0) {
     return (
       <div className="glass-panel border border-dashed border-purple-200 rounded-2xl sm:rounded-3xl p-6 text-center text-slate-400 text-xs shadow-glass">
-        ไม่พบ Emulator ที่เปิดอยู่ กรุณาเปิดจำลองหน้าจอ (เช่น LDPlayer) แล้วกดปุ่ม &quot;สแกนจอ&quot;
+        ไม่พบ Emulator กรุณาเปิดโปรแกรมแล้วกด &quot;สแกน&quot;
       </div>
     );
   }
@@ -65,11 +65,11 @@ export const DeviceTabs: React.FC<DeviceTabsProps> = ({
                 ) : isRunning ? (
                   <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 px-1.5 py-0.5 rounded-md bg-emerald-50 border border-emerald-200">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                    ทำงานอยู่
+                    กำลังรัน
                   </span>
                 ) : (
                   <span className="text-[10px] text-slate-400 font-medium px-1.5 py-0.5 rounded-md bg-slate-100">
-                    สแตนด์บาย
+                    พร้อม
                   </span>
                 )}
               </div>

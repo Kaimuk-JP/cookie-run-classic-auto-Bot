@@ -1,8 +1,46 @@
-import React, { useState, useEffect } from 'react';
-import { X, Settings, Save, RotateCcw, Loader2, Activity, ChevronsUp, ChevronsDown, Zap, Target } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  X,
+  Settings,
+  Save,
+  RotateCcw,
+  Loader2,
+  Activity,
+  ChevronsUp,
+  ChevronsDown,
+  Zap,
+  Target,
+  ChevronDown,
+  Check,
+  Sparkles,
+  Clock,
+} from 'lucide-react';
 import { BotSettings } from '../../types/bot';
 import { botApi } from '../../api/botApi';
 import { toast, confirmModal } from '../../context/ToastContext';
+
+interface RandomBoostOption {
+  id: string;
+  label: string;
+  desc: string;
+  tag?: string;
+  icon: string;
+  color: string;
+}
+
+const RANDOM_BOOST_OPTIONS: RandomBoostOption[] = [
+  { id: 'double_coins', label: 'เหรียญ x2', desc: 'ฟาร์มเหรียญคุ้มค่าที่สุด', tag: 'แนะนำ', icon: '🪙', color: 'from-amber-400 to-yellow-500' },
+  { id: 'coin_magic', label: 'เหรียญทองเวทมนตร์', desc: 'เปลี่ยนเยลลี่หมีเป็นเหรียญทอง', tag: 'ฟาร์มเหรียญ', icon: '✨', color: 'from-yellow-400 to-amber-500' },
+  { id: 'score_15', label: 'คะแนน +15%', desc: 'เพิ่มคะแนนรวมหลังจบเกม', tag: 'สายคะแนน', icon: '🏆', color: 'from-orange-400 to-amber-500' },
+  { id: 'hp_drain_15', label: 'เลือดลดช้าลง 15%', desc: 'วิ่งได้ไกลขึ้น เลือดลดช้า', tag: 'ยอดนิยม', icon: '💖', color: 'from-rose-400 to-pink-500' },
+  { id: 'revive_80', label: 'ฟื้นคืนชีพ (80 HP)', desc: 'ชุบชีวิตเมื่อเลือดหมด 1 ครั้ง', tag: 'ชุบชีวิต', icon: '🕊️', color: 'from-emerald-400 to-teal-500' },
+  { id: 'crush_70', label: 'ชนทำลาย 70%', desc: 'โอกาสทำลายสิ่งกีดขวางเมื่อชน', tag: 'ป้องกัน', icon: '💥', color: 'from-red-400 to-rose-500' },
+  { id: 'speed_17', label: 'ความเร็ว +17%', desc: 'วิ่งเร็วขึ้น จบรอบไว', tag: 'ความเร็ว', icon: '⚡', color: 'from-sky-400 to-blue-500' },
+  { id: 'damage_30', label: 'ลดดาเมจชน 30%', desc: 'ลดความเสียหายจากการชน', tag: 'ป้องกัน', icon: '🛡️', color: 'from-indigo-400 to-blue-500' },
+  { id: 'potions_20', label: 'ขวดยาเลือด +20%', desc: 'เพิ่มประสิทธิภาพขวดยาฟื้นเลือด', tag: 'ฟื้นฟู', icon: '🧪', color: 'from-teal-400 to-emerald-500' },
+  { id: 'magnetic', label: 'แม่เหล็กดูดเหรียญ', desc: 'ดึงดูดเหรียญและเยลลี่เข้าหาตัว', tag: 'ดูดไอเทม', icon: '🧲', color: 'from-purple-400 to-violet-500' },
+  { id: 'pit_lifts_2', label: 'ช่วยตกเหว 2 ครั้ง', desc: 'ดึงขึ้นจากเหวเมื่อตก 2 ครั้ง', tag: 'ช่วยชีวิต', icon: '🪂', color: 'from-cyan-400 to-teal-500' },
+];
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -19,6 +57,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
+  const [isBoostDropdownOpen, setIsBoostDropdownOpen] = useState(false);
+  const boostDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (boostDropdownRef.current && !boostDropdownRef.current.contains(e.target as Node)) {
+        setIsBoostDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
@@ -84,10 +134,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
             <div>
               <h3 className="text-base font-bold text-slate-900">
-                ตั้งค่าการทำงานของบอท (Bot Settings)
+                ตั้งค่าบอท
               </h3>
               <p className="text-xs text-slate-500">
-                {deviceSerial ? `บันทึกแยกอิสระตาม Emulator: ${deviceSerial}` : 'การตั้งค่าเริ่มต้นส่วนกลาง (Global Default)'}
+                {deviceSerial ? `จอ: ${deviceSerial}` : 'ค่าเริ่มต้นส่วนกลาง'}
               </p>
             </div>
           </div>
@@ -102,7 +152,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         {isLoading || !settings ? (
           <div className="py-16 flex flex-col items-center justify-center gap-3 text-slate-400">
             <Loader2 className="w-8 h-8 animate-spin text-brand-500" />
-            <span className="text-xs font-medium">กำลังโหลดการตั้งค่า...</span>
+            <span className="text-xs font-medium">กำลังโหลด...</span>
           </div>
         ) : (
           /* Form Body */
@@ -110,7 +160,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {/* ADB Host & Port */}
           <div className="grid grid-cols-2 gap-3 p-3 bg-slate-50 rounded-2xl border border-slate-200/70">
             <div>
-              <label className="font-bold text-slate-700 block mb-1">Device IP</label>
+              <label className="font-bold text-slate-700 block mb-1">IP เครื่อง</label>
               <input
                 type="text"
                 value={settings.device_ip}
@@ -119,7 +169,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               />
             </div>
             <div>
-              <label className="font-bold text-slate-700 block mb-1">ADB Port</label>
+              <label className="font-bold text-slate-700 block mb-1">พอร์ต ADB</label>
               <input
                 type="number"
                 value={settings.device_port}
@@ -131,7 +181,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           {/* Core In-Game Boosts */}
           <div className="space-y-2">
-            <h4 className="font-bold text-slate-900">ไอเทมและฟังก์ชันในเกม</h4>
+            <h4 className="font-bold text-slate-900">ไอเทมและบูสต์</h4>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <label className="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer transition select-none">
@@ -143,7 +193,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 />
                 <div>
                   <span className="font-semibold text-slate-800 block">HP Boost</span>
-                  <span className="text-[10px] text-slate-400">เพิ่มพลังชีวิตตัวละคร</span>
+                  <span className="text-[10px] text-slate-400">เพิ่มเลือดตัวละคร</span>
                 </div>
               </label>
 
@@ -156,7 +206,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 />
                 <div>
                   <span className="font-semibold text-slate-800 block">Item Extension</span>
-                  <span className="text-[10px] text-slate-400">ยืดระยะเวลาไอเทม</span>
+                  <span className="text-[10px] text-slate-400">ยืดเวลาไอเทม</span>
                 </div>
               </label>
 
@@ -169,7 +219,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 />
                 <div>
                   <span className="font-semibold text-slate-800 block">Double EXP</span>
-                  <span className="text-[10px] text-slate-400">คูณสองค่าประสบการณ์</span>
+                  <span className="text-[10px] text-slate-400">EXP x2</span>
                 </div>
               </label>
 
@@ -181,8 +231,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   className="rounded text-brand-600 focus:ring-0"
                 />
                 <div>
-                  <span className="font-semibold text-slate-800 block">ชิ้นส่วนวัตถุโบราณ</span>
-                  <span className="text-[10px] text-slate-400">รับชิ้นส่วนโบราณอัตโนมัติ</span>
+                  <span className="font-semibold text-slate-800 block">ชิ้นส่วนโบราณ</span>
+                  <span className="text-[10px] text-slate-400">เก็บวัตถุโบราณอัตโนมัติ</span>
                 </div>
               </label>
 
@@ -194,8 +244,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   className="rounded text-brand-600 focus:ring-0"
                 />
                 <div>
-                  <span className="font-semibold text-slate-800 block">ส่งหัวใจให้เพื่อน</span>
-                  <span className="text-[10px] text-slate-400">ส่งหัวใจอัตโนมัติก่อนเริ่มรอบ</span>
+                  <span className="font-semibold text-slate-800 block">ส่งหัวใจเพื่อน</span>
+                  <span className="text-[10px] text-slate-400">ส่งก่อนเริ่มรอบ</span>
                 </div>
               </label>
             </div>
@@ -213,7 +263,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 />
                 <span className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
                   <Activity className="w-4 h-4 text-emerald-600" />
-                  <span>วิ่ง + กระโดด / สไลด์ อัตโนมัติ</span>
+                  <span>กระโดด / สไลด์ อัตโนมัติ</span>
                 </span>
               </label>
               <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border transition ${
@@ -228,7 +278,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <div className={`space-y-2.5 pt-1 transition-opacity ${settings.auto_action_enabled ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
               <div>
                 <label className="text-[11px] font-semibold text-slate-700 block mb-1.5">
-                  เลือกรูปแบบแอ็กชันที่ต้องการ:
+                  รูปแบบแอ็กชัน:
                 </label>
                 <div className="grid grid-cols-3 gap-2">
                   <button
@@ -241,7 +291,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     }`}
                   >
                     <ChevronsUp className="w-5 h-5" />
-                    <span className="text-[11px]">กระโดดอย่างเดียว</span>
+                    <span className="text-[11px]">กระโดดเท่านั้น</span>
                   </button>
 
                   <button
@@ -254,7 +304,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     }`}
                   >
                     <ChevronsDown className="w-5 h-5" />
-                    <span className="text-[11px]">สไลด์อย่างเดียว</span>
+                    <span className="text-[11px]">สไลด์เท่านั้น</span>
                   </button>
 
                   <button
@@ -275,10 +325,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <div className="flex items-center justify-between p-2.5 bg-white/90 rounded-xl border border-emerald-100">
                 <div>
                   <label className="font-semibold text-slate-800 text-[11px] block">
-                    เวลาหน่วงที่จะกระโดด/ทำแอ็กชัน (วินาที)
+                    ระยะห่างแอ็กชัน (วินาที)
                   </label>
                   <span className="text-[10px] text-slate-400">
-                    เว้นระยะเวลาระหว่างการกด เช่น ทุกๆ 1.5 วินาที
+                    ความถี่ระหว่างการกด เช่น ทุก 1.5 วิ
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5">
@@ -309,7 +359,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 />
                 <span className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
                   <Target className="w-4 h-4 text-amber-600" />
-                  <span>สุ่มบูสต์จนกว่าจะได้ที่ต้องการ (Random Boost)</span>
+                  <span>สุ่มบูสต์ที่ต้องการ</span>
                 </span>
               </label>
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
@@ -318,129 +368,236 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
 
             <div className="pt-1">
-              <label className="text-[11px] font-semibold text-slate-600 block mb-1">
-                เลือกประเภทบูสต์ที่ต้องการ:
+              <label className="text-[11px] font-semibold text-slate-600 block mb-1.5">
+                เลือกบูสต์ที่ต้องการสุ่ม:
               </label>
-              <select
-                value={settings.desired_boost_id || 'double_coins'}
-                onChange={(e) => setSettings({ ...settings, desired_boost_id: e.target.value })}
-                disabled={!settings.use_desired_random_boost}
-                className="w-full px-3 py-2.5 rounded-xl bg-white border border-amber-200 text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-amber-500 outline-none shadow-2xs disabled:opacity-50 disabled:bg-slate-100"
-              >
-                <option value="double_coins">เหรียญ 2 เท่า (Double Coins 2x) (แนะนำ)</option>
-                <option value="coin_magic">เหรียญทองเวทมนตร์ (Gold Coin Magic)</option>
-                <option value="score_15">คะแนนเพิ่ม 15% (+15% Score Bonus)</option>
-                <option value="hp_drain_15">เลือดลดช้าลง 15% (-15% HP Drain)</option>
-                <option value="revive_80">ฟื้นคืนชีพ 1 ครั้งด้วยเลือด 80 (Revive Once with 80HP)</option>
-                <option value="crush_70">ชนทำลายสิ่งกีดขวาง 70% (70% Crush Chance)</option>
-                <option value="speed_17">ความเร็วพื้นฐาน +17% (+17% Base Speed)</option>
-                <option value="damage_30">ลดดาเมจชนสิ่งกีดขวาง 30% (-30% Collision Damage)</option>
-                <option value="potions_20">ขวดยาเพิ่มเลือด +20% (+20% HP from Potions)</option>
-                <option value="magnetic">ออร่าแม่เหล็กดูดเหรียญ (Magnetic Aura)</option>
-                <option value="pit_lifts_2">ช่วยตกเหว 2 ครั้ง (2 Pit Lifts)</option>
-              </select>
-              <p className="text-[10px] text-slate-400 mt-1">
-                * บอทจะกดสุ่มกล่องบูสต์ก่อนเริ่มเกมซ้ำๆ จนกว่าจะได้ผลลัพธ์ตรงกับที่เลือก
+
+              {/* Custom Sweet Candy Dropdown */}
+              <div ref={boostDropdownRef} className="relative">
+                {(() => {
+                  const selectedBoost =
+                    RANDOM_BOOST_OPTIONS.find((b) => b.id === (settings.desired_boost_id || 'double_coins')) ||
+                    RANDOM_BOOST_OPTIONS[0];
+
+                  return (
+                    <>
+                      <button
+                        type="button"
+                        disabled={!settings.use_desired_random_boost}
+                        onClick={() => setIsBoostDropdownOpen((prev) => !prev)}
+                        className={`w-full px-3 py-2.5 rounded-2xl bg-white border-2 text-left transition-all flex items-center justify-between shadow-xs cursor-pointer ${
+                          !settings.use_desired_random_boost
+                            ? 'opacity-50 cursor-not-allowed bg-slate-50 border-slate-200'
+                            : isBoostDropdownOpen
+                            ? 'border-[#F59E0B] ring-2 ring-[#F59E0B]/20 shadow-md'
+                            : 'border-[#EEDBCE] hover:border-[#D4A373]'
+                        }`}
+                      >
+                        <div className="truncate">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-xs text-[#452311]">
+                              {selectedBoost.label}
+                            </span>
+                            {selectedBoost.tag && (
+                              <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-amber-100 text-amber-800 font-bold border border-amber-200">
+                                {selectedBoost.tag}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[10px] text-[#8C6D58] truncate mt-0.5">
+                            {selectedBoost.desc}
+                          </p>
+                        </div>
+                        <ChevronDown
+                          className={`w-4 h-4 text-[#D97706] shrink-0 transition-transform duration-200 ${
+                            isBoostDropdownOpen ? 'rotate-180' : ''
+                          }`}
+                        />
+                      </button>
+
+                      {/* Custom Dropdown Menu with sweet items */}
+                      {isBoostDropdownOpen && settings.use_desired_random_boost && (
+                        <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-[#FFFDF6] border-2 border-[#EEDBCE] rounded-2xl shadow-xl max-h-64 overflow-y-auto custom-scrollbar p-1.5 space-y-1 animate-fadeIn">
+                          {RANDOM_BOOST_OPTIONS.map((opt) => {
+                            const isSelected = opt.id === (settings.desired_boost_id || 'double_coins');
+                            return (
+                              <button
+                                key={opt.id}
+                                type="button"
+                                onClick={() => {
+                                  setSettings({ ...settings, desired_boost_id: opt.id });
+                                  setIsBoostDropdownOpen(false);
+                                }}
+                                className={`w-full px-3 py-2 rounded-xl text-left transition-all flex items-center justify-between gap-2 cursor-pointer ${
+                                  isSelected
+                                    ? 'bg-[#FFF3DF] border-2 border-[#F59E0B] shadow-2xs text-[#452311]'
+                                    : 'hover:bg-[#FFF8EC] hover:border-[#F0DFCE] border-2 border-transparent text-[#6B4226]'
+                                }`}
+                              >
+                                <div className="truncate">
+                                  <div className="flex items-center gap-2">
+                                    <span
+                                      className={`text-xs ${
+                                        isSelected ? 'font-bold text-[#B45309]' : 'font-semibold text-[#452311]'
+                                      }`}
+                                    >
+                                      {opt.label}
+                                    </span>
+                                    {opt.tag && (
+                                      <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-amber-100/80 text-amber-800 border border-amber-200 font-bold">
+                                        {opt.tag}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-[10px] text-[#8C6D58] truncate mt-0.5">
+                                    {opt.desc}
+                                  </p>
+                                </div>
+                                {isSelected && (
+                                  <span className="w-5 h-5 rounded-full bg-[#F59E0B] text-white flex items-center justify-center shrink-0 shadow-2xs">
+                                    <Check className="w-3 h-3 stroke-[3]" />
+                                  </span>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
+              </div>
+
+              <p className="text-[10px] text-[#8C6D58] mt-1.5">
+                * สุ่มบูสต์ก่อนเริ่มเกมจนกว่าจะได้ตามที่เลือก
               </p>
             </div>
           </div>
 
           {/* Item Purchasing & Stock Thresholds */}
-          <div className="space-y-2 p-3 bg-purple-50/50 rounded-2xl border border-purple-100">
-            <h4 className="font-bold text-slate-900">ซื้อไอเทมช่วยเหลือ & จำนวนสต็อกขั้นต่ำ</h4>
+          <div className="space-y-3 p-3.5 bg-gradient-to-br from-purple-50/70 via-white to-pink-50/40 rounded-2xl border border-purple-200 shadow-2xs">
+            <h4 className="font-bold text-[#452311] text-xs flex items-center gap-1.5">
+              <Sparkles className="w-4 h-4 text-purple-600" />
+              <span>ซื้อไอเทมอัตโนมัติ & สต็อกขั้นต่ำ</span>
+            </h4>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <label className="flex items-center gap-1.5 cursor-pointer select-none">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="p-2.5 rounded-xl bg-white/90 border border-purple-100 space-y-2">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
                   <input
                     type="checkbox"
                     checked={settings.use_fast_start}
                     onChange={(e) => setSettings({ ...settings, use_fast_start: e.target.checked })}
-                    className="rounded text-brand-600 focus:ring-0"
+                    className="rounded text-purple-600 focus:ring-0"
                   />
-                  <span className="font-semibold text-slate-800">Fast Start</span>
+                  <div>
+                    <span className="font-bold text-xs text-[#452311] block">Fast Start</span>
+                    <span className="text-[10px] text-[#8C6D58]">วิ่งเร็วช่วงต้นเกม</span>
+                  </div>
                 </label>
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-slate-500 shrink-0">สต็อกขั้นต่ำ:</span>
-                  <input
-                    type="number"
-                    value={settings.fast_start_min_stock}
-                    onChange={(e) => setSettings({ ...settings, fast_start_min_stock: parseInt(e.target.value) || 0 })}
-                    className="w-16 px-2 py-1 rounded-lg bg-white border border-slate-200 text-center font-mono text-xs"
-                  />
+                <div className="flex items-center justify-between pt-1 border-t border-purple-50">
+                  <span className="text-[11px] text-[#6B4226] font-medium">สต็อกขั้นต่ำ:</span>
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="number"
+                      value={settings.fast_start_min_stock}
+                      onChange={(e) => setSettings({ ...settings, fast_start_min_stock: parseInt(e.target.value) || 0 })}
+                      className="w-16 px-2 py-1 rounded-lg bg-[#FFFDF6] border border-purple-200 text-center font-mono font-bold text-xs text-[#452311] focus:bg-white focus:ring-2 focus:ring-purple-400 outline-none"
+                    />
+                    <span className="text-[10px] text-[#8C6D58]">ชิ้น</span>
+                  </div>
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <label className="flex items-center gap-1.5 cursor-pointer select-none">
+              <div className="p-2.5 rounded-xl bg-white/90 border border-purple-100 space-y-2">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
                   <input
                     type="checkbox"
                     checked={settings.use_cookie_relay}
                     onChange={(e) => setSettings({ ...settings, use_cookie_relay: e.target.checked })}
-                    className="rounded text-brand-600 focus:ring-0"
+                    className="rounded text-purple-600 focus:ring-0"
                   />
-                  <span className="font-semibold text-slate-800">Cookie Relay</span>
+                  <div>
+                    <span className="font-bold text-xs text-[#452311] block">Cookie Relay</span>
+                    <span className="text-[10px] text-[#8C6D58]">ผลัดคุกกี้ตัวที่ 2</span>
+                  </div>
                 </label>
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-slate-500 shrink-0">สต็อกขั้นต่ำ:</span>
-                  <input
-                    type="number"
-                    value={settings.cookie_relay_min_stock}
-                    onChange={(e) => setSettings({ ...settings, cookie_relay_min_stock: parseInt(e.target.value) || 0 })}
-                    className="w-16 px-2 py-1 rounded-lg bg-white border border-slate-200 text-center font-mono text-xs"
-                  />
+                <div className="flex items-center justify-between pt-1 border-t border-purple-50">
+                  <span className="text-[11px] text-[#6B4226] font-medium">สต็อกขั้นต่ำ:</span>
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="number"
+                      value={settings.cookie_relay_min_stock}
+                      onChange={(e) => setSettings({ ...settings, cookie_relay_min_stock: parseInt(e.target.value) || 0 })}
+                      className="w-16 px-2 py-1 rounded-lg bg-[#FFFDF6] border border-purple-200 text-center font-mono font-bold text-xs text-[#452311] focus:bg-white focus:ring-2 focus:ring-purple-400 outline-none"
+                    />
+                    <span className="text-[10px] text-[#8C6D58]">ชิ้น</span>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Auto-Stop Goals */}
-          <div className="space-y-2 p-3 bg-amber-50/50 rounded-2xl border border-amber-200/60">
-            <h4 className="font-bold text-slate-900">เป้าหมายหยุดบอทอัตโนมัติ (Auto-Stop Goals)</h4>
+          <div className="space-y-3 p-3.5 bg-gradient-to-br from-amber-50/60 via-white to-orange-50/40 rounded-2xl border border-amber-200 shadow-2xs">
+            <h4 className="font-bold text-[#452311] text-xs flex items-center gap-1.5">
+              <Clock className="w-4 h-4 text-amber-600" />
+              <span>หยุดบอทอัตโนมัติ</span>
+            </h4>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <label className="flex items-center gap-1.5 cursor-pointer select-none">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="p-2.5 rounded-xl bg-white/90 border border-amber-100 space-y-2">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
                   <input
                     type="checkbox"
                     checked={settings.stop_goal_rounds_enabled}
                     onChange={(e) => setSettings({ ...settings, stop_goal_rounds_enabled: e.target.checked })}
-                    className="rounded text-brand-600 focus:ring-0"
+                    className="rounded text-amber-600 focus:ring-0"
                   />
-                  <span className="font-semibold text-slate-800">หยุดตามจำนวนรอบ</span>
+                  <div>
+                    <span className="font-bold text-xs text-[#452311] block">หยุดตามรอบ</span>
+                    <span className="text-[10px] text-[#8C6D58]">เมื่อครบตามเป้าหมาย</span>
+                  </div>
                 </label>
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-slate-500 shrink-0">เป้าหมาย:</span>
-                  <input
-                    type="number"
-                    value={settings.stop_goal_rounds_target}
-                    onChange={(e) => setSettings({ ...settings, stop_goal_rounds_target: parseInt(e.target.value) || 50 })}
-                    className="w-16 px-2 py-1 rounded-lg bg-white border border-slate-200 text-center font-mono text-xs"
-                  />
-                  <span className="text-[10px] text-slate-500">รอบ</span>
+                <div className="flex items-center justify-between pt-1 border-t border-amber-50">
+                  <span className="text-[11px] text-[#6B4226] font-medium">เป้าหมาย:</span>
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="number"
+                      value={settings.stop_goal_rounds_target}
+                      onChange={(e) => setSettings({ ...settings, stop_goal_rounds_target: parseInt(e.target.value) || 50 })}
+                      className="w-16 px-2 py-1 rounded-lg bg-[#FFFDF6] border border-amber-200 text-center font-mono font-bold text-xs text-[#452311] focus:bg-white focus:ring-2 focus:ring-amber-400 outline-none"
+                    />
+                    <span className="text-[10px] text-[#8C6D58]">รอบ</span>
+                  </div>
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <label className="flex items-center gap-1.5 cursor-pointer select-none">
+              <div className="p-2.5 rounded-xl bg-white/90 border border-amber-100 space-y-2">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
                   <input
                     type="checkbox"
                     checked={settings.stop_goal_time_enabled}
                     onChange={(e) => setSettings({ ...settings, stop_goal_time_enabled: e.target.checked })}
-                    className="rounded text-brand-600 focus:ring-0"
+                    className="rounded text-amber-600 focus:ring-0"
                   />
-                  <span className="font-semibold text-slate-800">หยุดตามเวลา</span>
+                  <div>
+                    <span className="font-bold text-xs text-[#452311] block">หยุดตามเวลา</span>
+                    <span className="text-[10px] text-[#8C6D58]">เมื่อครบชั่วโมงที่ตั้ง</span>
+                  </div>
                 </label>
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-slate-500 shrink-0">เป้าหมาย:</span>
-                  <input
-                    type="number"
-                    step="0.5"
-                    value={settings.stop_goal_time_hours}
-                    onChange={(e) => setSettings({ ...settings, stop_goal_time_hours: parseFloat(e.target.value) || 2.0 })}
-                    className="w-16 px-2 py-1 rounded-lg bg-white border border-slate-200 text-center font-mono text-xs"
-                  />
-                  <span className="text-[10px] text-slate-500">ชม.</span>
+                <div className="flex items-center justify-between pt-1 border-t border-amber-50">
+                  <span className="text-[11px] text-[#6B4226] font-medium">เป้าหมาย:</span>
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="number"
+                      step="0.5"
+                      value={settings.stop_goal_time_hours}
+                      onChange={(e) => setSettings({ ...settings, stop_goal_time_hours: parseFloat(e.target.value) || 2.0 })}
+                      className="w-16 px-2 py-1 rounded-lg bg-[#FFFDF6] border border-amber-200 text-center font-mono font-bold text-xs text-[#452311] focus:bg-white focus:ring-2 focus:ring-amber-400 outline-none"
+                    />
+                    <span className="text-[10px] text-[#8C6D58]">ชม.</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -454,10 +611,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             onClick={handleReset}
             disabled={isSaving || isResetting || !settings}
             className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-rose-200 bg-rose-50/50 hover:bg-rose-100 text-rose-700 font-bold text-xs transition active:scale-95 disabled:opacity-50"
-            title="รีเซ็ตการตั้งค่าเป็นค่าเริ่มต้นดั้งเดิม"
+            title="รีเซ็ตค่าเริ่มต้น"
           >
             <RotateCcw className={`w-3.5 h-3.5 ${isResetting ? 'animate-spin' : ''}`} />
-            <span>{isResetting ? 'กำลังรีเซ็ต...' : 'รีเซ็ตค่าเริ่มต้น'}</span>
+            <span>{isResetting ? 'กำลังรีเซ็ต...' : 'รีเซ็ต'}</span>
           </button>
 
           <div className="flex items-center gap-2">
@@ -473,7 +630,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               className="flex items-center gap-1.5 px-5 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs shadow-btn transition active:scale-95 disabled:opacity-50"
             >
               {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-              <span>{isSaving ? 'กำลังบันทึก...' : 'บันทึกการตั้งค่า'}</span>
+              <span>{isSaving ? 'กำลังบันทึก...' : 'บันทึก'}</span>
             </button>
           </div>
         </div>

@@ -103,10 +103,10 @@ export const StatsModal: React.FC<StatsModalProps> = ({ isOpen, onClose, device,
             </div>
             <div>
               <h3 className="text-base font-bold text-slate-900">
-                สถิติ & กราฟวิเคราะห์ (Analytics & Stats)
+                สถิติ & กราฟ
               </h3>
               <p className="text-xs text-slate-500">
-                วิเคราะห์อัตราการฟาร์ม สถิติรอบปัจจุบันและสะสม • {device?.name || device?.serial || '-'}
+                วิเคราะห์รอบปัจจุบันและสะสม • {device?.name || device?.serial || '-'}
               </p>
             </div>
           </div>
@@ -130,7 +130,7 @@ export const StatsModal: React.FC<StatsModalProps> = ({ isOpen, onClose, device,
               }`}
             >
               <Zap className="w-3.5 h-3.5" />
-              <span>⚡ รอบปัจจุบัน (เซสชันนี้)</span>
+              <span>⚡ รอบปัจจุบัน</span>
             </button>
             <button
               onClick={() => setScope('all')}
@@ -141,7 +141,7 @@ export const StatsModal: React.FC<StatsModalProps> = ({ isOpen, onClose, device,
               }`}
             >
               <History className="w-3.5 h-3.5" />
-              <span>🏛️ สะสมทั้งหมด (All-Time)</span>
+              <span>🏛️ สะสมทั้งหมด</span>
             </button>
           </div>
 
@@ -174,7 +174,7 @@ export const StatsModal: React.FC<StatsModalProps> = ({ isOpen, onClose, device,
             }`}
           >
             <TrendingUp className="w-4 h-4" />
-            <span>กราฟวิเคราะห์รายรอบ & อัตราฟาร์ม</span>
+            <span>กราฟรายรอบ</span>
           </button>
           <button
             onClick={() => setActiveTab('summary')}
@@ -185,7 +185,7 @@ export const StatsModal: React.FC<StatsModalProps> = ({ isOpen, onClose, device,
             }`}
           >
             <Layers className="w-4 h-4" />
-            <span>สถิติสะสม & ปลดแคปซ่า</span>
+            <span>สรุปสถิติ & แคปซ่า</span>
             {captcha.total_attempts > 0 && (
               <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-purple-200 text-purple-900">
                 {captcha.total_attempts}
@@ -409,17 +409,17 @@ export const StatsModal: React.FC<StatsModalProps> = ({ isOpen, onClose, device,
             onClick={handleResetStats}
             disabled={isResetting}
             className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-xs border border-rose-200 transition active:scale-95 disabled:opacity-50 cursor-pointer"
-            title="ลบสถิติสะสมและรีเซ็ตค่าทั้งหมดให้เป็น 0"
+            title="ล้างสถิติทั้งหมด"
           >
             <Trash2 className="w-3.5 h-3.5" />
-            <span>{isResetting ? 'กำลังล้าง...' : 'ลบสถิติทั้งหมด'}</span>
+            <span>{isResetting ? 'กำลังล้าง...' : 'ล้างสถิติ'}</span>
           </button>
 
           <button
             onClick={onClose}
             className="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition active:scale-95 cursor-pointer"
           >
-            ปิดหน้าต่าง
+            ปิด
           </button>
         </div>
       </div>

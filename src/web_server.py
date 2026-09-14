@@ -170,6 +170,14 @@ frontend_assets_path = os.path.join(frontend_dist_path, "assets")
 if os.path.isdir(frontend_assets_path):
     app.mount("/assets", StaticFiles(directory=frontend_assets_path), name="assets")
 
+frontend_illustrations_path = os.path.join(frontend_dist_path, "illustrations")
+if os.path.isdir(frontend_illustrations_path):
+    app.mount("/illustrations", StaticFiles(directory=frontend_illustrations_path), name="illustrations")
+
+frontend_templates_path = os.path.join(frontend_dist_path, "templates")
+if os.path.isdir(frontend_templates_path):
+    app.mount("/templates", StaticFiles(directory=frontend_templates_path), name="templates")
+
 _bot_icon_path = os.path.join(os.path.dirname(__file__), "bot_icon.ico")
 
 @app.get("/bot_icon.ico", include_in_schema=False)

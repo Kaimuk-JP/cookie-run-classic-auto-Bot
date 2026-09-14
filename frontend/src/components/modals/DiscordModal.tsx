@@ -65,10 +65,10 @@ export const DiscordModal: React.FC<DiscordModalProps> = ({ isOpen, onClose }) =
             </div>
             <div>
               <h3 className="text-base font-bold text-slate-900">
-                ตั้งค่าการแจ้งเตือน Discord
+                แจ้งเตือน Discord
               </h3>
               <p className="text-xs text-slate-500">
-                รับรายงานผล เหรียญ EXP และสกรีนช็อตผ่าน Discord Webhook
+                ส่งสรุปผลและรูปภาพผ่าน Discord Webhook
               </p>
             </div>
           </div>
@@ -102,7 +102,7 @@ export const DiscordModal: React.FC<DiscordModalProps> = ({ isOpen, onClose }) =
                 onChange={(e) => setSettings({ ...settings, enabled: e.target.checked })}
                 className="rounded text-brand-600 focus:ring-0"
               />
-              <span className="font-semibold text-slate-800">เปิดใช้งานการแจ้งเตือน</span>
+              <span className="font-semibold text-slate-800">เปิดแจ้งเตือน</span>
             </label>
 
             <label className="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer select-none">
@@ -112,7 +112,7 @@ export const DiscordModal: React.FC<DiscordModalProps> = ({ isOpen, onClose }) =
                 onChange={(e) => setSettings({ ...settings, notify_boxes: e.target.checked })}
                 className="rounded text-brand-600 focus:ring-0"
               />
-              <span className="font-semibold text-slate-800">แจ้งเตือนเมื่อเจอกล่องปริศนา</span>
+              <span className="font-semibold text-slate-800">แจ้งเตือนเมื่อพบกล่อง</span>
             </label>
 
             <label className="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer select-none">
@@ -122,7 +122,7 @@ export const DiscordModal: React.FC<DiscordModalProps> = ({ isOpen, onClose }) =
                 onChange={(e) => setSettings({ ...settings, attach_screenshot: e.target.checked })}
                 className="rounded text-brand-600 focus:ring-0"
               />
-              <span className="font-semibold text-slate-800">แนบรูปภาพสกรีนช็อตสรุปคะแนน</span>
+              <span className="font-semibold text-slate-800">แนบรูปภาพสกรีนช็อต</span>
             </label>
           </div>
         </div>
@@ -134,7 +134,7 @@ export const DiscordModal: React.FC<DiscordModalProps> = ({ isOpen, onClose }) =
             className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition active:scale-95 disabled:opacity-50"
           >
             <Send className="w-3.5 h-3.5 text-indigo-600" />
-            <span>{isTesting ? 'กำลังส่ง...' : 'ทดสอบส่งข้อความ'}</span>
+            <span>{isTesting ? 'กำลังส่ง...' : 'ทดสอบส่ง'}</span>
           </button>
 
           <div className="flex items-center gap-2">

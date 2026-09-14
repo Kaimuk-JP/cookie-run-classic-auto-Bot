@@ -161,7 +161,7 @@ def main():
     try:
         print("🚀 CookieRun Classic Bot Started")
         print("⚠️ Screen must be 1280x720 resolution for the bot to work properly.")
-        print(f"📱 Connecting to device at {DEVICE_IP}:{DEVICE_PORT}...")
+        print(f"Connecting to device at {DEVICE_IP}:{DEVICE_PORT}...")
 
         device_connect(DEVICE_IP, DEVICE_PORT)
         load_templates()
@@ -181,7 +181,7 @@ def main():
         session_reset_interval = random.uniform(*SESSION_RESET_INTERVAL)
         last_lives_time = time.time()
         lives_interval = random.uniform(25 * 60, 35 * 60)
-        pending_send_friend_life = False
+        pending_send_friend_life = True
 
         while True:
             device_screen = device_capture_screen(DEVICE_IP, DEVICE_PORT)
@@ -204,32 +204,18 @@ def main():
                 # Wait screen refresh
                 print("⏳ Waiting 5 seconds for screen refresh...")
                 time.sleep(5)
-                if pending_send_friend_life:
-                    print("💌 Sending friend lives after app reset...")
-                    handle_send_friend_life()
-                    pending_send_friend_life = False
-                    last_lives_time = time.time()
-                    last_stage = None
-                    continue
-                elapsed = time.time() - session_start_time
-                if elapsed >= session_reset_interval:
-                    print(f"🔄 Session reset triggered after {elapsed / 3600:.2f}h — restarting app...")
-                    device_reset_app(DEVICE_IP, DEVICE_PORT)
-                    time.sleep(2)
-                    close_announcement_dialog()
-                    pending_send_friend_life = True
-                    session_start_time = time.time()
-                    session_reset_interval = random.uniform(*SESSION_RESET_INTERVAL)
-                    last_lives_time = time.time()
-                    lives_interval = random.uniform(25 * 60, 35 * 60)
-                    detection_group = "PRE_GAME"
-                    last_stage = None
-                    is_first_game = True
-                    continue
                 lives_elapsed = time.time() - last_lives_time
-                if lives_elapsed >= lives_interval:
-                    print(f"💌 ~30 min passed ({lives_elapsed / 60:.1f} min) — receiving and sending lives...")
-                    handle_quick_receive_and_send_lives()
+                if pending_send_friend_life or lives_elapsed >= lives_interval:
+                    print("💌 Checking and sending friend lives...")
+                    try:
+                        handle_quick_receive_and_send_lives()
+                    except Exception as e:
+                        print(f"⚠️ Quick receive and send error: {e}")
+                    try:
+                        handle_send_friend_life()
+                    except Exception as e:
+                        print(f"⚠️ Send friend life error: {e}")
+                    pending_send_friend_life = False
                     last_lives_time = time.time()
                     lives_interval = random.uniform(25 * 60, 35 * 60)
                     last_stage = None

@@ -128,81 +128,83 @@ export const LogsConsole: React.FC<LogsConsoleProps> = ({ deviceSerial }) => {
   }, [logs, autoScroll]);
 
   return (
-    <div className="glass-panel rounded-3xl p-5 shadow-xl flex-1 flex flex-col min-h-[350px]">
+    <div className="biscuit-panel rounded-3xl p-5 shadow-md flex-1 flex flex-col min-h-[350px]">
       {/* Header Bar */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center space-x-2">
-          <Terminal className="w-4 h-4 text-[#DC95FF]" />
-          <h3 className="font-semibold text-sm text-white">Real-time Event Feed</h3>
+          <Terminal className="w-4 h-4 text-[#D97706]" />
+          <h3 className="font-bold text-sm text-[#3D2012] font-heading">
+            บันทึกการทำงาน
+          </h3>
           {isConnected ? (
-            <span className="text-[10px] bg-[#DC95FF]/20 text-[#FFF4BF] px-2 py-0.5 rounded-full border border-[#DC95FF]/30 flex items-center space-x-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#FFF4BF] animate-pulse"></span>
+            <span className="text-[10px] bg-[#D1FAE5] text-[#047857] px-2 py-0.5 rounded-full border border-[#A7F3D0] flex items-center space-x-1 font-bold shadow-xs">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-pulse"></span>
               <span>Live</span>
             </span>
           ) : (
-            <span className="text-[10px] bg-rose-500/20 text-rose-300 px-2 py-0.5 rounded-full border border-rose-500/30">
+            <span className="text-[10px] bg-[#FEE2E2] text-[#B91C1C] px-2 py-0.5 rounded-full border border-[#FECACA] font-bold">
               Off
             </span>
           )}
         </div>
 
         <div className="flex items-center space-x-2">
-          <label className="flex items-center space-x-1 text-[10px] text-[#FFBEFB] cursor-pointer select-none">
+          <label className="flex items-center space-x-1.5 text-[11px] text-[#6B4226] font-semibold cursor-pointer select-none">
             <input
               type="checkbox"
               checked={autoScroll}
               onChange={(e) => setAutoScroll(e.target.checked)}
-              className="accent-[#8C56D4] w-3 h-3 rounded"
+              className="accent-[#D97706] w-3.5 h-3.5 rounded"
             />
-            <span>ออโต้</span>
+            <span>เลื่อนอัตโนมัติ</span>
           </label>
           <button
             onClick={() => setLogs([])}
-            className="text-xs text-[#DC95FF] hover:text-[#FFF4BF] transition p-1 cursor-pointer"
-            title="ล้าง Log"
+            className="candy-btn-soft text-xs text-[#8A3B04] p-1.5 rounded-xl transition cursor-pointer"
+            title="ล้างบันทึก"
           >
-            <Trash2 className="w-3.5 h-3.5" />
+            <Trash2 className="w-3.5 h-3.5 text-[#D97706]" />
           </button>
         </div>
       </div>
 
-      {/* Log Stream Box */}
+      {/* Log Stream Box (Warm Chocolate & Candy Terminal) */}
       <div
         ref={containerRef}
         id="log-container"
-        className="flex-1 bg-[#150d24]/85 rounded-2xl p-3 border border-[#DC95FF]/25 font-mono text-[11px] text-slate-200 overflow-y-auto max-h-[300px] custom-scrollbar space-y-2"
+        className="flex-1 bg-[#23140A] rounded-2xl p-3.5 border-2 border-[#5C3317] font-mono text-[11px] text-[#FFF8EC] overflow-y-auto max-h-[300px] custom-scrollbar space-y-2 shadow-inner"
       >
         {logs.length === 0 ? (
-          <div className="text-[#DC95FF]/60 italic text-center py-8">
-            ยังไม่มีข้อความบันทึกเหตุการณ์...
+          <div className="text-[#C4A48A] italic text-center py-8">
+            ยังไม่มีบันทึก...
           </div>
         ) : (
           logs.map((log, idx) => {
             const msg = log.message || '';
             let type = 'INFO';
-            let typeColor = 'text-[#FFF4BF]';
+            let typeColor = 'text-[#FDE047]';
 
             if (msg.includes('[BOT]') || log.level === 'bot') {
               type = 'BOT';
-              typeColor = 'text-[#DC95FF]';
+              typeColor = 'text-[#F59E0B]';
             } else if (msg.includes('[ADB]') || log.level === 'adb' || msg.includes('Tap')) {
               type = 'ACTION';
-              typeColor = 'text-[#FFF4BF]';
+              typeColor = 'text-[#38BDF8]';
             } else if (msg.includes('[MACRO]') || msg.includes('มาโคร')) {
               type = 'MACRO';
-              typeColor = 'text-[#FFBEFB]';
+              typeColor = 'text-[#C084FC]';
             } else if (msg.includes('[FARMER]') || msg.includes('[HeartFarmer]') || log.level === 'farmer' || msg.includes('หัวใจ')) {
               type = 'HEART';
-              typeColor = 'text-[#FFBEFB]';
+              typeColor = 'text-[#FB7185]';
             } else if (msg.includes('[CLEANER]') || msg.includes('[FriendCleaner]') || log.level === 'cleaner' || msg.includes('ลบเพื่อน')) {
               type = 'CLEAN';
-              typeColor = 'text-teal-300';
+              typeColor = 'text-[#34D399]';
             } else if (msg.includes('[ERROR]') || log.level === 'error' || msg.includes('Error') || msg.includes('ล้มเหลว')) {
               type = 'ERR';
-              typeColor = 'text-rose-400';
+              typeColor = 'text-[#F43F5E]';
             } else if (msg.includes('[SYSTEM]') || log.level === 'sys') {
               type = 'SYSTEM';
-              typeColor = 'text-[#DC95FF]';
+              typeColor = 'text-[#FBBF24]';
             }
 
             const cleanMsg = msg
@@ -212,20 +214,20 @@ export const LogsConsole: React.FC<LogsConsoleProps> = ({ deviceSerial }) => {
             return (
               <div
                 key={idx}
-                className="flex items-start space-x-2 border-b border-[#DC95FF]/10 pb-1.5 last:border-b-0"
+                className="flex items-start space-x-2 border-b border-[#3D2312] pb-1.5 last:border-b-0"
               >
-                <span className="text-[#DC95FF]/80 shrink-0 font-mono text-[10px]">
+                <span className="text-[#C4A48A] shrink-0 font-mono text-[10px]">
                   {log.timestamp || '00:00:00'}
                 </span>
                 <span className={`${typeColor} font-bold shrink-0 text-[10px]`}>
                   [{type}]
                 </span>
                 {log.target && (
-                  <span className="text-[#FFBEFB] shrink-0 text-[10px] font-mono">
+                  <span className="text-[#FBBF24] shrink-0 text-[10px] font-mono">
                     {log.target}
                   </span>
                 )}
-                <span className="text-slate-200 truncate">
+                <span className="text-[#FFF8EC] truncate">
                   <FormattedTextWithIcons text={cleanMsg || msg} />
                 </span>
               </div>

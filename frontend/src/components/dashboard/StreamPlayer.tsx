@@ -130,40 +130,43 @@ export const StreamPlayer: React.FC<StreamPlayerProps> = ({
   };
 
   return (
-    <div className="glass-panel rounded-3xl p-3 sm:p-4 flex flex-col shadow-2xl relative overflow-hidden space-y-2.5 sm:space-y-3">
+    <div className="biscuit-panel rounded-3xl p-3.5 sm:p-4 flex flex-col shadow-md relative overflow-hidden space-y-2.5 sm:space-y-3">
       {/* Header bar */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center space-x-2 min-w-0">
-          <span className="px-2 sm:px-2.5 py-0.5 rounded-full bg-[#FFBEFB]/20 text-[#FFBEFB] text-[10px] sm:text-xs font-bold border border-[#FFBEFB]/40 flex items-center space-x-1 shrink-0">
-            <span className="w-1.5 sm:w-2 h-1.5 sm:h-2 rounded-full bg-[#FFBEFB] animate-pulse"></span>
+          <span className="px-2.5 py-0.5 rounded-full bg-[#FFE4E8] text-[#E11D48] text-[10px] sm:text-xs font-bold border border-[#FECDD3] flex items-center space-x-1 shrink-0 shadow-xs">
+            <span className="w-1.5 sm:w-2 h-1.5 sm:h-2 rounded-full bg-[#E11D48] animate-ping"></span>
             <span>LIVE</span>
           </span>
-          <h2 className="text-xs sm:text-sm font-semibold text-white truncate">
-            หน้าจออีมูเลเตอร์ (Live Stream)
+          <h2 className="text-xs sm:text-sm font-bold text-[#3D2012] font-heading truncate">
+            หน้าจอสตรีมสด
           </h2>
         </div>
 
         <div className="flex items-center space-x-1.5 sm:space-x-2 shrink-0">
           {/* FPS Mode Selector */}
-          <div className="flex items-center space-x-0.5 sm:space-x-1 bg-[#23173a]/70 p-0.5 rounded-lg border border-[#DC95FF]/30 text-[10px] font-bold text-[#FFBEFB]">
+          <div className="flex items-center space-x-0.5 sm:space-x-1 bg-[#FFF8EC] p-0.5 rounded-xl border-2 border-[#EEDBCE] text-[10px] font-bold text-[#8A3B04] shadow-xs">
             <button
               onClick={() => setFpsMode(60)}
-              className={`px-1.5 sm:px-2 py-0.5 rounded transition ${fpsMode === 60 ? 'bg-[#8C56D4] text-white' : 'hover:text-white'
-                }`}
+              className={`px-1.5 sm:px-2 py-0.5 rounded-lg transition ${
+                fpsMode === 60 ? 'bg-[#F59E0B] text-white shadow-xs' : 'hover:text-[#452311]'
+              }`}
             >
               60
             </button>
             <button
               onClick={() => setFpsMode(30)}
-              className={`px-1.5 sm:px-2 py-0.5 rounded transition ${fpsMode === 30 ? 'bg-[#8C56D4] text-white' : 'hover:text-white'
-                }`}
+              className={`px-1.5 sm:px-2 py-0.5 rounded-lg transition ${
+                fpsMode === 30 ? 'bg-[#F59E0B] text-white shadow-xs' : 'hover:text-[#452311]'
+              }`}
             >
               30
             </button>
             <button
               onClick={() => setFpsMode(5)}
-              className={`px-1.5 sm:px-2 py-0.5 rounded transition ${fpsMode === 5 ? 'bg-[#DC95FF] text-[#160f29]' : 'hover:text-white'
-                }`}
+              className={`px-1.5 sm:px-2 py-0.5 rounded-lg transition ${
+                fpsMode === 5 ? 'bg-[#F59E0B] text-white shadow-xs' : 'hover:text-[#452311]'
+              }`}
             >
               Eco
             </button>
@@ -174,28 +177,33 @@ export const StreamPlayer: React.FC<StreamPlayerProps> = ({
               setStreamError(false);
               setStreamKey(Date.now());
             }}
-            className="p-1 sm:p-1.5 rounded-lg bg-[#8C56D4]/30 hover:bg-[#8C56D4]/50 text-[#FFBEFB] transition"
+            className="candy-btn-soft p-1.5 rounded-xl transition cursor-pointer"
             title="รีเฟรชภาพ"
           >
-            <RotateCw className="w-3.5 h-3.5" />
+            <RotateCw className="w-3.5 h-3.5 text-[#D97706]" />
           </button>
 
           <button
             onClick={toggleFullscreen}
-            className="p-1 sm:p-1.5 rounded-lg bg-[#8C56D4]/30 hover:bg-[#8C56D4]/50 text-[#FFBEFB] transition"
+            className="candy-btn-soft p-1.5 rounded-xl transition cursor-pointer"
             title={isFullscreen ? 'ออกจากเต็มจอ' : 'ดูแบบเต็มจอ'}
           >
-            {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+            {isFullscreen ? (
+              <Minimize2 className="w-3.5 h-3.5 text-[#D97706]" />
+            ) : (
+              <Maximize2 className="w-3.5 h-3.5 text-[#D97706]" />
+            )}
           </button>
         </div>
       </div>
 
-      {/* Screen Canvas */}
+      {/* Screen Canvas in Biscuit Arcade Frame */}
       <div
         ref={containerRef}
         id="screen-container"
-        className={`relative w-full aspect-video rounded-2xl overflow-hidden bg-slate-950 border border-[#DC95FF]/30 flex items-center justify-center shadow-inner group cursor-crosshair select-none touch-none ${isFullscreen ? 'w-full h-full rounded-none border-none' : ''
-          }`}
+        className={`relative w-full aspect-video rounded-2xl overflow-hidden bg-[#1F140E] border-2 border-[#D4A373] flex items-center justify-center shadow-inner group cursor-crosshair select-none touch-none ${
+          isFullscreen ? 'w-full h-full rounded-none border-none' : ''
+        }`}
       >
         {streamUrl && !streamError ? (
           <img
@@ -210,32 +218,32 @@ export const StreamPlayer: React.FC<StreamPlayerProps> = ({
             style={{ touchAction: 'none' }}
           />
         ) : (
-          <div className="text-center text-[#FFBEFB]/80 text-xs p-6 space-y-2">
-            <p>ไม่สามารถโหลดภาพสดได้ หรือบอทยังไม่ได้เชื่อมต่อ</p>
+          <div className="text-center text-[#F3DFBF] text-xs p-6 space-y-2">
+            <p className="font-medium">ไม่สามารถโหลดภาพหน้าจอได้</p>
             <button
               onClick={() => {
                 setStreamError(false);
                 setStreamKey(Date.now());
               }}
-              className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#8C56D4] to-[#DC95FF] hover:brightness-110 text-white font-bold text-xs shadow"
+              className="candy-btn-honey px-3 py-1.5 rounded-xl font-bold text-xs shadow cursor-pointer"
             >
-              ลองใหม่อีกครั้ง
+              ลองใหม่
             </button>
           </div>
         )}
 
         {/* Running Overlay Animation Badge */}
-        <div className="absolute top-2.5 sm:top-3 left-2.5 sm:left-3 bg-[#1d1233]/85 backdrop-blur-md px-2.5 sm:px-3 py-1 rounded-xl border border-[#DC95FF]/30 flex items-center space-x-1.5 sm:space-x-2 text-white text-[11px] sm:text-xs pointer-events-none">
-          <Zap className={`w-3.5 h-3.5 text-[#FFF4BF] ${isRunning ? 'animate-bounce' : ''}`} />
-          <span className="font-semibold truncate max-w-[160px] sm:max-w-[240px] text-[#FFF4BF]">
+        <div className="absolute top-2.5 sm:top-3 left-2.5 sm:left-3 bg-[#FFFDF6]/95 backdrop-blur-md px-2.5 sm:px-3 py-1 rounded-xl border-2 border-[#FDE68A] flex items-center space-x-1.5 sm:space-x-2 text-[#452311] text-[11px] sm:text-xs pointer-events-none shadow-md">
+          <Zap className={`w-3.5 h-3.5 text-[#F59E0B] fill-[#F59E0B] ${isRunning ? 'animate-bounce' : ''}`} />
+          <span className="font-bold truncate max-w-[160px] sm:max-w-[240px] text-[#8A3B04]">
             {translateStageToThai(stageName, isRunning)}
           </span>
         </div>
 
         {/* Last Tap Coordinate Badge */}
         {lastTap && (
-          <div className="absolute top-2.5 sm:top-3 right-2.5 sm:right-3 pointer-events-none flex items-center space-x-1 bg-[#8C56D4]/90 text-white text-[10px] font-bold px-2.5 py-1 rounded-xl shadow backdrop-blur-xs border border-[#DC95FF]/40">
-            <MousePointer className="w-3 h-3 text-[#FFF4BF]" />
+          <div className="absolute top-2.5 sm:top-3 right-2.5 sm:right-3 pointer-events-none flex items-center space-x-1 bg-[#F59E0B] text-white text-[10px] font-bold px-2.5 py-1 rounded-xl shadow-md border border-[#D97706]">
+            <MousePointer className="w-3 h-3 text-white" />
             <span>แตะ ({lastTap.x}, {lastTap.y})</span>
           </div>
         )}
@@ -244,19 +252,19 @@ export const StreamPlayer: React.FC<StreamPlayerProps> = ({
         {clickRipple && (
           <div
             style={{ left: clickRipple.x, top: clickRipple.y }}
-            className="absolute -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-[#DC95FF]/50 border-2 border-[#FFBEFB] pointer-events-none animate-ping"
+            className="absolute -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-[#F59E0B]/50 border-2 border-[#FEF08A] pointer-events-none animate-ping"
           ></div>
         )}
 
-        {/* Clean Bottom Telemetry Badge (FPS & Ping) without Jump/Slide buttons */}
-        <div className="absolute bottom-2.5 left-2.5 sm:left-3 bg-[#120b20]/75 backdrop-blur-md px-2.5 sm:px-3 py-1 rounded-xl border border-[#DC95FF]/20 flex items-center space-x-3 text-[10px] sm:text-xs text-[#FFBEFB] pointer-events-none">
+        {/* Clean Bottom Telemetry Badge (FPS & Ping) */}
+        <div className="absolute bottom-2.5 left-2.5 sm:left-3 bg-[#2C1408]/85 backdrop-blur-md px-2.5 sm:px-3 py-1 rounded-xl border border-[#D4A373]/50 flex items-center space-x-3 text-[10px] sm:text-xs text-[#FFF9E8] pointer-events-none shadow">
           <span className="flex items-center space-x-1">
-            <Cpu className="w-3 h-3 text-[#DC95FF]" />
-            <span>FPS: {actualFps}</span>
+            <Cpu className="w-3 h-3 text-[#FBBF24]" />
+            <span className="font-mono">FPS: {actualFps}</span>
           </span>
           <span className="flex items-center space-x-1">
-            <Wifi className="w-3 h-3 text-[#FFF4BF]" />
-            <span>Ping: {realLatency > 0 ? `${realLatency}ms` : '<1ms'}</span>
+            <Wifi className="w-3 h-3 text-[#34D399]" />
+            <span className="font-mono">Ping: {realLatency > 0 ? `${realLatency}ms` : '<1ms'}</span>
           </span>
         </div>
       </div>

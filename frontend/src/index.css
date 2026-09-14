@@ -4,79 +4,216 @@
 
 @layer base {
   body {
-    background: radial-gradient(circle at 10% 10%, rgba(255, 244, 191, 0.18) 0%, transparent 40%),
-                radial-gradient(circle at 90% 15%, rgba(255, 190, 251, 0.22) 0%, transparent 45%),
-                radial-gradient(circle at 50% 85%, rgba(220, 149, 255, 0.2) 0%, transparent 55%),
-                linear-gradient(135deg, #160f29 0%, #201338 50%, #120b22 100%);
+    background-color: #FFFDF6;
+    background-image: 
+      radial-gradient(circle at 5% 10%, rgba(255, 182, 193, 0.15) 0%, transparent 35%),
+      radial-gradient(circle at 95% 15%, rgba(254, 240, 138, 0.22) 0%, transparent 40%),
+      radial-gradient(circle at 50% 90%, rgba(196, 181, 253, 0.15) 0%, transparent 45%),
+      radial-gradient(circle, #F3E5D4 1.2px, transparent 1.2px);
+    background-size: auto, auto, auto, 24px 24px;
     min-height: 100vh;
-    color: #f8f6fd;
-    font-family: 'Prompt', 'Outfit', sans-serif;
+    color: #452311;
+    font-family: 'Outfit', 'Fredoka', 'Prompt', sans-serif;
+  }
+
+  h1, h2, h3, h4, .font-heading {
+    font-family: 'Fredoka', 'Outfit', 'Prompt', sans-serif;
   }
 }
 
-/* Custom Scrollbars with Orchid/Amethyst Tint */
+/* Custom Scrollbars with Warm Caramel & Honey Accent */
 .custom-scrollbar::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
 }
 .custom-scrollbar::-webkit-scrollbar-track {
-  background: rgba(22, 15, 41, 0.6);
-  border-radius: 4px;
+  background: #FDF3E5;
+  border-radius: 999px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(220, 149, 255, 0.4);
-  border-radius: 4px;
+  background: #E4C09A;
+  border-radius: 999px;
+  border: 2px solid #FDF3E5;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 190, 251, 0.7);
+  background: #D97706;
 }
 
-/* Glassmorphism helpers with ColorHunt Palette: #FFF4BF, #FFBEFB, #DC95FF, #8C56D4 */
+/* Bakery & Biscuit Frames */
+.biscuit-panel {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 2px solid #F0DFCE;
+  box-shadow: 0 4px 0 #E2CDBC, 0 12px 28px rgba(180, 110, 50, 0.08);
+}
+
+.biscuit-card {
+  background: #FFFFFF;
+  border: 2px solid #F0DFCE;
+  box-shadow: 0 4px 0 #EAD7C4, 0 8px 18px rgba(180, 110, 50, 0.06);
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.biscuit-card:hover {
+  border-color: #E2BC9B;
+  box-shadow: 0 6px 0 #DDB896, 0 14px 28px rgba(180, 110, 50, 0.12);
+  transform: translateY(-2px);
+}
+
+/* Glass Panels (Updated for Warm Bakery Pastel Theme) */
 .glass-panel {
-  background: rgba(35, 23, 58, 0.72);
+  background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(220, 149, 255, 0.25);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4), 0 0 20px rgba(140, 86, 212, 0.15);
-}
-
-.glass-floating {
-  background: rgba(38, 25, 64, 0.8);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(220, 149, 255, 0.3);
-  box-shadow: 0 10px 32px -4px rgba(0, 0, 0, 0.5), 0 0 24px rgba(220, 149, 255, 0.2);
+  border: 2px solid #F2E3D5;
+  box-shadow: 0 4px 0 #E5D0BD, 0 14px 30px rgba(180, 110, 50, 0.07);
 }
 
 .glass-card {
-  background: rgba(50, 32, 84, 0.5);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(220, 149, 255, 0.2);
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1.5px solid #F3E5D8;
+  box-shadow: 0 3px 0 #E8D5C4, 0 6px 16px rgba(180, 110, 50, 0.05);
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .glass-card:hover {
-  border-color: rgba(255, 190, 251, 0.5);
-  box-shadow: 0 0 20px rgba(220, 149, 255, 0.25);
+  border-color: #FBBF24;
+  box-shadow: 0 5px 0 #E0A917, 0 12px 24px rgba(245, 158, 11, 0.14);
+  transform: translateY(-2px);
+}
+
+.glass-floating {
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 2px solid #F0DFCE;
+  box-shadow: 0 8px 0 #D8BEA6, 0 20px 40px rgba(180, 110, 50, 0.15);
 }
 
 .glass-pill {
-  background: rgba(40, 26, 68, 0.65);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(220, 149, 255, 0.3);
+  background: #FFF9F0;
+  border: 1.5px solid #EEDBCE;
+  box-shadow: 0 2px 0 #E2CDBC;
+  transition: all 0.15s ease;
 }
 
 .glass-pill:hover {
-  background: rgba(55, 36, 92, 0.75);
-  border-color: rgba(255, 190, 251, 0.5);
+  background: #FFF3E0;
+  border-color: #D4A373;
+  transform: translateY(-1px);
 }
 
-@keyframes pulseGlow {
-  0%, 100% { box-shadow: 0 0 15px rgba(220, 149, 255, 0.4); }
-  50% { box-shadow: 0 0 28px rgba(255, 190, 251, 0.7); }
+/* 3D Tactile Candy Buttons */
+.candy-btn-honey {
+  background: linear-gradient(180deg, #FBBF24 0%, #F59E0B 100%);
+  border: 2px solid #D97706;
+  border-bottom: 4px solid #B45309;
+  color: #FFFFFF;
+  text-shadow: 0 1px 2px rgba(138, 59, 4, 0.5);
+  box-shadow: 0 4px 10px rgba(245, 158, 11, 0.3);
+  transition: all 0.12s ease;
+}
+.candy-btn-honey:hover {
+  background: linear-gradient(180deg, #FCD34D 0%, #F59E0B 100%);
+  filter: brightness(1.03);
+}
+.candy-btn-honey:active {
+  transform: translateY(3px);
+  border-bottom-width: 2px;
+  box-shadow: 0 1px 3px rgba(245, 158, 11, 0.2);
 }
 
-.glow-effect {
-  animation: pulseGlow 3s infinite;
+.candy-btn-strawberry {
+  background: linear-gradient(180deg, #FF6B93 0%, #F43F5E 100%);
+  border: 2px solid #E11D48;
+  border-bottom: 4px solid #BE123C;
+  color: #FFFFFF;
+  text-shadow: 0 1px 2px rgba(159, 18, 57, 0.5);
+  box-shadow: 0 4px 10px rgba(244, 63, 94, 0.3);
+  transition: all 0.12s ease;
+}
+.candy-btn-strawberry:hover {
+  background: linear-gradient(180deg, #FF85A5 0%, #FB7185 100%);
+}
+.candy-btn-strawberry:active {
+  transform: translateY(3px);
+  border-bottom-width: 2px;
+  box-shadow: 0 1px 3px rgba(244, 63, 94, 0.2);
+}
+
+.candy-btn-mint {
+  background: linear-gradient(180deg, #34D399 0%, #10B981 100%);
+  border: 2px solid #059669;
+  border-bottom: 4px solid #047857;
+  color: #FFFFFF;
+  text-shadow: 0 1px 2px rgba(4, 120, 87, 0.5);
+  box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3);
+  transition: all 0.12s ease;
+}
+.candy-btn-mint:hover {
+  background: linear-gradient(180deg, #6EE7B7 0%, #34D399 100%);
+}
+.candy-btn-mint:active {
+  transform: translateY(3px);
+  border-bottom-width: 2px;
+  box-shadow: 0 1px 3px rgba(16, 185, 129, 0.2);
+}
+
+.candy-btn-grape {
+  background: linear-gradient(180deg, #A78BFA 0%, #8B5CF6 100%);
+  border: 2px solid #7C3AED;
+  border-bottom: 4px solid #6D28D9;
+  color: #FFFFFF;
+  text-shadow: 0 1px 2px rgba(109, 40, 217, 0.5);
+  box-shadow: 0 4px 10px rgba(139, 92, 246, 0.3);
+  transition: all 0.12s ease;
+}
+.candy-btn-grape:hover {
+  background: linear-gradient(180deg, #C4B5FD 0%, #A78BFA 100%);
+}
+.candy-btn-grape:active {
+  transform: translateY(3px);
+  border-bottom-width: 2px;
+  box-shadow: 0 1px 3px rgba(139, 92, 246, 0.2);
+}
+
+.candy-btn-soft {
+  background: #FFFFFF;
+  border: 2px solid #F0DFCE;
+  border-bottom: 4px solid #E2CDBC;
+  color: #6B4226;
+  box-shadow: 0 3px 8px rgba(180, 110, 50, 0.08);
+  transition: all 0.12s ease;
+}
+.candy-btn-soft:hover {
+  background: #FFFDF9;
+  border-color: #E2BC9B;
+  color: #452311;
+}
+.candy-btn-soft:active {
+  transform: translateY(3px);
+  border-bottom-width: 2px;
+  box-shadow: 0 1px 2px rgba(180, 110, 50, 0.05);
+}
+
+/* Pulse / Animation effects */
+@keyframes sweetBounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+.sweet-bounce {
+  animation: sweetBounce 3s ease-in-out infinite;
+}
+
+@keyframes sugarSparkle {
+  0%, 100% { opacity: 0.8; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.08); filter: drop-shadow(0 0 6px rgba(251, 191, 36, 0.8)); }
+}
+
+.sugar-sparkle {
+  animation: sugarSparkle 2.4s ease-in-out infinite;
 }

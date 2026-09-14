@@ -822,6 +822,8 @@ class BotEngine:
                             new_display = formatter(new_val)
                             changes.append(f"{label}: {old_display} ➜ {new_display}")
                             setattr(self, field, new_val)
+                            if field == "send_friend_lives" and new_val is True:
+                                self._trigger_send_lives = True
                     except Exception:
                         pass
 
@@ -857,7 +859,7 @@ class BotEngine:
             session_reset_interval = random.uniform(*SESSION_RESET_INTERVAL)
             last_lives_time = time.time()
             lives_interval = random.uniform(25 * 60, 35 * 60)
-            pending_send_friend_life = False
+            pending_send_friend_life = bool(self.send_friend_lives)
             in_game_last_stage_check = 0.0
             last_action_log_time = 0.0
 
@@ -961,14 +963,28 @@ class BotEngine:
                     # ตรวจสอบการตั้งค่าใหม่ก่อนเริ่มรอบ
                     self.check_and_apply_settings_update()
 
+                    if getattr(self, "_trigger_send_lives", False):
+                        pending_send_friend_life = True
+                        self._trigger_send_lives = False
+
                     if self.interruptible_sleep(1.0):
                         break
 
-                    if pending_send_friend_life and self.send_friend_lives:
-                        self.log("💌 Sending friend lives after app reset...")
-                        handle_send_friend_life()
+                    lives_elapsed = time.time() - last_lives_time
+                    if self.send_friend_lives and (pending_send_friend_life or lives_elapsed >= lives_interval):
+                        self.log("💌 ตรวจสอบและส่งหัวใจให้เพื่อน...", "stage")
+                        try:
+                            handle_quick_receive_and_send_lives()
+                        except Exception as e:
+                            self.log(f"⚠️ รับส่งหัวใจกล่องจดหมาย: {e}", "warning")
+                        try:
+                            handle_send_friend_life()
+                        except Exception as e:
+                            self.log(f"⚠️ ส่งหัวใจรายชื่อเพื่อน: {e}", "warning")
+                        self.log("✅ ดำเนินการส่งหัวใจเสร็จสิ้น", "success")
                         pending_send_friend_life = False
                         last_lives_time = time.time()
+                        lives_interval = random.uniform(25 * 60, 35 * 60)
                         last_stage = None
                         continue
 
@@ -987,15 +1003,6 @@ class BotEngine:
                         detection_group = "PRE_GAME"
                         last_stage = None
                         is_first_game = True
-                        continue
-
-                    lives_elapsed = time.time() - last_lives_time
-                    if self.send_friend_lives and lives_elapsed >= lives_interval:
-                        self.log(f"💌 ~30 min passed ({lives_elapsed / 60:.1f} min) — receiving and sending lives...")
-                        handle_quick_receive_and_send_lives()
-                        last_lives_time = time.time()
-                        lives_interval = random.uniform(25 * 60, 35 * 60)
-                        last_stage = None
                         continue
 
                     # When returning to MAINMENU after a completed game, give the lobby time to stabilize

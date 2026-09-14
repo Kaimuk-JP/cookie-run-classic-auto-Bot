@@ -556,7 +556,7 @@ def device_reset_app(ip: str, port: int = 5555, package: str = "com.devsisters.c
     time.sleep(2)
 
     for attempt in range(1, max_retries + 1):
-        print(f"📱 Restarting app {package} on device {target} (attempt {attempt}/{max_retries})...")
+        print(f"Restarting app {package} on device {target} (attempt {attempt}/{max_retries})...")
         _run_cmd(
             [adb, "-s", target, "shell", "monkey", "-p", package, "1"],
             stdout=subprocess.PIPE,

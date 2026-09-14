@@ -52,99 +52,99 @@ export const MetricsCards: React.FC<MetricsCardsProps> = ({
       {/* 1. Legendary Box (BOX_RAINBOW.png) */}
       <div
         onClick={onOpenStats}
-        className="glass-card p-3 rounded-2xl flex flex-col items-center justify-center text-center border-[#DC95FF]/30 hover:border-[#DC95FF]/60 transition cursor-pointer group shadow-sm"
-        title="คลิกเพื่อดูสถิติกล่องละเอียด"
+        className="biscuit-card p-3 rounded-2xl flex flex-col items-center justify-center text-center cursor-pointer group shadow-sm hover:border-[#C084FC] hover:bg-[#FAF5FF]"
+        title="ดูสถิติกล่อง"
       >
-        <div className="w-9 h-9 rounded-full bg-[#DC95FF]/15 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
+        <div className="w-10 h-10 rounded-full bg-gradient-to-b from-[#FAF5FF] to-[#EDE9FE] border border-[#DDD6FE] flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform shadow-sm">
           <img
             src="/templates/BOX_RAINBOW.png"
-            alt="Legendary Box"
-            className="w-7 h-7 object-contain drop-shadow-md"
+            alt="กล่องรุ้ง"
+            className="w-7 h-7 object-contain drop-shadow"
           />
         </div>
-        <span className="text-[11px] text-[#DC95FF] font-medium leading-tight">Legendary Box</span>
-        <span className="text-base font-bold text-white mt-0.5 font-mono">{rainbowCount}</span>
+        <span className="text-[11px] text-[#7C3AED] font-bold leading-tight">กล่องรุ้ง</span>
+        <span className="text-base font-extrabold text-[#3D2012] mt-0.5 font-mono">{rainbowCount}</span>
       </div>
 
       {/* 2. Gold Box (BOX_GOLD.png) */}
       <div
         onClick={onOpenStats}
-        className="glass-card p-3 rounded-2xl flex flex-col items-center justify-center text-center border-[#FFF4BF]/30 hover:border-[#FFF4BF]/60 transition cursor-pointer group shadow-sm"
-        title="คลิกเพื่อดูสถิติกล่องละเอียด"
+        className="biscuit-card p-3 rounded-2xl flex flex-col items-center justify-center text-center cursor-pointer group shadow-sm hover:border-[#FBBF24] hover:bg-[#FFFDF0]"
+        title="ดูสถิติกล่อง"
       >
-        <div className="w-9 h-9 rounded-full bg-[#FFF4BF]/15 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
+        <div className="w-10 h-10 rounded-full bg-gradient-to-b from-[#FEFCE8] to-[#FEF3C7] border border-[#FDE68A] flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform shadow-sm">
           <img
             src="/templates/BOX_GOLD.png"
-            alt="Gold Box"
-            className="w-7 h-7 object-contain drop-shadow-md"
+            alt="กล่องทอง"
+            className="w-7 h-7 object-contain drop-shadow"
           />
         </div>
-        <span className="text-[11px] text-[#FFF4BF] font-medium leading-tight">Gold Box</span>
-        <span className="text-base font-bold text-white mt-0.5 font-mono">{goldCount}</span>
+        <span className="text-[11px] text-[#B45309] font-bold leading-tight">กล่องทอง</span>
+        <span className="text-base font-extrabold text-[#3D2012] mt-0.5 font-mono">{goldCount}</span>
       </div>
 
       {/* 3. Silver Box (BOX_SILVER.png) */}
       <div
         onClick={onOpenStats}
-        className="glass-card p-3 rounded-2xl flex flex-col items-center justify-center text-center border-[#DC95FF]/20 hover:border-[#FFBEFB]/50 transition cursor-pointer group shadow-sm"
-        title="คลิกเพื่อดูสถิติกล่องละเอียด"
+        className="biscuit-card p-3 rounded-2xl flex flex-col items-center justify-center text-center cursor-pointer group shadow-sm hover:border-[#94A3B8] hover:bg-[#F8FAFC]"
+        title="ดูสถิติกล่อง"
       >
-        <div className="w-9 h-9 rounded-full bg-[#8C56D4]/20 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
+        <div className="w-10 h-10 rounded-full bg-gradient-to-b from-[#F8FAFC] to-[#E2E8F0] border border-[#CBD5E1] flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform shadow-sm">
           <img
             src="/templates/BOX_SILVER.png"
-            alt="Silver Box"
-            className="w-7 h-7 object-contain drop-shadow-md"
+            alt="กล่องเงิน"
+            className="w-7 h-7 object-contain drop-shadow"
           />
         </div>
-        <span className="text-[11px] text-[#FFBEFB]/90 font-medium leading-tight">Silver Box</span>
-        <span className="text-base font-bold text-white mt-0.5 font-mono">{silverCount}</span>
+        <span className="text-[11px] text-[#475569] font-bold leading-tight">กล่องเงิน</span>
+        <span className="text-base font-extrabold text-[#3D2012] mt-0.5 font-mono">{silverCount}</span>
       </div>
 
       {/* 4. Wood Box (BOX_WOOD.png) */}
       <div
         onClick={onOpenStats}
-        className="glass-card p-3 rounded-2xl flex flex-col items-center justify-center text-center border-amber-600/30 hover:border-amber-500/60 transition cursor-pointer group shadow-sm"
-        title="คลิกเพื่อดูสถิติกล่องละเอียด"
+        className="biscuit-card p-3 rounded-2xl flex flex-col items-center justify-center text-center cursor-pointer group shadow-sm hover:border-[#D97706] hover:bg-[#FFFBEB]"
+        title="ดูสถิติกล่อง"
       >
-        <div className="w-9 h-9 rounded-full bg-amber-600/15 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
+        <div className="w-10 h-10 rounded-full bg-gradient-to-b from-[#FEF3C7] to-[#FDE68A] border border-[#FCD34D] flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform shadow-sm">
           <img
             src="/templates/BOX_WOOD.png"
-            alt="Wood Box"
-            className="w-7 h-7 object-contain drop-shadow-md"
+            alt="กล่องไม้"
+            className="w-7 h-7 object-contain drop-shadow"
           />
         </div>
-        <span className="text-[11px] text-amber-300 font-medium leading-tight">Wood Box</span>
-        <span className="text-base font-bold text-white mt-0.5 font-mono">{woodCount}</span>
+        <span className="text-[11px] text-[#92400E] font-bold leading-tight">กล่องไม้</span>
+        <span className="text-base font-extrabold text-[#3D2012] mt-0.5 font-mono">{woodCount}</span>
       </div>
 
       {/* 5. Total Coins */}
-      <div className="glass-card p-3 rounded-2xl flex flex-col items-center justify-center text-center border-[#FFF4BF]/30 hover:border-[#FFF4BF]/60 transition shadow-sm">
-        <div className="w-9 h-9 rounded-full bg-[#FFF4BF]/20 text-[#FFF4BF] flex items-center justify-center mb-1.5">
-          <Coins className="w-5 h-5 text-[#FFF4BF]" />
+      <div className="biscuit-card p-3 rounded-2xl flex flex-col items-center justify-center text-center shadow-sm hover:border-[#F59E0B]">
+        <div className="w-10 h-10 rounded-full bg-gradient-to-b from-[#FFFBEB] to-[#FDE68A] border border-[#FCD34D] text-[#D97706] flex items-center justify-center mb-1.5 shadow-sm">
+          <Coins className="w-5 h-5 text-[#D97706]" />
         </div>
-        <span className="text-[11px] text-[#FFF4BF] font-medium leading-tight">Total Coins</span>
-        <span className="text-base font-bold text-white mt-0.5 font-mono">
+        <span className="text-[11px] text-[#B45309] font-bold leading-tight">เหรียญรวม</span>
+        <span className="text-base font-extrabold text-[#3D2012] mt-0.5 font-mono">
           {formatCoins(totalCoins)}
         </span>
       </div>
 
       {/* 6. Hearts Run / Cleaner / Rounds */}
-      <div className="glass-card p-3 rounded-2xl flex flex-col items-center justify-center text-center border-[#FFBEFB]/30 hover:border-[#FFBEFB]/60 transition shadow-sm">
-        <div className="w-9 h-9 rounded-full bg-[#FFBEFB]/20 text-[#FFBEFB] flex items-center justify-center mb-1.5">
+      <div className="biscuit-card p-3 rounded-2xl flex flex-col items-center justify-center text-center shadow-sm hover:border-[#F43F5E]">
+        <div className="w-10 h-10 rounded-full bg-gradient-to-b from-[#FFF1F2] to-[#FFE4E6] border border-[#FECDD3] text-[#E11D48] flex items-center justify-center mb-1.5 shadow-sm">
           {isCleaner ? (
-            <UserMinus className="w-5 h-5 text-[#FFBEFB]" />
+            <UserMinus className="w-5 h-5 text-[#E11D48]" />
           ) : isFarmer ? (
-            <Heart className="w-5 h-5 text-[#FFBEFB] animate-pulse" />
+            <Heart className="w-5 h-5 text-[#E11D48] animate-pulse fill-[#E11D48]" />
           ) : (
-            <Trophy className="w-5 h-5 text-[#FFBEFB]" />
+            <Trophy className="w-5 h-5 text-[#E11D48]" />
           )}
         </div>
-        <span className="text-[11px] text-[#FFBEFB] font-medium leading-tight">
-          {isCleaner ? 'Cleaner' : isFarmer ? 'Hearts' : 'Rounds'}
+        <span className="text-[11px] text-[#BE123C] font-bold leading-tight">
+          {isCleaner ? 'ลบเพื่อน' : isFarmer ? 'หัวใจ' : 'รอบวิ่ง'}
         </span>
-        <span className="text-base font-bold text-white mt-0.5 font-mono">
+        <span className="text-base font-extrabold text-[#3D2012] mt-0.5 font-mono">
           {isCleaner
-            ? (device?.cleaner_stats?.is_busy ? 'Busy' : 'Idle')
+            ? (device?.cleaner_stats?.is_busy ? 'ทำอยู่' : 'พร้อม')
             : isFarmer
             ? device?.heart_stats?.success_count ?? 0
             : roundsCount}

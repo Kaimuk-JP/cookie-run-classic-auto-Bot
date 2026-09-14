@@ -152,7 +152,7 @@ def start_cloudflared_tunnel(port, local_ip="127.0.0.1"):
                     found_url = m.group(0)
                     print("\n" + "=" * 65, flush=True)
                     print("  >>>  ลิงก์สำหรับดูผ่านมือถือ (Cloudflare Tunnel)  <<<", flush=True)
-                    print(f"\n   📱  {found_url}  📱\n", flush=True)
+                    print(f"\n    {found_url}  📱\n", flush=True)
                     print("  * เปิดดูผ่าน Safari / Chrome บนมือถือได้ทันที (4G/5G/Wi-Fi)", flush=True)
                     print("=" * 65 + "\n", flush=True)
                     try:

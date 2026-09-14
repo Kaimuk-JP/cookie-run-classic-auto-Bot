@@ -10,6 +10,7 @@ import {
   Bot,
 } from 'lucide-react';
 import { Device } from '../../types/bot';
+import { CookieHeroIcon } from '../common/SweetIcons';
 
 interface NavbarProps {
   devicesCount: number;
@@ -45,53 +46,51 @@ export const Navbar: React.FC<NavbarProps> = ({
   const isAnyRunning = runningCount > 0;
 
   return (
-    <header className="glass-panel sticky top-0 z-50 px-4 py-3 border-b border-[#DC95FF]/25 flex flex-wrap items-center justify-between gap-4">
-      {/* Logo & Title */}
+    <header className="biscuit-panel sticky top-0 z-50 px-4 py-2.5 border-b-2 border-[#EEDBCE] flex flex-wrap items-center justify-between gap-3 shadow-md">
+      {/* Logo & Title with Cute Cookie Illustration Mascot */}
       <div className="flex items-center space-x-3">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#8C56D4] via-[#DC95FF] to-[#FFBEFB] flex items-center justify-center shadow-lg shadow-[#8C56D4]/40 shrink-0">
-          <Bot className="w-5 h-5 text-white" />
+        <div className="w-10 h-10 rounded-xl shadow-md overflow-hidden shrink-0 border-2 border-white flex items-center justify-center">
+          <CookieHeroIcon className="w-full h-full object-cover" />
         </div>
         <div>
           <div className="flex items-center space-x-2">
-            <h1 className="font-bold text-base sm:text-lg text-white font-sans">
-              CookieRun Bot{' '}
-              <span className="text-[10px] sm:text-xs px-2 py-0.5 rounded-full bg-[#DC95FF]/20 text-[#FFF4BF] border border-[#DC95FF]/40 font-mono">
-                PRO UX v3.0
-              </span>
+            <h1 className="font-bold text-base sm:text-lg text-[#3D2012] font-heading tracking-tight flex items-center gap-1.5">
+              <span>CookieRun</span>
+              <span className="text-[#E11D48]">Bot</span>
             </h1>
           </div>
-          <p className="text-xs text-[#FFBEFB]/85 hidden sm:block">
-            ระบบฟาร์มอัตโนมัติ & ควบคุมหลายจออัจฉริยะ
+          <p className="text-xs text-[#8C6D58] hidden sm:block font-medium">
+            ระบบฟาร์มอัตโนมัติ & หลายจอ
           </p>
         </div>
       </div>
 
       {/* Global Status Indicators */}
-      <div className="flex items-center space-x-3 sm:space-x-4 bg-[#23173a]/60 px-3 sm:px-4 py-2 rounded-xl border border-[#DC95FF]/25 flex-wrap">
+      <div className="flex items-center space-x-2.5 sm:space-x-3.5 bg-[#FFF9F0] px-3 sm:px-4 py-1.5 rounded-2xl border-2 border-[#F3E5D4] shadow-sm flex-wrap">
         <div className="flex items-center space-x-2">
           <span className="relative flex h-3 w-3">
             {isAnyRunning ? (
               <>
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-400"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500 shadow-sm"></span>
               </>
             ) : (
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-slate-500"></span>
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-400"></span>
             )}
           </span>
-          <span className={`text-xs font-medium ${isAnyRunning ? 'text-emerald-300' : 'text-slate-400'}`}>
-            {isAnyRunning ? `ทำงาน ${runningCount} จอ` : 'พร้อมทำงาน (Idle)'}
+          <span className={`text-xs font-bold ${isAnyRunning ? 'text-emerald-700' : 'text-amber-800'}`}>
+            {isAnyRunning ? `กำลังรัน ${runningCount} จอ` : 'พร้อมทำงาน'}
           </span>
         </div>
 
-        <div className="h-4 w-px bg-[#DC95FF]/30 hidden sm:block"></div>
+        <div className="h-4 w-px bg-[#EADBCE] hidden sm:block"></div>
 
-        <div className="flex items-center space-x-1.5 text-xs text-[#FFF4BF]">
-          <Clock className="w-3.5 h-3.5 text-[#DC95FF]" />
-          <span className="font-mono">{runtime}</span>
+        <div className="flex items-center space-x-1.5 text-xs text-[#8A3B04] font-bold">
+          <Clock className="w-3.5 h-3.5 text-[#D97706]" />
+          <span className="font-mono bg-white px-2 py-0.5 rounded-lg border border-[#F0DFCE] shadow-inner">{runtime}</span>
         </div>
 
-        <div className="h-4 w-px bg-[#DC95FF]/30 hidden sm:block"></div>
+        <div className="h-4 w-px bg-[#EADBCE] hidden sm:block"></div>
 
         {/* Emulator Selector Dropdown */}
         {devices.length > 0 && onSelectDevice && (
@@ -100,11 +99,11 @@ export const Navbar: React.FC<NavbarProps> = ({
               value={selectedSerial}
               onChange={(e) => onSelectDevice(e.target.value)}
               aria-label="เลือก Emulator"
-              className="bg-[#2a1b46]/80 text-xs text-[#FFBEFB] px-2.5 py-1 rounded-lg border border-[#DC95FF]/40 focus:outline-none focus:ring-2 focus:ring-[#DC95FF] cursor-pointer"
+              className="bg-white text-xs font-semibold text-[#452311] px-2.5 py-1 rounded-xl border-2 border-[#EEDBCE] hover:border-[#D4A373] focus:outline-none focus:ring-2 focus:ring-[#F59E0B] cursor-pointer shadow-sm"
             >
               {devices.map((d) => (
-                <option key={d.serial} value={d.serial} className="bg-[#1a102e] text-white">
-                  📱 {d.name || d.serial} {d.is_running ? '🟢' : '⚪'}
+                <option key={d.serial} value={d.serial} className="bg-white text-[#452311]">
+                  {d.is_running ? '● ' : '○ '}{d.name || d.serial}
                 </option>
               ))}
             </select>
@@ -112,34 +111,34 @@ export const Navbar: React.FC<NavbarProps> = ({
         )}
       </div>
 
-      {/* Quick Action Buttons with Palette Accents */}
+      {/* Quick Action Buttons with 3D Tactile Candy Styling */}
       <div className="flex items-center space-x-1.5 sm:space-x-2">
         <button
           onClick={onScan}
           disabled={isScanning}
-          className="px-2.5 sm:px-3 py-2 rounded-xl bg-[#8C56D4]/30 hover:bg-[#8C56D4]/50 text-[#FFBEFB] text-xs font-medium border border-[#DC95FF]/30 transition flex items-center space-x-1.5 active:scale-95 disabled:opacity-50"
-          title="สแกน Emulator ทั้งหมด"
+          className="candy-btn-soft px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 disabled:opacity-50 cursor-pointer"
+          title="สแกน Emulator"
         >
-          <RefreshCw className={`w-3.5 h-3.5 ${isScanning ? 'animate-spin text-[#DC95FF]' : ''}`} />
+          <RefreshCw className={`w-3.5 h-3.5 text-[#D97706] ${isScanning ? 'animate-spin' : ''}`} />
           <span className="hidden md:inline">สแกน</span>
         </button>
 
         {onOpenSettings && (
           <button
             onClick={onOpenSettings}
-            className="px-2.5 sm:px-3 py-2 rounded-xl bg-[#8C56D4]/30 hover:bg-[#8C56D4]/60 text-[#FFBEFB] text-xs font-medium border border-[#DC95FF]/30 transition flex items-center space-x-1.5 active:scale-95"
+            className="candy-btn-soft px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 cursor-pointer"
           >
-            <Settings className="w-3.5 h-3.5 text-[#DC95FF]" />
-            <span className="hidden sm:inline">ตั้งค่าบอท</span>
+            <Settings className="w-3.5 h-3.5 text-[#D97706]" />
+            <span className="hidden sm:inline">ตั้งค่า</span>
           </button>
         )}
 
         {onOpenMacro && (
           <button
             onClick={onOpenMacro}
-            className="px-2.5 sm:px-3 py-2 rounded-xl bg-[#DC95FF]/20 hover:bg-[#DC95FF]/40 text-[#FFF4BF] text-xs font-medium border border-[#DC95FF]/40 transition flex items-center space-x-1.5 active:scale-95"
+            className="candy-btn-soft px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 cursor-pointer text-[#8A3B04]"
           >
-            <Sparkles className="w-3.5 h-3.5 text-[#FFF4BF]" />
+            <Sparkles className="w-3.5 h-3.5 text-[#F59E0B]" />
             <span className="hidden sm:inline">มาโคร</span>
           </button>
         )}
@@ -147,28 +146,28 @@ export const Navbar: React.FC<NavbarProps> = ({
         {onOpenTools && (
           <button
             onClick={onOpenTools}
-            className="px-2.5 sm:px-3 py-2 rounded-xl bg-[#FFBEFB]/20 hover:bg-[#FFBEFB]/40 text-[#FFBEFB] text-xs font-medium border border-[#FFBEFB]/40 transition flex items-center space-x-1.5 active:scale-95"
+            className="candy-btn-soft px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 cursor-pointer text-[#E11D48]"
           >
-            <Heart className="w-3.5 h-3.5 text-[#FFBEFB]" />
+            <Heart className="w-3.5 h-3.5 text-[#FF5C8A] fill-[#FF5C8A]" />
             <span className="hidden sm:inline">ปั๊มหัวใจ</span>
           </button>
         )}
 
-        {/* Start All Button (Amethyst to Orchid Gradient) */}
+        {/* Start All Button (Honey/Caramel 3D Candy Button) */}
         <button
           onClick={onStartAll}
-          className="px-3 sm:px-4 py-2 rounded-xl bg-gradient-to-r from-[#8C56D4] to-[#DC95FF] hover:from-[#7a44bf] hover:to-[#cd83f5] text-white text-xs font-semibold shadow-lg shadow-[#8C56D4]/40 transition flex items-center space-x-1.5 active:scale-95 cursor-pointer"
-          title="เริ่มบอททุกจอ"
+          className="candy-btn-honey px-3.5 sm:px-4 py-1.5 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 cursor-pointer"
+          title="เริ่มทุกจอ"
         >
           <Play className="w-3.5 h-3.5 fill-current" />
-          <span>เริ่มรันบอท</span>
+          <span>เริ่มบอท</span>
         </button>
 
-        {/* Stop All Button */}
+        {/* Stop All Button (Strawberry Red 3D Button) */}
         <button
           onClick={onStopAll}
-          className="px-3 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white text-xs font-semibold shadow-lg shadow-rose-900/40 transition active:scale-95 cursor-pointer"
-          title="หยุดบอททุกจอทันที"
+          className="candy-btn-strawberry px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center justify-center cursor-pointer"
+          title="หยุดทุกจอ"
         >
           <Square className="w-3.5 h-3.5 fill-current" />
         </button>

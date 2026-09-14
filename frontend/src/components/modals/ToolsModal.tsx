@@ -252,10 +252,10 @@ export const ToolsModal: React.FC<ToolsModalProps> = ({
             </div>
             <div>
               <h3 className="text-base font-bold text-slate-900">
-                เครื่องมือเสริม (Heart Farmer & Friend Cleaner)
+                เครื่องมือเสริม
               </h3>
               <p className="text-xs text-slate-500">
-                ระบบปั๊มหัวใจเพื่อนใหม่ และลบเพื่อนเลิกเล่นอัตโนมัติ
+                ปั๊มหัวใจ & ลบเพื่อนอัตโนมัติ
               </p>
             </div>
           </div>
@@ -270,38 +270,32 @@ export const ToolsModal: React.FC<ToolsModalProps> = ({
         <div className="space-y-4 text-xs">
           {/* ================= HEART FARMER BOX ================= */}
           <div className="p-4 rounded-2xl bg-gradient-to-br from-pink-50/70 via-white to-rose-50/40 border border-pink-200 shadow-xs space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="flex items-center gap-2.5">
                 <Heart className="w-5 h-5 text-pink-600 fill-pink-500 shrink-0" />
                 <div>
-                  <h4 className="font-bold text-slate-900 text-sm flex items-center gap-1.5">
-                    ระบบปั๊มหัวใจ (Heart Farmer)
+                  <h4 className="font-bold text-slate-900 text-sm flex items-center gap-1.5 whitespace-nowrap">
+                    ปั๊มหัวใจ
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-pink-500 text-white">NEW</span>
                   </h4>
                   <p className="text-[11px] text-slate-500">
-                    วนลูปกดลิงก์เชิญเพื่อน ส่งหัวใจ และรับของขวัญอัตโนมัติ
+                    วนลูปเชิญเพื่อนและรับของขวัญ
                   </p>
                 </div>
               </div>
 
               {/* Status Badge */}
-              <div className="text-right">
-                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-bold text-[10px] border ${
+              <div className="flex items-center sm:justify-end">
+                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full font-bold text-[10px] border whitespace-nowrap ${
                   farmerStatus.running
                     ? 'bg-pink-100 text-pink-700 border-pink-200 shadow-2xs'
                     : 'bg-slate-100 text-slate-500 border-slate-200'
                 }`}>
                   <span className={`w-1.5 h-1.5 rounded-full ${farmerStatus.running ? 'bg-pink-500 animate-pulse' : 'bg-slate-400'}`}></span>
                   {farmerStatus.running
-                    ? `กำลังปั้ม (รอบที่ ${farmerStatus.rounds} • ส่งสำเร็จ ${farmerStatus.success_count} ครั้ง)`
-                    : 'ยังไม่ได้เริ่ม'}
+                    ? `กำลังปั๊ม (รอบ ${farmerStatus.rounds} • สำเร็จ ${farmerStatus.success_count})`
+                    : 'ยังไม่เริ่ม'}
                 </span>
-                {farmerStatus.running && farmerStatus.current_step && (
-                  <p className="text-[10px] font-medium text-pink-600 mt-1 truncate max-w-[220px] flex items-center gap-1" title={farmerStatus.current_step}>
-                    <Zap className="w-3 h-3 text-amber-500 shrink-0" />
-                    <span>{farmerStatus.current_step}</span>
-                  </p>
-                )}
               </div>
             </div>
 
@@ -309,17 +303,17 @@ export const ToolsModal: React.FC<ToolsModalProps> = ({
             <div className="space-y-1">
               <label className="text-slate-700 font-bold flex items-center gap-1">
                 <Smartphone className="w-3.5 h-3.5 text-pink-600" />
-                <span>เลือกจอจำลอง (Emulator เป้าหมาย)</span>
+                <span>เลือก Emulator</span>
               </label>
               <select
                 value={selectedFarmerDevice}
                 onChange={(e) => setSelectedFarmerDevice(e.target.value)}
                 className="w-full px-3 py-2 rounded-xl bg-white border border-pink-200 text-xs font-semibold focus:ring-2 focus:ring-pink-500 outline-none text-slate-800 shadow-2xs"
               >
-                <option value="all">ทุกจอพร้อมกัน (All Devices - {devices.length} จอ)</option>
+                <option value="all">ทุกจอ ({devices.length} จอ)</option>
                 {devices.map((d, idx) => (
                   <option key={d.serial} value={d.serial}>
-                    {d.name || d.emu_name || `จอที่ ${idx + 1}`} ({d.serial}) {d.model ? `[${d.model}]` : ''}
+                    {d.name || d.emu_name || `จอ ${idx + 1}`} ({d.serial}) {d.model ? `[${d.model}]` : ''}
                   </option>
                 ))}
               </select>
@@ -330,7 +324,7 @@ export const ToolsModal: React.FC<ToolsModalProps> = ({
               <div className="flex items-center justify-between">
                 <label className="text-slate-700 font-bold flex items-center gap-1.5">
                   <Link className="w-3.5 h-3.5 text-pink-600" />
-                  <span>ลิงก์เชิญเพื่อนของคุณ (Invite Link)</span>
+                  <span>ลิงก์เชิญเพื่อน</span>
                 </label>
                 <button
                   type="button"
@@ -338,7 +332,7 @@ export const ToolsModal: React.FC<ToolsModalProps> = ({
                   className="flex items-center gap-1 text-[11px] text-pink-600 hover:text-pink-700 font-bold hover:underline cursor-pointer"
                 >
                   <Clipboard className="w-3 h-3" />
-                  <span>วางลิงก์จากคลิปบอร์ด</span>
+                  <span>วางจากคลิปบอร์ด</span>
                 </button>
               </div>
               <input
@@ -349,7 +343,7 @@ export const ToolsModal: React.FC<ToolsModalProps> = ({
                 className="w-full px-3 py-2 rounded-xl bg-white border border-pink-200 font-mono text-[11px] focus:ring-2 focus:ring-pink-500 outline-none text-slate-800 shadow-2xs placeholder-slate-400"
               />
               <p className="text-[10px] text-slate-400">
-                * ก๊อปปี้ลิงก์เชิญเพื่อนจากในเกม CookieRun (เช่น จากหน้ากิจกรรมเชิญเพื่อน) แล้วกด "วางลิงก์จากคลิปบอร์ด"
+                * คัดลอกลิงก์เชิญเพื่อนจากในเกม แล้วกดวางลิงก์
               </p>
             </div>
 
@@ -376,31 +370,31 @@ export const ToolsModal: React.FC<ToolsModalProps> = ({
 
           {/* ================= FRIEND CLEANER BOX ================= */}
           <div className="p-4 rounded-2xl bg-gradient-to-br from-teal-50/70 via-white to-emerald-50/40 border border-teal-200 shadow-xs space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="flex items-center gap-2.5">
                 <Mail className="w-5 h-5 text-teal-600 shrink-0" />
                 <div>
-                  <h4 className="font-bold text-slate-900 text-sm flex items-center gap-1.5">
-                    ระบบลบเพื่อนเลิกเล่น (Friend Cleaner)
+                  <h4 className="font-bold text-slate-900 text-sm flex items-center gap-1.5 whitespace-nowrap">
+                    ลบเพื่อนเลิกเล่น
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-600 text-white">AUTO</span>
                   </h4>
                   <p className="text-[11px] text-slate-500">
-                    เข้าหน้าจัดการเพื่อน ลบเพื่อนที่เลิกเล่น หรือเวล 1 อัตโนมัติ
+                    ลบเพื่อนเลิกเล่นหรือเพื่อนเวล 1
                   </p>
                 </div>
               </div>
 
               {/* Status Badge */}
-              <div className="text-right">
-                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-bold text-[10px] border ${
+              <div className="flex items-center sm:justify-end">
+                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full font-bold text-[10px] border whitespace-nowrap ${
                   cleanerStatus.is_running
                     ? 'bg-teal-500/10 text-teal-700 border-teal-500/30'
                     : 'bg-slate-100 text-slate-500 border-slate-200'
                 }`}>
                   <span className={`w-1.5 h-1.5 rounded-full ${cleanerStatus.is_running ? 'bg-teal-500 animate-pulse' : 'bg-slate-400'}`}></span>
                   {cleanerStatus.is_running
-                    ? (cleanerStatus.current_device ? `กำลังทำ: ${devices.find((d) => d.serial === cleanerStatus.current_device)?.name || cleanerStatus.current_device}` : 'วนลูปทำงานอยู่')
-                    : 'ยังไม่ได้เริ่ม'}
+                    ? (cleanerStatus.current_device ? `กำลังทำ: ${devices.find((d) => d.serial === cleanerStatus.current_device)?.name || cleanerStatus.current_device}` : 'กำลังทำงาน')
+                    : 'ยังไม่เริ่ม'}
                 </span>
               </div>
             </div>
@@ -411,7 +405,7 @@ export const ToolsModal: React.FC<ToolsModalProps> = ({
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
                     <Smartphone className="w-3.5 h-3.5 text-teal-600" />
-                    เครื่องที่กำลังทำงาน:
+                    เครื่องที่ทำ:
                     <span className="text-teal-800 font-extrabold bg-teal-50 px-2 py-0.5 rounded-md border border-teal-200">
                       {devices.find((d) => d.serial === cleanerStatus.current_device)?.name
                         ? `${devices.find((d) => d.serial === cleanerStatus.current_device)?.name} (${cleanerStatus.current_device})`
@@ -430,7 +424,7 @@ export const ToolsModal: React.FC<ToolsModalProps> = ({
                   <div className="p-2 rounded-lg bg-teal-50/70 border border-teal-100 flex items-start gap-2">
                     <span className="w-2 h-2 rounded-full bg-teal-500 mt-1 shrink-0 animate-pulse"></span>
                     <div className="flex-1">
-                      <p className="text-[10px] font-bold text-teal-800">สถานะที่เครื่องกำลังทำอยู่:</p>
+                      <p className="text-[10px] font-bold text-teal-800">สถานะปัจจุบัน:</p>
                       <p className="text-[11px] font-semibold text-teal-900 mt-0.5 leading-snug">
                         {cleanerStatus.current_step}
                       </p>
@@ -442,7 +436,7 @@ export const ToolsModal: React.FC<ToolsModalProps> = ({
                   <div className="text-[10px] text-slate-500 pt-1 border-t border-slate-100 flex items-center justify-between">
                     <span>รอบล่าสุด: {cleanerStatus.history[cleanerStatus.history.length - 1].time}</span>
                     <span className="font-semibold text-teal-700">
-                      ลบเพื่อนเวล 1 สำเร็จ {cleanerStatus.history[cleanerStatus.history.length - 1].ticked ?? 0} คน
+                      ลบสำเร็จ {cleanerStatus.history[cleanerStatus.history.length - 1].ticked ?? 0} คน
                     </span>
                   </div>
                 )}
@@ -453,17 +447,17 @@ export const ToolsModal: React.FC<ToolsModalProps> = ({
             <div className="space-y-1">
               <label className="text-slate-700 font-bold flex items-center gap-1">
                 <Smartphone className="w-3.5 h-3.5 text-teal-600" />
-                <span>เลือกจอจำลอง (Emulator เป้าหมาย)</span>
+                <span>เลือก Emulator</span>
               </label>
               <select
                 value={selectedCleanerDevice}
                 onChange={(e) => setSelectedCleanerDevice(e.target.value)}
                 className="w-full px-3 py-2 rounded-xl bg-white border border-teal-200 text-xs font-semibold focus:ring-2 focus:ring-teal-500 outline-none text-slate-800 shadow-2xs"
               >
-                <option value="all">ทุกจอพร้อมกัน (All Devices - {devices.length} จอ)</option>
+                <option value="all">ทุกจอ ({devices.length} จอ)</option>
                 {devices.map((d, idx) => (
                   <option key={d.serial} value={d.serial}>
-                    {d.name || d.emu_name || `จอที่ ${idx + 1}`} ({d.serial}) {d.model ? `[${d.model}]` : ''}
+                    {d.name || d.emu_name || `จอ ${idx + 1}`} ({d.serial}) {d.model ? `[${d.model}]` : ''}
                   </option>
                 ))}
               </select>
@@ -471,7 +465,7 @@ export const ToolsModal: React.FC<ToolsModalProps> = ({
 
             {/* 2. Repeat Interval */}
             <div className="flex items-center justify-between p-2.5 rounded-xl bg-white border border-teal-200 shadow-2xs">
-              <span className="font-bold text-slate-700">ทำซ้ำทุกๆ (นาที)</span>
+              <span className="font-bold text-slate-700">ทำซ้ำทุก (นาที)</span>
               <div className="flex items-center gap-1.5">
                 <input
                   type="number"
@@ -486,30 +480,30 @@ export const ToolsModal: React.FC<ToolsModalProps> = ({
             </div>
 
             {/* Buttons for Cleaner */}
-            <div className="flex items-center gap-2 pt-1">
+            <div className="flex flex-wrap items-center gap-2 pt-1">
               <button
                 onClick={handleStartCleaner}
                 disabled={loading === 'cleaner_start' || cleanerStatus.is_running}
-                className="flex-1 flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold transition shadow-xs active:scale-95 disabled:opacity-50 cursor-pointer"
+                className="flex-1 min-w-[120px] flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold transition shadow-xs active:scale-95 disabled:opacity-50 cursor-pointer whitespace-nowrap text-xs"
               >
-                <Play className="w-3.5 h-3.5 fill-current" />
+                <Play className="w-3.5 h-3.5 fill-current shrink-0" />
                 <span>{loading === 'cleaner_start' ? 'กำลังเริ่ม...' : 'เริ่มวนลูป'}</span>
               </button>
               <button
                 onClick={handleRunOnceCleaner}
                 disabled={loading === 'cleaner_once'}
-                className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-white hover:bg-slate-100 text-teal-800 font-bold border border-teal-200 transition active:scale-95 disabled:opacity-50 cursor-pointer"
-                title="สั่งเข้าจัดการเพื่อนและลบทันที 1 รอบ"
+                className="flex-1 min-w-[110px] flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-white hover:bg-slate-100 text-teal-800 font-bold border border-teal-200 transition active:scale-95 disabled:opacity-50 cursor-pointer whitespace-nowrap text-xs"
+                title="ลบทันที 1 รอบ"
               >
-                <PlayCircle className="w-3.5 h-3.5 text-teal-600" />
+                <PlayCircle className="w-3.5 h-3.5 text-teal-600 shrink-0" />
                 <span>ลบรอบเดียว</span>
               </button>
               <button
                 onClick={handleStopCleaner}
                 disabled={loading === 'cleaner_stop' || !cleanerStatus.is_running}
-                className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold transition active:scale-95 disabled:opacity-40 cursor-pointer flex items-center gap-1"
+                className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold transition active:scale-95 disabled:opacity-40 cursor-pointer flex items-center justify-center gap-1 whitespace-nowrap text-xs shrink-0"
               >
-                <Square className="w-3.5 h-3.5 fill-current" />
+                <Square className="w-3.5 h-3.5 fill-current shrink-0" />
                 <span>หยุด</span>
               </button>
             </div>
@@ -519,13 +513,13 @@ export const ToolsModal: React.FC<ToolsModalProps> = ({
         {/* Modal Footer */}
         <div className="pt-2 flex items-center justify-between border-t border-slate-100">
           <span className="text-[11px] text-slate-400">
-            ระบบจะทำงานแยกเธรดในพื้นหลัง ไม่รบกวนหน้าต่างหลัก
+            ทำงานเบื้องหลัง ไม่รบกวนหน้าต่างหลัก
           </span>
           <button
             onClick={onClose}
             className="px-5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition cursor-pointer"
           >
-            ปิดหน้าต่าง
+            ปิด
           </button>
         </div>
       </div>

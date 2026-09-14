@@ -470,9 +470,9 @@ def start_game_app(device: str, log_func=None):
     target = _format_target(device)
     adb = get_adb_path()
     if log_func:
-        log_func(f"📱 สั่งเปิดเกม Cookie Run บนจอ {device}...")
+        log_func(f"สั่งเปิดเกม Cookie Run บนจอ {device}...")
     else:
-        print(f"[{time.strftime('%H:%M:%S')}][AppControl][{device}] 📱 สั่งเปิดเกม Cookie Run...", flush=True)
+        print(f"[{time.strftime('%H:%M:%S')}][AppControl][{device}] สั่งเปิดเกม Cookie Run...", flush=True)
     _run_cmd([adb, "-s", target, "shell", "monkey", "-p", GAME_PACKAGE, "-c", "android.intent.category.LAUNCHER", "1"], timeout=10)
 
 

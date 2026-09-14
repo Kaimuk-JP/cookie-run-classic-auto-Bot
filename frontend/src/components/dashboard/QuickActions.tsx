@@ -87,10 +87,10 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
       {/* Header */}
       <div className="flex items-center justify-between">
         <h3 className="font-semibold text-sm text-white flex items-center space-x-2">
-          <Sliders className="w-4 h-4 text-purple-400" />
+          <Sliders className="w-4 h-4 text-[#DC95FF]" />
           <span>แผงควบคุมหลัก (Control Center)</span>
         </h3>
-        <span className="text-[11px] text-purple-300 font-mono bg-purple-950/60 px-2 py-0.5 rounded border border-purple-500/20 truncate max-w-[140px]">
+        <span className="text-[11px] text-[#FFF4BF] font-mono bg-[#23173a]/70 px-2 py-0.5 rounded border border-[#DC95FF]/30 truncate max-w-[140px]">
           {deviceSerial || '127.0.0.1:5555'}
         </span>
       </div>
@@ -99,11 +99,11 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
       <div className="grid grid-cols-2 gap-3">
         <button
           onClick={onStart}
-          className={`py-3 px-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold shadow-lg shadow-emerald-900/40 transition flex items-center justify-center space-x-2 active:scale-95 cursor-pointer ${
-            isRunning ? 'opacity-80 ring-2 ring-emerald-400' : ''
+          className={`py-3 px-4 rounded-2xl bg-gradient-to-r from-[#8C56D4] to-[#DC95FF] hover:brightness-110 text-white text-xs font-bold shadow-lg shadow-[#8C56D4]/40 transition flex items-center justify-center space-x-2 active:scale-95 cursor-pointer ${
+            isRunning ? 'opacity-80 ring-2 ring-[#FFBEFB]' : ''
           }`}
         >
-          <Play className="w-4 h-4 fill-current" />
+          <Play className="w-4 h-4 fill-current text-[#FFF4BF]" />
           <span>เริ่มทำงานบอท</span>
         </button>
 
@@ -121,39 +121,39 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
         <button
           onClick={handleClearRam}
           disabled={loadingAction === 'ram'}
-          className="glass-card p-2.5 rounded-xl flex flex-col items-center justify-center hover:bg-purple-800/40 transition text-purple-200 active:scale-95 disabled:opacity-50 cursor-pointer"
+          className="glass-card p-2.5 rounded-xl flex flex-col items-center justify-center hover:bg-[#8C56D4]/30 transition text-[#FFBEFB] active:scale-95 disabled:opacity-50 cursor-pointer"
           title="เคลียร์ RAM 3 ระดับ"
         >
-          <Zap className="w-4 h-4 text-amber-400 mb-1" />
+          <Zap className="w-4 h-4 text-[#FFF4BF] mb-1" />
           <span className="text-[10px]">เคลียร์ RAM</span>
         </button>
 
         <button
           onClick={handleResetApp}
           disabled={loadingAction === 'reset'}
-          className="glass-card p-2.5 rounded-xl flex flex-col items-center justify-center hover:bg-purple-800/40 transition text-purple-200 active:scale-95 disabled:opacity-50 cursor-pointer"
+          className="glass-card p-2.5 rounded-xl flex flex-col items-center justify-center hover:bg-[#8C56D4]/30 transition text-[#FFBEFB] active:scale-95 disabled:opacity-50 cursor-pointer"
           title="Force close & รีสตาร์ทเกม CookieRun"
         >
-          <RotateCcw className="w-4 h-4 text-purple-400 mb-1" />
+          <RotateCcw className="w-4 h-4 text-[#DC95FF] mb-1" />
           <span className="text-[10px]">รีสตาร์ทเกม</span>
         </button>
 
         <button
           onClick={handleTestAdb}
           disabled={loadingAction === 'adb'}
-          className="glass-card p-2.5 rounded-xl flex flex-col items-center justify-center hover:bg-purple-800/40 transition text-purple-200 active:scale-95 disabled:opacity-50 cursor-pointer"
+          className="glass-card p-2.5 rounded-xl flex flex-col items-center justify-center hover:bg-[#8C56D4]/30 transition text-[#FFBEFB] active:scale-95 disabled:opacity-50 cursor-pointer"
           title="ทดสอบสัญญาณการเชื่อมต่อ ADB"
         >
-          <Plug className="w-4 h-4 text-emerald-400 mb-1" />
+          <Plug className="w-4 h-4 text-[#FFBEFB] mb-1" />
           <span className="text-[10px]">เช็ค ADB</span>
         </button>
 
         <button
           onClick={handleCaptureScreen}
-          className="glass-card p-2.5 rounded-xl flex flex-col items-center justify-center hover:bg-purple-800/40 transition text-purple-200 active:scale-95 cursor-pointer"
+          className="glass-card p-2.5 rounded-xl flex flex-col items-center justify-center hover:bg-[#8C56D4]/30 transition text-[#FFBEFB] active:scale-95 cursor-pointer"
           title="บันทึกภาพหน้าจอปัจจุบันและดาวน์โหลด"
         >
-          <Camera className="w-4 h-4 text-sky-400 mb-1" />
+          <Camera className="w-4 h-4 text-[#FFF4BF] mb-1" />
           <span className="text-[10px]">แคปภาพจอ</span>
         </button>
       </div>

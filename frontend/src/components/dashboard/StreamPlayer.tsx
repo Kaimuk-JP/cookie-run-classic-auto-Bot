@@ -6,8 +6,6 @@ import {
   RotateCw,
   Eye,
   Zap,
-  ArrowUp,
-  ArrowDown,
   Cpu,
   Wifi,
 } from 'lucide-react';
@@ -39,6 +37,43 @@ export const StreamPlayer: React.FC<StreamPlayerProps> = ({
   const streamUrl = deviceSerial
     ? `/api/stream?device=${encodeURIComponent(deviceSerial)}&fps=${fpsMode}&t=${streamKey}`
     : '';
+
+  const [actualFps, setActualFps] = useState<number>(fpsMode);
+  const [realLatency, setRealLatency] = useState<number>(0);
+
+  useEffect(() => {
+    let isMounted = true;
+    const updateStats = async () => {
+      if (!deviceSerial) return;
+      const t0 = performance.now();
+      try {
+        const res = await fetch(`/api/stream-stats?device=${encodeURIComponent(deviceSerial)}`);
+        const roundTrip = Math.round(performance.now() - t0);
+        if (!isMounted) return;
+        setRealLatency(roundTrip);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && typeof data.fps === 'number' && data.fps > 0) {
+            setActualFps(Math.round(data.fps));
+          } else {
+            setActualFps(fpsMode);
+          }
+        }
+      } catch {
+        if (isMounted) {
+          setRealLatency(Math.max(1, Math.round(performance.now() - t0)));
+          setActualFps(fpsMode);
+        }
+      }
+    };
+
+    updateStats();
+    const interval = setInterval(updateStats, 2000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [deviceSerial, fpsMode]);
 
   useEffect(() => {
     const handleFsChange = () => {
@@ -94,84 +129,52 @@ export const StreamPlayer: React.FC<StreamPlayerProps> = ({
     }
   };
 
-  // Jump button in CookieRun is located at bottom-left (~160, 600)
-  const triggerJump = async () => {
-    if (!deviceSerial) return;
-    setLastTap({ x: 160, y: 600 });
-    setTimeout(() => setLastTap(null), 1200);
-    try {
-      await botApi.tapScreen(deviceSerial, 160, 600);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  // Slide button in CookieRun is located at bottom-right (~1120, 600)
-  const triggerSlide = async () => {
-    if (!deviceSerial) return;
-    setLastTap({ x: 1120, y: 600 });
-    setTimeout(() => setLastTap(null), 1200);
-    try {
-      await botApi.tapScreen(deviceSerial, 1120, 600);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
   return (
-    <div className="glass-panel rounded-3xl p-4 flex flex-col shadow-2xl relative overflow-hidden space-y-3">
+    <div className="glass-panel rounded-3xl p-3 sm:p-4 flex flex-col shadow-2xl relative overflow-hidden space-y-2.5 sm:space-y-3">
       {/* Header bar */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-2">
-          <span className="px-2.5 py-0.5 rounded-full bg-rose-500/20 text-rose-400 text-xs font-bold border border-rose-500/30 flex items-center space-x-1.5">
-            <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center space-x-2 min-w-0">
+          <span className="px-2 sm:px-2.5 py-0.5 rounded-full bg-[#FFBEFB]/20 text-[#FFBEFB] text-[10px] sm:text-xs font-bold border border-[#FFBEFB]/40 flex items-center space-x-1 shrink-0">
+            <span className="w-1.5 sm:w-2 h-1.5 sm:h-2 rounded-full bg-[#FFBEFB] animate-pulse"></span>
             <span>LIVE</span>
           </span>
-          <h2 className="text-sm font-semibold text-white">
-            หน้าจออีมูเลเตอร์ (Live Gameplay Stream)
+          <h2 className="text-xs sm:text-sm font-semibold text-white truncate">
+            หน้าจออีมูเลเตอร์ (Live Stream)
           </h2>
         </div>
 
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-1.5 sm:space-x-2 shrink-0">
           {/* FPS Mode Selector */}
-          <div className="flex items-center space-x-1 bg-purple-950/60 p-0.5 rounded-lg border border-purple-500/30 text-[10px] font-bold text-purple-300">
+          <div className="flex items-center space-x-0.5 sm:space-x-1 bg-[#23173a]/70 p-0.5 rounded-lg border border-[#DC95FF]/30 text-[10px] font-bold text-[#FFBEFB]">
             <button
               onClick={() => setFpsMode(60)}
-              className={`px-2 py-0.5 rounded ${
-                fpsMode === 60 ? 'bg-purple-600 text-white' : 'hover:text-white'
-              }`}
+              className={`px-1.5 sm:px-2 py-0.5 rounded transition ${fpsMode === 60 ? 'bg-[#8C56D4] text-white' : 'hover:text-white'
+                }`}
             >
               60
             </button>
             <button
               onClick={() => setFpsMode(30)}
-              className={`px-2 py-0.5 rounded ${
-                fpsMode === 30 ? 'bg-purple-600 text-white' : 'hover:text-white'
-              }`}
+              className={`px-1.5 sm:px-2 py-0.5 rounded transition ${fpsMode === 30 ? 'bg-[#8C56D4] text-white' : 'hover:text-white'
+                }`}
             >
               30
             </button>
             <button
               onClick={() => setFpsMode(5)}
-              className={`px-2 py-0.5 rounded ${
-                fpsMode === 5 ? 'bg-emerald-600 text-white' : 'hover:text-white'
-              }`}
+              className={`px-1.5 sm:px-2 py-0.5 rounded transition ${fpsMode === 5 ? 'bg-[#DC95FF] text-[#160f29]' : 'hover:text-white'
+                }`}
             >
               Eco
             </button>
           </div>
-
-          <span className="text-xs text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-lg border border-emerald-500/20 hidden sm:flex items-center space-x-1">
-            <Eye className="w-3 h-3 text-emerald-400" />
-            <span className="text-[10px] font-bold">AI VISION ACTIVE</span>
-          </span>
 
           <button
             onClick={() => {
               setStreamError(false);
               setStreamKey(Date.now());
             }}
-            className="p-1.5 rounded-lg bg-purple-900/50 hover:bg-purple-700/50 text-purple-200 transition"
+            className="p-1 sm:p-1.5 rounded-lg bg-[#8C56D4]/30 hover:bg-[#8C56D4]/50 text-[#FFBEFB] transition"
             title="รีเฟรชภาพ"
           >
             <RotateCw className="w-3.5 h-3.5" />
@@ -179,7 +182,7 @@ export const StreamPlayer: React.FC<StreamPlayerProps> = ({
 
           <button
             onClick={toggleFullscreen}
-            className="p-1.5 rounded-lg bg-purple-900/50 hover:bg-purple-700/50 text-purple-200 transition"
+            className="p-1 sm:p-1.5 rounded-lg bg-[#8C56D4]/30 hover:bg-[#8C56D4]/50 text-[#FFBEFB] transition"
             title={isFullscreen ? 'ออกจากเต็มจอ' : 'ดูแบบเต็มจอ'}
           >
             {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
@@ -191,9 +194,8 @@ export const StreamPlayer: React.FC<StreamPlayerProps> = ({
       <div
         ref={containerRef}
         id="screen-container"
-        className={`relative w-full aspect-video rounded-2xl overflow-hidden bg-slate-950 border border-purple-500/30 flex items-center justify-center shadow-inner group cursor-crosshair select-none touch-none ${
-          isFullscreen ? 'w-full h-full rounded-none border-none' : ''
-        }`}
+        className={`relative w-full aspect-video rounded-2xl overflow-hidden bg-slate-950 border border-[#DC95FF]/30 flex items-center justify-center shadow-inner group cursor-crosshair select-none touch-none ${isFullscreen ? 'w-full h-full rounded-none border-none' : ''
+          }`}
       >
         {streamUrl && !streamError ? (
           <img
@@ -208,14 +210,14 @@ export const StreamPlayer: React.FC<StreamPlayerProps> = ({
             style={{ touchAction: 'none' }}
           />
         ) : (
-          <div className="text-center text-purple-300 text-xs p-6 space-y-2">
+          <div className="text-center text-[#FFBEFB]/80 text-xs p-6 space-y-2">
             <p>ไม่สามารถโหลดภาพสดได้ หรือบอทยังไม่ได้เชื่อมต่อ</p>
             <button
               onClick={() => {
                 setStreamError(false);
                 setStreamKey(Date.now());
               }}
-              className="px-3 py-1.5 rounded-xl bg-purple-700 hover:bg-purple-600 text-white font-bold text-xs shadow"
+              className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#8C56D4] to-[#DC95FF] hover:brightness-110 text-white font-bold text-xs shadow"
             >
               ลองใหม่อีกครั้ง
             </button>
@@ -223,17 +225,17 @@ export const StreamPlayer: React.FC<StreamPlayerProps> = ({
         )}
 
         {/* Running Overlay Animation Badge */}
-        <div className="absolute top-3 left-3 bg-purple-950/80 backdrop-blur-md px-3 py-1.5 rounded-xl border border-purple-500/30 flex items-center space-x-2 text-white text-xs pointer-events-none">
-          <Zap className={`w-3.5 h-3.5 text-amber-400 ${isRunning ? 'animate-bounce' : ''}`} />
-          <span className="font-semibold truncate max-w-[200px]">
+        <div className="absolute top-2.5 sm:top-3 left-2.5 sm:left-3 bg-[#1d1233]/85 backdrop-blur-md px-2.5 sm:px-3 py-1 rounded-xl border border-[#DC95FF]/30 flex items-center space-x-1.5 sm:space-x-2 text-white text-[11px] sm:text-xs pointer-events-none">
+          <Zap className={`w-3.5 h-3.5 text-[#FFF4BF] ${isRunning ? 'animate-bounce' : ''}`} />
+          <span className="font-semibold truncate max-w-[160px] sm:max-w-[240px] text-[#FFF4BF]">
             {translateStageToThai(stageName, isRunning)}
           </span>
         </div>
 
         {/* Last Tap Coordinate Badge */}
         {lastTap && (
-          <div className="absolute top-3 right-3 pointer-events-none flex items-center space-x-1 bg-purple-600/90 text-white text-[10px] font-bold px-2.5 py-1 rounded-xl shadow backdrop-blur-xs">
-            <MousePointer className="w-3 h-3" />
+          <div className="absolute top-2.5 sm:top-3 right-2.5 sm:right-3 pointer-events-none flex items-center space-x-1 bg-[#8C56D4]/90 text-white text-[10px] font-bold px-2.5 py-1 rounded-xl shadow backdrop-blur-xs border border-[#DC95FF]/40">
+            <MousePointer className="w-3 h-3 text-[#FFF4BF]" />
             <span>แตะ ({lastTap.x}, {lastTap.y})</span>
           </div>
         )}
@@ -242,42 +244,20 @@ export const StreamPlayer: React.FC<StreamPlayerProps> = ({
         {clickRipple && (
           <div
             style={{ left: clickRipple.x, top: clickRipple.y }}
-            className="absolute -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-purple-400/50 border-2 border-purple-300 pointer-events-none animate-ping"
+            className="absolute -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-[#DC95FF]/50 border-2 border-[#FFBEFB] pointer-events-none animate-ping"
           ></div>
         )}
 
-        {/* Bot Action Overlay HUD */}
-        <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between bg-black/70 backdrop-blur-md px-3 sm:px-4 py-2 rounded-xl border border-purple-500/30">
-          <div className="flex items-center space-x-2 sm:space-x-4 text-[10px] sm:text-xs text-purple-200">
-            <span className="flex items-center space-x-1">
-              <Cpu className="w-3 h-3 text-purple-400" />
-              <span>FPS: {fpsMode}</span>
-            </span>
-            <span className="hidden sm:flex items-center space-x-1">
-              <Wifi className="w-3 h-3 text-purple-400" />
-              <span>Latency: 12ms</span>
-            </span>
-            <span className="text-purple-300 truncate hidden md:inline">
-              Smart Trigger Active
-            </span>
-          </div>
-
-          <div className="flex space-x-2">
-            <button
-              onClick={triggerJump}
-              className="px-3 py-1 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-medium transition shadow flex items-center space-x-1 active:scale-95 cursor-pointer"
-            >
-              <ArrowUp className="w-3 h-3" />
-              <span>Jump</span>
-            </button>
-            <button
-              onClick={triggerSlide}
-              className="px-3 py-1 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-medium transition shadow flex items-center space-x-1 active:scale-95 cursor-pointer"
-            >
-              <ArrowDown className="w-3 h-3" />
-              <span>Slide</span>
-            </button>
-          </div>
+        {/* Clean Bottom Telemetry Badge (FPS & Ping) without Jump/Slide buttons */}
+        <div className="absolute bottom-2.5 left-2.5 sm:left-3 bg-[#120b20]/75 backdrop-blur-md px-2.5 sm:px-3 py-1 rounded-xl border border-[#DC95FF]/20 flex items-center space-x-3 text-[10px] sm:text-xs text-[#FFBEFB] pointer-events-none">
+          <span className="flex items-center space-x-1">
+            <Cpu className="w-3 h-3 text-[#DC95FF]" />
+            <span>FPS: {actualFps}</span>
+          </span>
+          <span className="flex items-center space-x-1">
+            <Wifi className="w-3 h-3 text-[#FFF4BF]" />
+            <span>Ping: {realLatency > 0 ? `${realLatency}ms` : '<1ms'}</span>
+          </span>
         </div>
       </div>
     </div>

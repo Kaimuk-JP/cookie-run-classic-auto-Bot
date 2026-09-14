@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="th" class="h-full">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,7 +12,9 @@
     <!-- Google Fonts Inter & Prompt -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Prompt:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
     <script>
         tailwind.config = {
             theme: {
@@ -41,6 +44,7 @@
             color: #f3f4f6;
             min-height: 100vh;
         }
+
         .glass-panel {
             background: rgba(30, 24, 52, 0.65);
             backdrop-filter: blur(16px);
@@ -48,47 +52,66 @@
             border: 1px solid rgba(139, 92, 246, 0.2);
             box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
         }
+
         .glass-card {
             background: rgba(42, 33, 71, 0.5);
             backdrop-filter: blur(12px);
             border: 1px solid rgba(139, 92, 246, 0.15);
         }
+
         .custom-scrollbar::-webkit-scrollbar {
             width: 6px;
             height: 6px;
         }
+
         .custom-scrollbar::-webkit-scrollbar-track {
             background: rgba(15, 11, 30, 0.5);
             border-radius: 4px;
         }
+
         .custom-scrollbar::-webkit-scrollbar-thumb {
             background: rgba(139, 92, 246, 0.4);
             border-radius: 4px;
         }
+
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
             background: rgba(139, 92, 246, 0.7);
         }
+
         @keyframes pulseGlow {
-            0%, 100% { box-shadow: 0 0 15px rgba(139, 92, 246, 0.4); }
-            50% { box-shadow: 0 0 25px rgba(139, 92, 246, 0.8); }
+
+            0%,
+            100% {
+                box-shadow: 0 0 15px rgba(139, 92, 246, 0.4);
+            }
+
+            50% {
+                box-shadow: 0 0 25px rgba(139, 92, 246, 0.8);
+            }
         }
+
         .glow-effect {
             animation: pulseGlow 3s infinite;
         }
     </style>
 </head>
+
 <body class="h-full flex flex-col overflow-x-hidden custom-scrollbar">
 
     <!-- Top Header Bar -->
-    <header class="glass-panel sticky top-0 z-50 px-4 py-3 border-b border-purple-500/20 flex flex-wrap items-center justify-between gap-4">
+    <header
+        class="glass-panel sticky top-0 z-50 px-4 py-3 border-b border-purple-500/20 flex flex-wrap items-center justify-between gap-4">
         <!-- Logo & Title -->
         <div class="flex items-center space-x-3">
-            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-purple-500/30">
+            <div
+                class="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-purple-500/30">
                 <i class="fa-solid fa-cookie-bite text-white text-xl"></i>
             </div>
             <div>
                 <div class="flex items-center space-x-2">
-                    <h1 class="font-bold text-lg text-white">CookieRun Bot <span class="text-xs px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">PRO UX v3.0</span></h1>
+                    <h1 class="font-bold text-lg text-white">CookieRun Bot <span
+                            class="text-xs px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">PRO
+                            UX v3.0</span></h1>
                 </div>
                 <p class="text-xs text-purple-300/80">ระบบฟาร์มอัตโนมัติ & ควบคุมหลายจออัจฉริยะ</p>
             </div>
@@ -98,7 +121,8 @@
         <div class="flex items-center space-x-4 bg-purple-950/40 px-4 py-2 rounded-xl border border-purple-500/20">
             <div class="flex items-center space-x-2">
                 <span class="relative flex h-3 w-3">
-                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span
+                        class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                     <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
                 </span>
                 <span id="global-status-text" class="text-xs font-medium text-emerald-300">ทำงาน 2 จอ</span>
@@ -111,7 +135,8 @@
             <div class="h-4 w-px bg-purple-500/30"></div>
             <!-- Emulator Selector Dropdown -->
             <div class="relative">
-                <select id="device-selector" class="bg-purple-900/60 text-xs text-purple-200 px-3 py-1.5 rounded-lg border border-purple-500/40 focus:outline-none focus:ring-2 focus:ring-purple-400 cursor-pointer">
+                <select id="device-selector"
+                    class="bg-purple-900/60 text-xs text-purple-200 px-3 py-1.5 rounded-lg border border-purple-500/40 focus:outline-none focus:ring-2 focus:ring-purple-400 cursor-pointer">
                     <option>📱 อีพ-4 (127.0.0.1:5563)</option>
                     <option>📱 อีพ-3 (127.0.0.1:5555)</option>
                 </select>
@@ -120,23 +145,28 @@
 
         <!-- Quick Action Buttons -->
         <div class="flex items-center space-x-2">
-            <button onclick="openModal('settings-modal')" class="px-3 py-2 rounded-xl bg-purple-800/40 hover:bg-purple-700/60 text-purple-200 text-xs font-medium border border-purple-500/30 transition flex items-center space-x-1.5">
+            <button onclick="openModal('settings-modal')"
+                class="px-3 py-2 rounded-xl bg-purple-800/40 hover:bg-purple-700/60 text-purple-200 text-xs font-medium border border-purple-500/30 transition flex items-center space-x-1.5">
                 <i class="fa-solid fa-gear"></i>
                 <span>ตั้งค่าบอท</span>
             </button>
-            <button onclick="openModal('macro-modal')" class="px-3 py-2 rounded-xl bg-purple-800/40 hover:bg-purple-700/60 text-purple-200 text-xs font-medium border border-purple-500/30 transition flex items-center space-x-1.5">
+            <button onclick="openModal('macro-modal')"
+                class="px-3 py-2 rounded-xl bg-purple-800/40 hover:bg-purple-700/60 text-purple-200 text-xs font-medium border border-purple-500/30 transition flex items-center space-x-1.5">
                 <i class="fa-solid fa-wand-magic-sparkles"></i>
                 <span>มาโคร</span>
             </button>
-            <button onclick="openModal('heart-modal')" class="px-3 py-2 rounded-xl bg-pink-900/40 hover:bg-pink-800/60 text-pink-200 text-xs font-medium border border-pink-500/30 transition flex items-center space-x-1.5">
+            <button onclick="openModal('heart-modal')"
+                class="px-3 py-2 rounded-xl bg-pink-900/40 hover:bg-pink-800/60 text-pink-200 text-xs font-medium border border-pink-500/30 transition flex items-center space-x-1.5">
                 <i class="fa-solid fa-heart"></i>
                 <span>ปั๊มหัวใจ</span>
             </button>
-            <button onclick="toggleBotState()" id="header-start-btn" class="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-semibold shadow-lg shadow-emerald-900/40 transition flex items-center space-x-1.5">
+            <button onclick="toggleBotState()" id="header-start-btn"
+                class="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-semibold shadow-lg shadow-emerald-900/40 transition flex items-center space-x-1.5">
                 <i class="fa-solid fa-play" id="header-play-icon"></i>
                 <span id="header-play-text">เริ่มรันบอท</span>
             </button>
-            <button onclick="stopBotState()" class="px-3 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white text-xs font-semibold shadow-lg shadow-rose-900/40 transition">
+            <button onclick="stopBotState()"
+                class="px-3 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white text-xs font-semibold shadow-lg shadow-rose-900/40 transition">
                 <i class="fa-solid fa-stop"></i>
             </button>
         </div>
@@ -150,36 +180,46 @@
 
             <!-- Premium Stats & Loot Tracker Cards -->
             <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
-                <div class="glass-card p-3 rounded-2xl flex flex-col items-center justify-center text-center border-purple-500/20 hover:border-purple-400/50 transition">
-                    <div class="w-8 h-8 rounded-full bg-purple-500/20 text-purple-300 flex items-center justify-center mb-1.5">
+                <div
+                    class="glass-card p-3 rounded-2xl flex flex-col items-center justify-center text-center border-purple-500/20 hover:border-purple-400/50 transition">
+                    <div
+                        class="w-8 h-8 rounded-full bg-purple-500/20 text-purple-300 flex items-center justify-center mb-1.5">
                         <i class="fa-solid fa-gem text-sm"></i>
                     </div>
-                    <span class="text-[11px] text-purple-300 font-medium">Diamond Box</span>
+                    <span class="text-[11px] text-purple-300 font-medium">Legendary BoxBox</span>
                     <span class="text-base font-bold text-white mt-0.5">14</span>
                 </div>
-                <div class="glass-card p-3 rounded-2xl flex flex-col items-center justify-center text-center border-amber-500/20 hover:border-amber-400/50 transition">
-                    <div class="w-8 h-8 rounded-full bg-amber-500/20 text-amber-300 flex items-center justify-center mb-1.5">
+                <div
+                    class="glass-card p-3 rounded-2xl flex flex-col items-center justify-center text-center border-amber-500/20 hover:border-amber-400/50 transition">
+                    <div
+                        class="w-8 h-8 rounded-full bg-amber-500/20 text-amber-300 flex items-center justify-center mb-1.5">
                         <i class="fa-solid fa-box text-sm"></i>
                     </div>
                     <span class="text-[11px] text-amber-300 font-medium">Gold Box</span>
                     <span class="text-base font-bold text-white mt-0.5">28</span>
                 </div>
-                <div class="glass-card p-3 rounded-2xl flex flex-col items-center justify-center text-center border-slate-400/20 hover:border-slate-300/50 transition">
-                    <div class="w-8 h-8 rounded-full bg-slate-500/20 text-slate-300 flex items-center justify-center mb-1.5">
+                <div
+                    class="glass-card p-3 rounded-2xl flex flex-col items-center justify-center text-center border-slate-400/20 hover:border-slate-300/50 transition">
+                    <div
+                        class="w-8 h-8 rounded-full bg-slate-500/20 text-slate-300 flex items-center justify-center mb-1.5">
                         <i class="fa-solid fa-shield text-sm"></i>
                     </div>
                     <span class="text-[11px] text-slate-300 font-medium">Silver Box</span>
                     <span class="text-base font-bold text-white mt-0.5">42</span>
                 </div>
-                <div class="glass-card p-3 rounded-2xl flex flex-col items-center justify-center text-center border-yellow-500/20 hover:border-yellow-400/50 transition">
-                    <div class="w-8 h-8 rounded-full bg-yellow-500/20 text-yellow-300 flex items-center justify-center mb-1.5">
+                <div
+                    class="glass-card p-3 rounded-2xl flex flex-col items-center justify-center text-center border-yellow-500/20 hover:border-yellow-400/50 transition">
+                    <div
+                        class="w-8 h-8 rounded-full bg-yellow-500/20 text-yellow-300 flex items-center justify-center mb-1.5">
                         <i class="fa-solid fa-coins text-sm"></i>
                     </div>
                     <span class="text-[11px] text-yellow-300 font-medium">Total Coins</span>
                     <span class="text-base font-bold text-white mt-0.5">185.4K</span>
                 </div>
-                <div class="glass-card col-span-2 sm:col-span-1 p-3 rounded-2xl flex flex-col items-center justify-center text-center border-pink-500/20 hover:border-pink-400/50 transition">
-                    <div class="w-8 h-8 rounded-full bg-pink-500/20 text-pink-300 flex items-center justify-center mb-1.5">
+                <div
+                    class="glass-card col-span-2 sm:col-span-1 p-3 rounded-2xl flex flex-col items-center justify-center text-center border-pink-500/20 hover:border-pink-400/50 transition">
+                    <div
+                        class="w-8 h-8 rounded-full bg-pink-500/20 text-pink-300 flex items-center justify-center mb-1.5">
                         <i class="fa-solid fa-heart text-sm"></i>
                     </div>
                     <span class="text-[11px] text-pink-300 font-medium">Hearts Run</span>
@@ -191,44 +231,50 @@
             <div class="glass-panel rounded-3xl p-4 flex flex-col shadow-2xl relative overflow-hidden">
                 <div class="flex items-center justify-between mb-3">
                     <div class="flex items-center space-x-2">
-                        <span class="px-2.5 py-0.5 rounded-full bg-rose-500/20 text-rose-400 text-xs font-bold border border-rose-500/30 flex items-center space-x-1.5">
+                        <span
+                            class="px-2.5 py-0.5 rounded-full bg-rose-500/20 text-rose-400 text-xs font-bold border border-rose-500/30 flex items-center space-x-1.5">
                             <span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
                             <span>LIVE</span>
                         </span>
                         <h2 class="text-sm font-semibold text-white">หน้าจออีมูเลเตอร์ (Live Gameplay Stream)</h2>
                     </div>
                     <div class="flex items-center space-x-2">
-                        <span class="text-xs text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-lg border border-emerald-500/20">
-                            <i class="fa-solid fa-eye text-[10px] mr-1"></i> AI VISION ACTIVE
-                        </span>
-                        <button onclick="toggleFullscreen()" class="p-1.5 rounded-lg bg-purple-900/50 hover:bg-purple-700/50 text-purple-200 transition">
+                        <button onclick="toggleFullscreen()"
+                            class="p-1.5 rounded-lg bg-purple-900/50 hover:bg-purple-700/50 text-purple-200 transition">
                             <i class="fa-solid fa-expand text-xs"></i>
                         </button>
                     </div>
                 </div>
 
                 <!-- Emulator Canvas Screen Container -->
-                <div id="screen-container" class="relative w-full aspect-video rounded-2xl overflow-hidden bg-slate-950 border border-purple-500/30 flex items-center justify-center shadow-inner group">
-                    <div class="absolute inset-0 bg-cover bg-center opacity-80" style="background-image: url('https://placehold.co/1280x720/1a103c/8b5cf6?text=CookieRun+Kingdom+Live+Stream')"></div>
-                    
+                <div id="screen-container"
+                    class="relative w-full aspect-video rounded-2xl overflow-hidden bg-slate-950 border border-purple-500/30 flex items-center justify-center shadow-inner group">
+                    <div class="absolute inset-0 bg-cover bg-center opacity-80"
+                        style="background-image: url('https://placehold.co/1280x720/1a103c/8b5cf6?text=CookieRun+Kingdom+Live+Stream')">
+                    </div>
+
                     <!-- Running Overlay Animation -->
-                    <div class="absolute top-4 left-4 bg-purple-950/80 backdrop-blur-md px-3 py-1.5 rounded-xl border border-purple-500/30 flex items-center space-x-2">
+                    <div
+                        class="absolute top-4 left-4 bg-purple-950/80 backdrop-blur-md px-3 py-1.5 rounded-xl border border-purple-500/30 flex items-center space-x-2">
                         <i class="fa-solid fa-bolt text-amber-400 animate-bounce"></i>
                         <span class="text-xs font-semibold text-white">กำลังวิ่งเก็บหัวใจ (Round #120)</span>
                     </div>
 
                     <!-- Bot Action Action Overlay HUD -->
-                    <div class="absolute bottom-4 left-4 right-4 flex items-center justify-between bg-black/60 backdrop-blur-md px-4 py-2 rounded-xl border border-purple-500/20">
+                    <div
+                        class="absolute bottom-4 left-4 right-4 flex items-center justify-between bg-black/60 backdrop-blur-md px-4 py-2 rounded-xl border border-purple-500/20">
                         <div class="flex items-center space-x-3 text-xs text-purple-200">
                             <span><i class="fa-solid fa-microchip text-purple-400 mr-1"></i> FPS: 60</span>
                             <span><i class="fa-solid fa-network-wired text-purple-400 mr-1"></i> Latency: 12ms</span>
                             <span><i class="fa-solid fa-robot text-purple-400 mr-1"></i> Macro: Auto-Jump v2</span>
                         </div>
                         <div class="flex space-x-2">
-                            <button onclick="triggerMacroAction('Jump')" class="px-3 py-1 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-medium transition shadow">
+                            <button onclick="triggerMacroAction('Jump')"
+                                class="px-3 py-1 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-medium transition shadow">
                                 <i class="fa-solid fa-arrow-up mr-1"></i> Jump
                             </button>
-                            <button onclick="triggerMacroAction('Slide')" class="px-3 py-1 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-medium transition shadow">
+                            <button onclick="triggerMacroAction('Slide')"
+                                class="px-3 py-1 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-medium transition shadow">
                                 <i class="fa-solid fa-arrow-down mr-1"></i> Slide
                             </button>
                         </div>
@@ -241,12 +287,15 @@
                 <div class="flex items-center justify-between mb-4">
                     <div class="flex items-center space-x-2">
                         <i class="fa-solid fa-chart-line text-purple-400"></i>
-                        <h3 class="font-semibold text-sm text-white">ประวัติรอบล่าสุด & กราฟประสิทธิภาพ (Round History)</h3>
+                        <h3 class="font-semibold text-sm text-white">ประวัติรอบล่าสุด & กราฟประสิทธิภาพ (Round History)
+                        </h3>
                     </div>
-                    <button class="text-xs text-purple-400 hover:text-purple-300 transition">ดูทั้งหมด <i class="fa-solid fa-chevron-right ml-1"></i></button>
+                    <button class="text-xs text-purple-400 hover:text-purple-300 transition">ดูทั้งหมด <i
+                            class="fa-solid fa-chevron-right ml-1"></i></button>
                 </div>
                 <!-- Mini Efficiency Graph Simulation -->
-                <div class="w-full h-24 bg-purple-950/40 rounded-xl p-3 border border-purple-500/20 flex flex-col justify-between">
+                <div
+                    class="w-full h-24 bg-purple-950/40 rounded-xl p-3 border border-purple-500/20 flex flex-col justify-between">
                     <div class="flex justify-between text-[11px] text-purple-300">
                         <span>Efficiency: 98.5%</span>
                         <span class="text-emerald-400 font-semibold">+4.2% จากรอบก่อน</span>
@@ -285,15 +334,18 @@
                         <i class="fa-solid fa-sliders text-purple-400"></i>
                         <span>แผงควบคุมหลัก (Control Center)</span>
                     </h3>
-                    <span id="current-device-display" class="text-[11px] text-purple-300 font-mono bg-purple-950/60 px-2 py-0.5 rounded border border-purple-500/20">127.0.0.1:5563</span>
+                    <span id="current-device-display"
+                        class="text-[11px] text-purple-300 font-mono bg-purple-950/60 px-2 py-0.5 rounded border border-purple-500/20">127.0.0.1:5563</span>
                 </div>
 
                 <div class="grid grid-cols-2 gap-3 mb-4">
-                    <button onclick="toggleBotState()" id="center-run-btn" class="py-3 px-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold shadow-lg shadow-emerald-900/40 transition flex items-center justify-center space-x-2">
+                    <button onclick="toggleBotState()" id="center-run-btn"
+                        class="py-3 px-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold shadow-lg shadow-emerald-900/40 transition flex items-center justify-center space-x-2">
                         <i class="fa-solid fa-play text-sm" id="center-play-icon"></i>
                         <span id="center-play-text">เริ่มทำงานบอท</span>
                     </button>
-                    <button onclick="stopBotState()" class="py-3 px-4 rounded-2xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white text-xs font-bold shadow-lg shadow-rose-900/40 transition flex items-center justify-center space-x-2">
+                    <button onclick="stopBotState()"
+                        class="py-3 px-4 rounded-2xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white text-xs font-bold shadow-lg shadow-rose-900/40 transition flex items-center justify-center space-x-2">
                         <i class="fa-solid fa-stop text-sm"></i>
                         <span>หยุดการทำงาน</span>
                     </button>
@@ -301,19 +353,23 @@
 
                 <!-- Utility Buttons Grid -->
                 <div class="grid grid-cols-4 gap-2">
-                    <button onclick="showNotification('เคลียร์ RAM สำเร็จ')" class="glass-card p-2.5 rounded-xl flex flex-col items-center justify-center hover:bg-purple-800/40 transition text-purple-200">
+                    <button onclick="showNotification('เคลียร์ RAM สำเร็จ')"
+                        class="glass-card p-2.5 rounded-xl flex flex-col items-center justify-center hover:bg-purple-800/40 transition text-purple-200">
                         <i class="fa-solid fa-bolt text-amber-400 mb-1 text-sm"></i>
                         <span class="text-[10px]">เคลียร์ RAM</span>
                     </button>
-                    <button onclick="showNotification('รีสตาร์ทเกมแล้ว')" class="glass-card p-2.5 rounded-xl flex flex-col items-center justify-center hover:bg-purple-800/40 transition text-purple-200">
+                    <button onclick="showNotification('รีสตาร์ทเกมแล้ว')"
+                        class="glass-card p-2.5 rounded-xl flex flex-col items-center justify-center hover:bg-purple-800/40 transition text-purple-200">
                         <i class="fa-solid fa-rotate text-purple-400 mb-1 text-sm"></i>
                         <span class="text-[10px]">รีสตาร์ทเกม</span>
                     </button>
-                    <button onclick="showNotification('เชื่อมต่อ ADB สำเร็จ')" class="glass-card p-2.5 rounded-xl flex flex-col items-center justify-center hover:bg-purple-800/40 transition text-purple-200">
+                    <button onclick="showNotification('เชื่อมต่อ ADB สำเร็จ')"
+                        class="glass-card p-2.5 rounded-xl flex flex-col items-center justify-center hover:bg-purple-800/40 transition text-purple-200">
                         <i class="fa-solid fa-plug text-emerald-400 mb-1 text-sm"></i>
                         <span class="text-[10px]">เช็ค ADB</span>
                     </button>
-                    <button onclick="showNotification('บันทึกภาพหน้าจอเรียบร้อย')" class="glass-card p-2.5 rounded-xl flex flex-col items-center justify-center hover:bg-purple-800/40 transition text-purple-200">
+                    <button onclick="showNotification('บันทึกภาพหน้าจอเรียบร้อย')"
+                        class="glass-card p-2.5 rounded-xl flex flex-col items-center justify-center hover:bg-purple-800/40 transition text-purple-200">
                         <i class="fa-solid fa-camera text-sky-400 mb-1 text-sm"></i>
                         <span class="text-[10px]">แคปภาพจอ</span>
                     </button>
@@ -326,15 +382,18 @@
                     <div class="flex items-center space-x-2">
                         <i class="fa-solid fa-terminal text-purple-400"></i>
                         <h3 class="font-semibold text-sm text-white">Real-time Event Feed</h3>
-                        <span class="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-500/30">Live</span>
+                        <span
+                            class="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-500/30">Live</span>
                     </div>
                     <div class="flex items-center space-x-2">
-                        <button onclick="clearLogs()" class="text-xs text-purple-400 hover:text-purple-200 transition" title="ล้าง Log"><i class="fa-solid fa-trash-can"></i></button>
+                        <button onclick="clearLogs()" class="text-xs text-purple-400 hover:text-purple-200 transition"
+                            title="ล้าง Log"><i class="fa-solid fa-trash-can"></i></button>
                     </div>
                 </div>
 
                 <!-- Log Stream Box -->
-                <div id="log-container" class="flex-1 bg-slate-950/70 rounded-2xl p-3 border border-purple-500/20 font-mono text-[11px] text-purple-200/90 overflow-y-auto max-h-[300px] custom-scrollbar space-y-2">
+                <div id="log-container"
+                    class="flex-1 bg-slate-950/70 rounded-2xl p-3 border border-purple-500/20 font-mono text-[11px] text-purple-200/90 overflow-y-auto max-h-[300px] custom-scrollbar space-y-2">
                     <div class="flex items-start space-x-2 border-b border-purple-900/40 pb-1.5">
                         <span class="text-purple-400 shrink-0">16:21:49</span>
                         <span class="text-emerald-400 font-bold shrink-0">[HEART]</span>
@@ -345,7 +404,8 @@
                         <span class="text-purple-400 shrink-0">16:21:54</span>
                         <span class="text-emerald-400 font-bold shrink-0">[HEART]</span>
                         <span class="text-purple-300 shrink-0">127.0.0.1:5563</span>
-                        <span class="text-slate-300 truncate">[STEP 10a] HeartFarmer (Emulator 4) ส่งหัวใจสำเร็จ (รอบที่ 120)</span>
+                        <span class="text-slate-300 truncate">[STEP 10a] HeartFarmer (Emulator 4) ส่งหัวใจสำเร็จ (รอบที่
+                            120)</span>
                     </div>
                     <div class="flex items-start space-x-2 border-b border-purple-900/40 pb-1.5">
                         <span class="text-purple-400 shrink-0">16:22:05</span>
@@ -367,8 +427,10 @@
     </main>
 
     <!-- SETTINGS MODAL -->
-    <div id="settings-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden items-center justify-center p-4">
-        <div class="glass-panel w-full max-w-2xl rounded-3xl p-6 border border-purple-500/40 max-h-[90vh] overflow-y-auto custom-scrollbar shadow-2xl">
+    <div id="settings-modal"
+        class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden items-center justify-center p-4">
+        <div
+            class="glass-panel w-full max-w-2xl rounded-3xl p-6 border border-purple-500/40 max-h-[90vh] overflow-y-auto custom-scrollbar shadow-2xl">
             <div class="flex items-center justify-between mb-5 border-b border-purple-500/20 pb-3">
                 <div class="flex items-center space-x-3">
                     <div class="w-9 h-9 rounded-xl bg-purple-600/30 text-purple-300 flex items-center justify-center">
@@ -379,7 +441,8 @@
                         <p class="text-xs text-purple-300">บันทึกแยกอิสระตาม Emulator: 127.0.0.1:5563</p>
                     </div>
                 </div>
-                <button onclick="closeModal('settings-modal')" class="w-8 h-8 rounded-full bg-purple-900/50 hover:bg-purple-700/50 text-purple-200 flex items-center justify-center transition">
+                <button onclick="closeModal('settings-modal')"
+                    class="w-8 h-8 rounded-full bg-purple-900/50 hover:bg-purple-700/50 text-purple-200 flex items-center justify-center transition">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
@@ -389,29 +452,35 @@
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs text-purple-200 mb-1">Device IP</label>
-                        <input type="text" value="127.0.0.1" class="w-full bg-purple-950/60 border border-purple-500/30 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-purple-400">
+                        <input type="text" value="127.0.0.1"
+                            class="w-full bg-purple-950/60 border border-purple-500/30 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-purple-400">
                     </div>
                     <div>
                         <label class="block text-xs text-purple-200 mb-1">ADB Port</label>
-                        <input type="text" value="7555" class="w-full bg-purple-950/60 border border-purple-500/30 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-purple-400">
+                        <input type="text" value="7555"
+                            class="w-full bg-purple-950/60 border border-purple-500/30 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-purple-400">
                     </div>
                 </div>
 
                 <!-- Toggle Options -->
                 <div class="grid grid-cols-2 gap-3 pt-2">
-                    <label class="glass-card p-3 rounded-2xl flex items-center justify-between cursor-pointer hover:border-purple-400 transition">
+                    <label
+                        class="glass-card p-3 rounded-2xl flex items-center justify-between cursor-pointer hover:border-purple-400 transition">
                         <span class="text-xs text-purple-200">HP Boost (เพิ่มพลังชีวิต)</span>
                         <input type="checkbox" checked class="accent-purple-500 w-4 h-4 rounded">
                     </label>
-                    <label class="glass-card p-3 rounded-2xl flex items-center justify-between cursor-pointer hover:border-purple-400 transition">
+                    <label
+                        class="glass-card p-3 rounded-2xl flex items-center justify-between cursor-pointer hover:border-purple-400 transition">
                         <span class="text-xs text-purple-200">Item Extension</span>
                         <input type="checkbox" checked class="accent-purple-500 w-4 h-4 rounded">
                     </label>
-                    <label class="glass-card p-3 rounded-2xl flex items-center justify-between cursor-pointer hover:border-purple-400 transition">
+                    <label
+                        class="glass-card p-3 rounded-2xl flex items-center justify-between cursor-pointer hover:border-purple-400 transition">
                         <span class="text-xs text-purple-200">Double EXP</span>
                         <input type="checkbox" checked class="accent-purple-500 w-4 h-4 rounded">
                     </label>
-                    <label class="glass-card p-3 rounded-2xl flex items-center justify-between cursor-pointer hover:border-purple-400 transition">
+                    <label
+                        class="glass-card p-3 rounded-2xl flex items-center justify-between cursor-pointer hover:border-purple-400 transition">
                         <span class="text-xs text-purple-200">ชิ้นส่วนวัตถุโบราณอัตโนมัติ</span>
                         <input type="checkbox" checked class="accent-purple-500 w-4 h-4 rounded">
                     </label>
@@ -427,27 +496,33 @@
                         <div class="flex items-center space-x-2">
                             <input type="checkbox" class="accent-purple-500 w-4 h-4 rounded">
                             <span class="text-xs text-purple-200">หยุดตามจำนวนรอบ:</span>
-                            <input type="number" value="50" class="w-16 bg-purple-950/60 border border-purple-500/30 rounded-lg px-2 py-1 text-xs text-white">
+                            <input type="number" value="50"
+                                class="w-16 bg-purple-950/60 border border-purple-500/30 rounded-lg px-2 py-1 text-xs text-white">
                         </div>
                         <div class="flex items-center space-x-2">
                             <input type="checkbox" class="accent-purple-500 w-4 h-4 rounded">
                             <span class="text-xs text-purple-200">หยุดตามเวลา (ชม.):</span>
-                            <input type="number" value="2" class="w-16 bg-purple-950/60 border border-purple-500/30 rounded-lg px-2 py-1 text-xs text-white">
+                            <input type="number" value="2"
+                                class="w-16 bg-purple-950/60 border border-purple-500/30 rounded-lg px-2 py-1 text-xs text-white">
                         </div>
                     </div>
                 </div>
             </div>
 
             <div class="flex justify-end space-x-3 mt-6 pt-4 border-t border-purple-500/20">
-                <button onclick="closeModal('settings-modal')" class="px-4 py-2 rounded-xl bg-purple-900/40 hover:bg-purple-800/60 text-purple-200 text-xs font-medium transition">ยกเลิก</button>
-                <button onclick="saveSettings()" class="px-5 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-semibold shadow-lg shadow-purple-900/40 transition">บันทึกการตั้งค่า</button>
+                <button onclick="closeModal('settings-modal')"
+                    class="px-4 py-2 rounded-xl bg-purple-900/40 hover:bg-purple-800/60 text-purple-200 text-xs font-medium transition">ยกเลิก</button>
+                <button onclick="saveSettings()"
+                    class="px-5 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-semibold shadow-lg shadow-purple-900/40 transition">บันทึกการตั้งค่า</button>
             </div>
         </div>
     </div>
 
     <!-- MACRO STUDIO MODAL -->
-    <div id="macro-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden items-center justify-center p-4">
-        <div class="glass-panel w-full max-w-4xl rounded-3xl p-6 border border-purple-500/40 max-h-[90vh] overflow-y-auto custom-scrollbar shadow-2xl">
+    <div id="macro-modal"
+        class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden items-center justify-center p-4">
+        <div
+            class="glass-panel w-full max-w-4xl rounded-3xl p-6 border border-purple-500/40 max-h-[90vh] overflow-y-auto custom-scrollbar shadow-2xl">
             <div class="flex items-center justify-between mb-5 border-b border-purple-500/20 pb-3">
                 <div class="flex items-center space-x-3">
                     <div class="w-9 h-9 rounded-xl bg-purple-600/30 text-purple-300 flex items-center justify-center">
@@ -455,19 +530,27 @@
                     </div>
                     <div>
                         <h3 class="font-bold text-white text-base">ระบบมาโครวิ่งอัตโนมัติ (Macro Timeline System)</h3>
-                        <p class="text-xs text-purple-300">Zero Delay &lt; 0.2ms - รองรับการบันทึกจากหน้าจอสดและ JSON</p>
+                        <p class="text-xs text-purple-300">Zero Delay &lt; 0.2ms - รองรับการบันทึกจากหน้าจอสดและ JSON
+                        </p>
                     </div>
                 </div>
-                <button onclick="closeModal('macro-modal')" class="w-8 h-8 rounded-full bg-purple-900/50 hover:bg-purple-700/50 text-purple-200 flex items-center justify-center transition">
+                <button onclick="closeModal('macro-modal')"
+                    class="w-8 h-8 rounded-full bg-purple-900/50 hover:bg-purple-700/50 text-purple-200 flex items-center justify-center transition">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
 
             <!-- Tabs -->
             <div class="flex space-x-2 mb-4 border-b border-purple-500/20 pb-2">
-                <button onclick="switchMacroTab('library')" id="btn-tab-library" class="px-4 py-2 rounded-xl bg-purple-600 text-white text-xs font-semibold transition">คลังมาโคร (2)</button>
-                <button onclick="switchMacroTab('recorder')" id="btn-tab-recorder" class="px-4 py-2 rounded-xl bg-purple-950/40 text-purple-300 hover:bg-purple-900/60 text-xs font-semibold transition">อัดมาโครสด (Auto In-Game Recorder)</button>
-                <button onclick="switchMacroTab('editor')" id="btn-tab-editor" class="px-4 py-2 rounded-xl bg-purple-950/40 text-purple-300 hover:bg-purple-900/60 text-xs font-semibold transition">แก้ไขไทม์ไลน์ (Timeline Editor)</button>
+                <button onclick="switchMacroTab('library')" id="btn-tab-library"
+                    class="px-4 py-2 rounded-xl bg-purple-600 text-white text-xs font-semibold transition">คลังมาโคร
+                    (2)</button>
+                <button onclick="switchMacroTab('recorder')" id="btn-tab-recorder"
+                    class="px-4 py-2 rounded-xl bg-purple-950/40 text-purple-300 hover:bg-purple-900/60 text-xs font-semibold transition">อัดมาโครสด
+                    (Auto In-Game Recorder)</button>
+                <button onclick="switchMacroTab('editor')" id="btn-tab-editor"
+                    class="px-4 py-2 rounded-xl bg-purple-950/40 text-purple-300 hover:bg-purple-900/60 text-xs font-semibold transition">แก้ไขไทม์ไลน์
+                    (Timeline Editor)</button>
             </div>
 
             <!-- Tab Content: Library -->
@@ -477,7 +560,8 @@
                         <div>
                             <div class="flex justify-between items-start mb-2">
                                 <h4 class="font-bold text-white text-sm">มาโคร #1: ด่าน 1 หนีเต่า - สเต็ปเหรียญ</h4>
-                                <span class="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded border border-emerald-500/30">ใช้งานอยู่</span>
+                                <span
+                                    class="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded border border-emerald-500/30">ใช้งานอยู่</span>
                             </div>
                             <p class="text-xs text-purple-300 mb-3">บันทึกจากเล่นเกมสดเมื่อ 13/09/2026 00:33</p>
                             <div class="flex items-center space-x-3 text-xs text-purple-200 mb-4">
@@ -486,17 +570,21 @@
                             </div>
                         </div>
                         <div class="flex items-center justify-between pt-3 border-t border-purple-500/20">
-                            <button onclick="showNotification('เลือกมาโครเรียบร้อย')" class="px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-medium transition">
+                            <button onclick="showNotification('เลือกมาโครเรียบร้อย')"
+                                class="px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-medium transition">
                                 <i class="fa-solid fa-check mr-1"></i> เลือกใช้สำหรับบอท
                             </button>
-                            <button onclick="showNotification('ลบมาโครแล้ว')" class="text-rose-400 hover:text-rose-300 p-1.5 transition"><i class="fa-solid fa-trash-can text-xs"></i></button>
+                            <button onclick="showNotification('ลบมาโครแล้ว')"
+                                class="text-rose-400 hover:text-rose-300 p-1.5 transition"><i
+                                    class="fa-solid fa-trash-can text-xs"></i></button>
                         </div>
                     </div>
                     <div class="glass-card p-4 rounded-2xl border border-purple-500/20 flex flex-col justify-between">
                         <div>
                             <div class="flex justify-between items-start mb-2">
                                 <h4 class="font-bold text-white text-sm">มาโครบันทึกจากการเล่นสด #2</h4>
-                                <span class="text-[10px] bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded border border-purple-500/30">สำรอง</span>
+                                <span
+                                    class="text-[10px] bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded border border-purple-500/30">สำรอง</span>
                             </div>
                             <p class="text-xs text-purple-300 mb-3">บันทึกจากเล่นเกมสดเมื่อ 12/09/2026 21:11</p>
                             <div class="flex items-center space-x-3 text-xs text-purple-200 mb-4">
@@ -505,10 +593,13 @@
                             </div>
                         </div>
                         <div class="flex items-center justify-between pt-3 border-t border-purple-500/20">
-                            <button onclick="showNotification('เลือกมาโครเรียบร้อย')" class="px-3 py-1.5 rounded-lg bg-purple-900/60 hover:bg-purple-700/60 text-white text-xs font-medium transition">
+                            <button onclick="showNotification('เลือกมาโครเรียบร้อย')"
+                                class="px-3 py-1.5 rounded-lg bg-purple-900/60 hover:bg-purple-700/60 text-white text-xs font-medium transition">
                                 <i class="fa-solid fa-check mr-1"></i> เลือกใช้สำหรับบอท
                             </button>
-                            <button onclick="showNotification('ลบมาโครแล้ว')" class="text-rose-400 hover:text-rose-300 p-1.5 transition"><i class="fa-solid fa-trash-can text-xs"></i></button>
+                            <button onclick="showNotification('ลบมาโครแล้ว')"
+                                class="text-rose-400 hover:text-rose-300 p-1.5 transition"><i
+                                    class="fa-solid fa-trash-can text-xs"></i></button>
                         </div>
                     </div>
                 </div>
@@ -517,12 +608,17 @@
             <!-- Tab Content: Recorder -->
             <div id="tab-recorder" class="space-y-4 hidden">
                 <div class="glass-card p-4 rounded-2xl border border-rose-500/30 bg-rose-950/20">
-                    <h4 class="font-bold text-rose-300 text-sm mb-1"><i class="fa-solid fa-circle-dot text-rose-500 mr-2 animate-pulse"></i>ระบบบันทึกมาโครอัจฉริยะ (Smart In-Game Trigger)</h4>
-                    <p class="text-xs text-purple-200">กดปุ่มเตรียมบันทึก แล้วเข้าเกมวิ่งในอีมูเลเตอร์ตามปกติ ระบบจะตรวจจับและเริ่มจับเวลาอัตโนมัติ</p>
+                    <h4 class="font-bold text-rose-300 text-sm mb-1"><i
+                            class="fa-solid fa-circle-dot text-rose-500 mr-2 animate-pulse"></i>ระบบบันทึกมาโครอัจฉริยะ
+                        (Smart In-Game Trigger)</h4>
+                    <p class="text-xs text-purple-200">กดปุ่มเตรียมบันทึก แล้วเข้าเกมวิ่งในอีมูเลเตอร์ตามปกติ
+                        ระบบจะตรวจจับและเริ่มจับเวลาอัตโนมัติ</p>
                 </div>
                 <div class="text-center py-8">
-                    <button onclick="showNotification('เริ่มเตรียมบันทึกมาโครสดแล้ว')" class="px-8 py-4 rounded-2xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-bold text-sm shadow-xl shadow-rose-900/50 transition">
-                        <i class="fa-solid fa-circle text-xs mr-2 animate-pulse"></i> เตรียมเริ่มบันทึก (รอตรวจจับหน้าเกมวิ่งอัตโนมัติ)
+                    <button onclick="showNotification('เริ่มเตรียมบันทึกมาโครสดแล้ว')"
+                        class="px-8 py-4 rounded-2xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-bold text-sm shadow-xl shadow-rose-900/50 transition">
+                        <i class="fa-solid fa-circle text-xs mr-2 animate-pulse"></i> เตรียมเริ่มบันทึก
+                        (รอตรวจจับหน้าเกมวิ่งอัตโนมัติ)
                     </button>
                 </div>
             </div>
@@ -532,35 +628,43 @@
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs text-purple-200 mb-1">ชื่อมาโคร (Macro Name)</label>
-                        <input type="text" value="ด่าน 1 หนีเต๋า - สเต็ปเหรียญ" class="w-full bg-purple-950/60 border border-purple-500/30 rounded-xl px-3 py-2 text-xs text-white">
+                        <input type="text" value="ด่าน 1 หนีเต๋า - สเต็ปเหรียญ"
+                            class="w-full bg-purple-950/60 border border-purple-500/30 rounded-xl px-3 py-2 text-xs text-white">
                     </div>
                     <div>
                         <label class="block text-xs text-purple-200 mb-1">ระยะเวลารอบ (วินาที)</label>
-                        <input type="number" value="60" class="w-full bg-purple-950/60 border border-purple-500/30 rounded-xl px-3 py-2 text-xs text-white">
+                        <input type="number" value="60"
+                            class="w-full bg-purple-950/60 border border-purple-500/30 rounded-xl px-3 py-2 text-xs text-white">
                     </div>
                 </div>
                 <div class="flex space-x-2 pt-2">
-                    <button onclick="showNotification('เพิ่ม Action Jump สำเร็จ')" class="px-3 py-2 rounded-xl bg-purple-700 hover:bg-purple-600 text-white text-xs font-semibold">
+                    <button onclick="showNotification('เพิ่ม Action Jump สำเร็จ')"
+                        class="px-3 py-2 rounded-xl bg-purple-700 hover:bg-purple-600 text-white text-xs font-semibold">
                         <i class="fa-solid fa-plus mr-1"></i> + Jump
                     </button>
-                    <button onclick="showNotification('เพิ่ม Action Double Jump สำเร็จ')" class="px-3 py-2 rounded-xl bg-indigo-700 hover:bg-indigo-600 text-white text-xs font-semibold">
+                    <button onclick="showNotification('เพิ่ม Action Double Jump สำเร็จ')"
+                        class="px-3 py-2 rounded-xl bg-indigo-700 hover:bg-indigo-600 text-white text-xs font-semibold">
                         <i class="fa-solid fa-plus mr-1"></i> + Double Jump
                     </button>
-                    <button onclick="showNotification('เพิ่ม Action Slide สำเร็จ')" class="px-3 py-2 rounded-xl bg-amber-700 hover:bg-amber-600 text-white text-xs font-semibold">
+                    <button onclick="showNotification('เพิ่ม Action Slide สำเร็จ')"
+                        class="px-3 py-2 rounded-xl bg-amber-700 hover:bg-amber-600 text-white text-xs font-semibold">
                         <i class="fa-solid fa-plus mr-1"></i> + Slide
                     </button>
                 </div>
             </div>
 
             <div class="flex justify-end mt-6 pt-4 border-t border-purple-500/20">
-                <button onclick="closeModal('macro-modal')" class="px-4 py-2 rounded-xl bg-purple-900/40 hover:bg-purple-800/60 text-purple-200 text-xs font-medium transition">ปิดหน้าต่าง</button>
+                <button onclick="closeModal('macro-modal')"
+                    class="px-4 py-2 rounded-xl bg-purple-900/40 hover:bg-purple-800/60 text-purple-200 text-xs font-medium transition">ปิดหน้าต่าง</button>
             </div>
         </div>
     </div>
 
     <!-- HEART FARMER & FRIEND CLEANER MODAL -->
-    <div id="heart-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden items-center justify-center p-4">
-        <div class="glass-panel w-full max-w-2xl rounded-3xl p-6 border border-pink-500/40 max-h-[90vh] overflow-y-auto custom-scrollbar shadow-2xl">
+    <div id="heart-modal"
+        class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden items-center justify-center p-4">
+        <div
+            class="glass-panel w-full max-w-2xl rounded-3xl p-6 border border-pink-500/40 max-h-[90vh] overflow-y-auto custom-scrollbar shadow-2xl">
             <div class="flex items-center justify-between mb-5 border-b border-pink-500/20 pb-3">
                 <div class="flex items-center space-x-3">
                     <div class="w-9 h-9 rounded-xl bg-pink-600/30 text-pink-300 flex items-center justify-center">
@@ -571,7 +675,8 @@
                         <p class="text-xs text-pink-300">ระบบปั๊มหัวใจเพื่อนใหม่ และลบเพื่อนเลิกเล่นอัตโนมัติ</p>
                     </div>
                 </div>
-                <button onclick="closeModal('heart-modal')" class="w-8 h-8 rounded-full bg-purple-900/50 hover:bg-purple-700/50 text-purple-200 flex items-center justify-center transition">
+                <button onclick="closeModal('heart-modal')"
+                    class="w-8 h-8 rounded-full bg-purple-900/50 hover:bg-purple-700/50 text-purple-200 flex items-center justify-center transition">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
@@ -584,15 +689,20 @@
                             <i class="fa-solid fa-heart text-pink-500"></i>
                             <span>ระบบปั๊มหัวใจ (Heart Farmer)</span>
                         </h4>
-                        <span class="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-500/30">กำลังปั๊ม (รอบ 120)</span>
+                        <span
+                            class="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-500/30">กำลังปั๊ม
+                            (รอบ 120)</span>
                     </div>
                     <label class="block text-xs text-purple-200 mb-1">ลิงก์เชิญเพื่อนของคุณ (Invite Link)</label>
-                    <input type="text" value="https://cookierunglobal.onelink.me/Xr0A/haljparo" class="w-full bg-purple-950/60 border border-purple-500/30 rounded-xl px-3 py-2 text-xs text-white mb-3">
+                    <input type="text" value="https://cookierunglobal.onelink.me/Xr0A/haljparo"
+                        class="w-full bg-purple-950/60 border border-purple-500/30 rounded-xl px-3 py-2 text-xs text-white mb-3">
                     <div class="flex space-x-2">
-                        <button onclick="showNotification('เริ่มปั๊มหัวใจแล้ว')" class="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white font-semibold text-xs shadow-lg shadow-pink-900/40 transition">
+                        <button onclick="showNotification('เริ่มปั๊มหัวใจแล้ว')"
+                            class="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white font-semibold text-xs shadow-lg shadow-pink-900/40 transition">
                             <i class="fa-solid fa-play mr-1.5"></i> เริ่มปั๊มหัวใจ
                         </button>
-                        <button onclick="showNotification('หยุดปั๊มหัวใจแล้ว')" class="px-4 py-2.5 rounded-xl bg-purple-900/50 hover:bg-purple-700/50 text-purple-200 text-xs font-semibold transition">
+                        <button onclick="showNotification('หยุดปั๊มหัวใจแล้ว')"
+                            class="px-4 py-2.5 rounded-xl bg-purple-900/50 hover:bg-purple-700/50 text-purple-200 text-xs font-semibold transition">
                             หยุด
                         </button>
                     </div>
@@ -605,26 +715,31 @@
                             <i class="fa-solid fa-user-slash text-purple-400"></i>
                             <span>ระบบลบเพื่อนเลิกเล่น (Friend Cleaner)</span>
                         </h4>
-                        <span class="text-[10px] bg-slate-500/20 text-slate-300 px-2 py-0.5 rounded-full border border-slate-500/30">ยังไม่ได้เริ่ม</span>
+                        <span
+                            class="text-[10px] bg-slate-500/20 text-slate-300 px-2 py-0.5 rounded-full border border-slate-500/30">ยังไม่ได้เริ่ม</span>
                     </div>
                     <div class="grid grid-cols-2 gap-3 mb-3">
                         <div>
                             <label class="block text-xs text-purple-200 mb-1">เลือกเครื่องที่ทำงาน</label>
-                            <select class="w-full bg-purple-950/60 border border-purple-500/30 rounded-xl px-3 py-2 text-xs text-white">
+                            <select
+                                class="w-full bg-purple-950/60 border border-purple-500/30 rounded-xl px-3 py-2 text-xs text-white">
                                 <option>ทุกจอ</option>
                                 <option>อีพ-4</option>
                             </select>
                         </div>
                         <div>
                             <label class="block text-xs text-purple-200 mb-1">ทำซ้ำทุกๆ (นาที)</label>
-                            <input type="number" value="30" class="w-full bg-purple-950/60 border border-purple-500/30 rounded-xl px-3 py-2 text-xs text-white">
+                            <input type="number" value="30"
+                                class="w-full bg-purple-950/60 border border-purple-500/30 rounded-xl px-3 py-2 text-xs text-white">
                         </div>
                     </div>
                     <div class="flex space-x-2">
-                        <button onclick="showNotification('เริ่มลูป Friend Cleaner แล้ว')" class="flex-1 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition">
+                        <button onclick="showNotification('เริ่มลูป Friend Cleaner แล้ว')"
+                            class="flex-1 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition">
                             <i class="fa-solid fa-repeat mr-1"></i> เริ่มวนลูป
                         </button>
-                        <button onclick="showNotification('ลบรอบเดียวเรียบร้อย')" class="px-4 py-2 rounded-xl bg-purple-800/40 hover:bg-purple-700/60 text-purple-200 text-xs font-semibold transition">
+                        <button onclick="showNotification('ลบรอบเดียวเรียบร้อย')"
+                            class="px-4 py-2 rounded-xl bg-purple-800/40 hover:bg-purple-700/60 text-purple-200 text-xs font-semibold transition">
                             ลบรอบเดียว
                         </button>
                     </div>
@@ -632,13 +747,15 @@
             </div>
 
             <div class="flex justify-end mt-6 pt-4 border-t border-purple-500/20">
-                <button onclick="closeModal('heart-modal')" class="px-4 py-2 rounded-xl bg-purple-900/40 hover:bg-purple-800/60 text-purple-200 text-xs font-medium transition">ปิดหน้าต่าง</button>
+                <button onclick="closeModal('heart-modal')"
+                    class="px-4 py-2 rounded-xl bg-purple-900/40 hover:bg-purple-800/60 text-purple-200 text-xs font-medium transition">ปิดหน้าต่าง</button>
             </div>
         </div>
     </div>
 
     <!-- Toast Notification Banner -->
-    <div id="toast" class="fixed bottom-6 right-6 z-50 transform translate-y-24 opacity-0 transition-all duration-300 bg-purple-900/90 backdrop-blur-md border border-purple-500/40 text-white px-4 py-3 rounded-2xl shadow-2xl flex items-center space-x-3">
+    <div id="toast"
+        class="fixed bottom-6 right-6 z-50 transform translate-y-24 opacity-0 transition-all duration-300 bg-purple-900/90 backdrop-blur-md border border-purple-500/40 text-white px-4 py-3 rounded-2xl shadow-2xl flex items-center space-x-3">
         <div class="w-7 h-7 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
             <i class="fa-solid fa-check text-xs"></i>
         </div>
@@ -661,18 +778,18 @@
             const startBtnHeader = document.getElementById('header-start-btn');
             const playIconHeader = document.getElementById('header-play-icon');
             const playTextHeader = document.getElementById('header-play-text');
-            
+
             const startBtnCenter = document.getElementById('center-run-btn');
             const playIconCenter = document.getElementById('center-play-icon');
             const playTextCenter = document.getElementById('center-play-text');
 
             if (isRunning) {
-                if(startBtnHeader) {
+                if (startBtnHeader) {
                     startBtnHeader.className = "px-4 py-2 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white text-xs font-semibold shadow-lg shadow-amber-900/40 transition flex items-center space-x-1.5 animate-pulse";
                     playIconHeader.className = "fa-solid fa-pause";
                     playTextHeader.innerText = "หยุดชั่วคราว";
                 }
-                if(startBtnCenter) {
+                if (startBtnCenter) {
                     startBtnCenter.className = "py-3 px-4 rounded-2xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white text-xs font-bold shadow-lg shadow-amber-900/40 transition flex items-center justify-center space-x-2 animate-pulse";
                     playIconCenter.className = "fa-solid fa-pause";
                     playTextCenter.innerText = "หยุดชั่วคราว";
@@ -697,17 +814,17 @@
             const startBtnHeader = document.getElementById('header-start-btn');
             const playIconHeader = document.getElementById('header-play-icon');
             const playTextHeader = document.getElementById('header-play-text');
-            
+
             const startBtnCenter = document.getElementById('center-run-btn');
             const playIconCenter = document.getElementById('center-play-icon');
             const playTextCenter = document.getElementById('center-play-text');
 
-            if(startBtnHeader) {
+            if (startBtnHeader) {
                 startBtnHeader.className = "px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-semibold shadow-lg shadow-emerald-900/40 transition flex items-center space-x-1.5";
                 playIconHeader.className = "fa-solid fa-play";
                 playTextHeader.innerText = "เริ่มรันบอท";
             }
-            if(startBtnCenter) {
+            if (startBtnCenter) {
                 startBtnCenter.className = "py-3 px-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold shadow-lg shadow-emerald-900/40 transition flex items-center justify-center space-x-2";
                 playIconCenter.className = "fa-solid fa-play";
                 playTextCenter.innerText = "เริ่มทำงานบอท";
@@ -815,4 +932,5 @@
         }
     </script>
 </body>
+
 </html>

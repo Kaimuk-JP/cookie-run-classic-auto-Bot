@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Terminal, Trash2, Wifi, WifiOff } from 'lucide-react';
+import { Terminal, Trash2 } from 'lucide-react';
 import { LogEntry } from '../../types/bot';
 import { botApi } from '../../api/botApi';
 import { FormattedTextWithIcons } from '../../utils/iconMap';
@@ -132,11 +132,11 @@ export const LogsConsole: React.FC<LogsConsoleProps> = ({ deviceSerial }) => {
       {/* Header Bar */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center space-x-2">
-          <Terminal className="w-4 h-4 text-purple-400" />
+          <Terminal className="w-4 h-4 text-[#DC95FF]" />
           <h3 className="font-semibold text-sm text-white">Real-time Event Feed</h3>
           {isConnected ? (
-            <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-500/30 flex items-center space-x-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span className="text-[10px] bg-[#DC95FF]/20 text-[#FFF4BF] px-2 py-0.5 rounded-full border border-[#DC95FF]/30 flex items-center space-x-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#FFF4BF] animate-pulse"></span>
               <span>Live</span>
             </span>
           ) : (
@@ -147,18 +147,18 @@ export const LogsConsole: React.FC<LogsConsoleProps> = ({ deviceSerial }) => {
         </div>
 
         <div className="flex items-center space-x-2">
-          <label className="flex items-center space-x-1 text-[10px] text-purple-300 cursor-pointer select-none">
+          <label className="flex items-center space-x-1 text-[10px] text-[#FFBEFB] cursor-pointer select-none">
             <input
               type="checkbox"
               checked={autoScroll}
               onChange={(e) => setAutoScroll(e.target.checked)}
-              className="accent-purple-500 w-3 h-3 rounded"
+              className="accent-[#8C56D4] w-3 h-3 rounded"
             />
             <span>ออโต้</span>
           </label>
           <button
             onClick={() => setLogs([])}
-            className="text-xs text-purple-400 hover:text-purple-200 transition p-1 cursor-pointer"
+            className="text-xs text-[#DC95FF] hover:text-[#FFF4BF] transition p-1 cursor-pointer"
             title="ล้าง Log"
           >
             <Trash2 className="w-3.5 h-3.5" />
@@ -170,39 +170,39 @@ export const LogsConsole: React.FC<LogsConsoleProps> = ({ deviceSerial }) => {
       <div
         ref={containerRef}
         id="log-container"
-        className="flex-1 bg-slate-950/70 rounded-2xl p-3 border border-purple-500/20 font-mono text-[11px] text-purple-200/90 overflow-y-auto max-h-[300px] custom-scrollbar space-y-2"
+        className="flex-1 bg-[#150d24]/85 rounded-2xl p-3 border border-[#DC95FF]/25 font-mono text-[11px] text-slate-200 overflow-y-auto max-h-[300px] custom-scrollbar space-y-2"
       >
         {logs.length === 0 ? (
-          <div className="text-purple-400/60 italic text-center py-8">
+          <div className="text-[#DC95FF]/60 italic text-center py-8">
             ยังไม่มีข้อความบันทึกเหตุการณ์...
           </div>
         ) : (
           logs.map((log, idx) => {
             const msg = log.message || '';
             let type = 'INFO';
-            let typeColor = 'text-emerald-400';
+            let typeColor = 'text-[#FFF4BF]';
 
             if (msg.includes('[BOT]') || log.level === 'bot') {
               type = 'BOT';
-              typeColor = 'text-cyan-400';
+              typeColor = 'text-[#DC95FF]';
             } else if (msg.includes('[ADB]') || log.level === 'adb' || msg.includes('Tap')) {
               type = 'ACTION';
-              typeColor = 'text-amber-400';
+              typeColor = 'text-[#FFF4BF]';
             } else if (msg.includes('[MACRO]') || msg.includes('มาโคร')) {
               type = 'MACRO';
-              typeColor = 'text-amber-400';
+              typeColor = 'text-[#FFBEFB]';
             } else if (msg.includes('[FARMER]') || msg.includes('[HeartFarmer]') || log.level === 'farmer' || msg.includes('หัวใจ')) {
               type = 'HEART';
-              typeColor = 'text-pink-400';
+              typeColor = 'text-[#FFBEFB]';
             } else if (msg.includes('[CLEANER]') || msg.includes('[FriendCleaner]') || log.level === 'cleaner' || msg.includes('ลบเพื่อน')) {
               type = 'CLEAN';
-              typeColor = 'text-teal-400';
+              typeColor = 'text-teal-300';
             } else if (msg.includes('[ERROR]') || log.level === 'error' || msg.includes('Error') || msg.includes('ล้มเหลว')) {
               type = 'ERR';
               typeColor = 'text-rose-400';
             } else if (msg.includes('[SYSTEM]') || log.level === 'sys') {
               type = 'SYSTEM';
-              typeColor = 'text-purple-400';
+              typeColor = 'text-[#DC95FF]';
             }
 
             const cleanMsg = msg
@@ -212,20 +212,20 @@ export const LogsConsole: React.FC<LogsConsoleProps> = ({ deviceSerial }) => {
             return (
               <div
                 key={idx}
-                className="flex items-start space-x-2 border-b border-purple-900/40 pb-1.5 last:border-b-0"
+                className="flex items-start space-x-2 border-b border-[#DC95FF]/10 pb-1.5 last:border-b-0"
               >
-                <span className="text-purple-400 shrink-0 font-mono text-[10px]">
+                <span className="text-[#DC95FF]/80 shrink-0 font-mono text-[10px]">
                   {log.timestamp || '00:00:00'}
                 </span>
                 <span className={`${typeColor} font-bold shrink-0 text-[10px]`}>
                   [{type}]
                 </span>
                 {log.target && (
-                  <span className="text-purple-300 shrink-0 text-[10px] font-mono">
+                  <span className="text-[#FFBEFB] shrink-0 text-[10px] font-mono">
                     {log.target}
                   </span>
                 )}
-                <span className="text-slate-300 truncate">
+                <span className="text-slate-200 truncate">
                   <FormattedTextWithIcons text={cleanMsg || msg} />
                 </span>
               </div>

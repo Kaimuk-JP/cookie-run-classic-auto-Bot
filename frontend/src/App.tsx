@@ -210,8 +210,8 @@ export function App() {
       </main>
 
       {/* Footer */}
-      <footer className="text-center py-4 text-xs text-purple-400/60 border-t border-purple-500/10 mt-auto">
-        CookieRun AutoBot • Next-Gen Dark Glassmorphism UX/UI PRO v3.0
+      <footer className="text-center py-4 text-xs text-[#DC95FF]/60 border-t border-[#DC95FF]/15 mt-auto">
+        CookieRun AutoBot • Amethyst & Pastel Palette Edition
       </footer>
 
       {/* Modals */}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Clock, Trophy, ArrowUpRight, Heart, UserMinus, Coins, Star } from 'lucide-react';
+import { Gem, Box, Shield, Coins, Heart, Trophy, UserMinus } from 'lucide-react';
 import { Device } from '../../types/bot';
 
 interface MetricsCardsProps {
@@ -8,169 +8,113 @@ interface MetricsCardsProps {
   onOpenStats: () => void;
 }
 
-export const MetricsCards: React.FC<MetricsCardsProps> = ({ device, devices = [], onOpenStats }) => {
+export const MetricsCards: React.FC<MetricsCardsProps> = ({
+  device,
+  devices = [],
+  onOpenStats,
+}) => {
   const isRunning = device?.is_running ?? false;
   const isFarmer = device?.active_mode === 'heart_farmer';
   const isCleaner = device?.active_mode === 'friend_cleaner';
 
-  // Calculate totals across ALL devices
-  const allDevices = devices && devices.length > 0 ? devices : (device ? [device] : []);
+  // Calculate totals across all devices for global view or active device
+  const allDevices = devices.length > 0 ? devices : (device ? [device] : []);
   const totalCoins = allDevices.reduce((sum, d) => sum + (d.coin_stats?.session_earned ?? 0), 0);
-  const totalXp = allDevices.reduce((sum, d) => sum + (d.coin_stats?.session_xp_earned ?? 0), 0);
-  const totalCoinsPerHour = allDevices.reduce((sum, d) => sum + (d.coin_stats?.coins_per_hour ?? 0), 0);
+
+  // Box statistics
+  const rainbowCount = allDevices.reduce(
+    (sum, d) => sum + (d.session_box_counts?.rainbow ?? d.box_counts?.rainbow ?? 0),
+    0
+  );
+  const goldCount = allDevices.reduce(
+    (sum, d) => sum + (d.session_box_counts?.gold ?? d.box_counts?.gold ?? 0),
+    0
+  );
+  const silverCount = allDevices.reduce(
+    (sum, d) => sum + (d.session_box_counts?.silver ?? d.box_counts?.silver ?? 0),
+    0
+  );
+
+  const roundsCount = isRunning
+    ? (device?.session_rounds ?? 0)
+    : (device?.rounds_played ?? 0);
+
+  const formatCoins = (coins: number) => {
+    if (coins >= 1000000) return `${(coins / 1000000).toFixed(1)}M`;
+    if (coins >= 1000) return `${(coins / 1000).toFixed(1)}K`;
+    return coins.toLocaleString();
+  };
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-      {/* 1. Combined Gold & EXP across All Devices (Replaces สถานะปัจจุบัน) */}
-      <div className="bg-gradient-to-br from-amber-50/80 via-white to-amber-50/40 border border-amber-200/90 rounded-2xl sm:rounded-3xl p-3.5 sm:p-4 shadow-card hover:shadow-md transition">
-        <div className="flex items-center justify-between">
-          <p className="text-xs font-bold text-amber-900/80">ผลรวมทุกจอ (All Devices)</p>
-          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
-            <Coins className="w-2.5 h-2.5 text-amber-600" />
-            รวม {allDevices.length} จอ
-          </span>
-        </div>
-
-        {/* Total Gold Display */}
-        <div className="mt-2 flex items-baseline gap-1.5">
-          <Coins className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500 shrink-0 self-center" />
-          <h4 className="text-lg sm:text-2xl font-black text-amber-700 font-mono tracking-tight">
-            +{totalCoins.toLocaleString()}
-          </h4>
-          <span className="text-[10px] sm:text-xs font-semibold text-amber-600">เหรียญ</span>
-        </div>
-
-        {/* Total EXP Display */}
-        <div className="mt-1 flex items-center gap-1.5 text-xs text-indigo-600 font-semibold font-mono">
-          <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400 shrink-0" />
-          <span>+{totalXp.toLocaleString()} EXP</span>
-          {totalCoinsPerHour > 0 && (
-            <span className="text-[10px] text-slate-400 font-normal ml-auto hidden sm:inline">
-              ~{(totalCoinsPerHour).toLocaleString()}/ชม.
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* 2. Rounds Played / Hearts Sent / Friend Cleaner Status */}
-      {isCleaner ? (
-        <div className="bg-white border border-teal-100 rounded-2xl sm:rounded-3xl p-3.5 sm:p-4 shadow-card hover:shadow-md transition flex items-center justify-between">
-          <div className="space-y-1">
-            <p className="text-xs font-medium text-slate-400">รอบถัดไป / สถานะ</p>
-            <h4 className="text-base sm:text-lg font-bold text-teal-700 font-mono truncate max-w-[150px]">
-              {device?.cleaner_stats?.next_run ? `เวลา ${device.cleaner_stats.next_run}` : 'กำลังทำงาน'}
-            </h4>
-            <span className="text-[11px] font-semibold text-teal-600 flex items-center gap-0.5">
-              {device?.cleaner_stats?.is_busy ? '⚡ กำลังทำงานบนจอนี้' : '⏳ รอรอบถัดไป'}
-            </span>
-          </div>
-          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-teal-50 flex items-center justify-center shrink-0 shadow-xs border border-teal-200">
-            <UserMinus className="w-5 h-5 sm:w-6 sm:h-6 text-teal-600" />
-          </div>
-        </div>
-      ) : isFarmer ? (
-        <div className="bg-white border border-pink-100 rounded-2xl sm:rounded-3xl p-3.5 sm:p-4 shadow-card hover:shadow-md transition flex items-center justify-between">
-          <div className="space-y-1">
-            <p className="text-xs font-medium text-slate-400">ส่งหัวใจสำเร็จ</p>
-            <h4 className="text-xl sm:text-2xl font-bold text-pink-600 font-mono">
-              {device?.heart_stats?.success_count ?? 0}{' '}
-              <span className="text-xs font-semibold text-pink-400">ดวง</span>
-            </h4>
-            <span className="text-[11px] font-semibold text-pink-600 flex items-center gap-0.5">
-              ↑ สำเร็จ {device?.heart_stats?.success_count ?? 0} / {device?.heart_stats?.rounds ?? 0} รอบ
-            </span>
-          </div>
-          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-pink-50 flex items-center justify-center shrink-0 shadow-xs border border-pink-200">
-            <Heart className="w-5 h-5 sm:w-6 sm:h-6 text-pink-500 fill-pink-500 animate-pulse" />
-          </div>
-        </div>
-      ) : (
-        <div className="bg-white border border-purple-100 rounded-2xl sm:rounded-3xl p-3.5 sm:p-4 shadow-card hover:shadow-md transition flex items-center justify-between">
-          <div className="space-y-1">
-            <p className="text-xs font-medium text-slate-400">รอบที่เล่นแล้ว</p>
-            <h4 className="text-xl sm:text-2xl font-bold text-slate-800 font-mono">
-              {isRunning
-                ? (device?.session_rounds ?? 0)
-                : (device?.rounds_played ?? 0)}
-              <span className="text-xs font-normal text-slate-400 ml-1">รอบ</span>
-            </h4>
-            <span className="text-[11px] font-semibold text-emerald-600 flex items-center gap-0.5">
-              {isRunning
-                ? `↑ รอบเซสชันนี้ (สะสม ${device?.rounds_played ?? 0} รอบ)`
-                : `↑ สะสมทั้งหมด ${device?.rounds_played ?? 0} รอบ`}
-            </span>
-          </div>
-          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-amber-50 flex items-center justify-center shrink-0 shadow-xs border border-amber-100">
-            <Trophy className="w-5 h-5 sm:w-6 sm:h-6 text-amber-600" />
-          </div>
-        </div>
-      )}
-
-      {/* 3. Mystery Boxes (Clickable to open StatsModal) */}
+    <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+      {/* 1. Diamond Box */}
       <div
         onClick={onOpenStats}
-        className="bg-white border border-purple-100 rounded-2xl sm:rounded-3xl p-3.5 sm:p-4 shadow-card hover:shadow-md hover:border-brand-300 transition cursor-pointer group flex items-center justify-between"
-        title="คลิกเพื่อดูสถิติกล่องแยกเกรด ไม้/เงิน/ทอง/รุ้ง"
+        className="glass-card p-3 rounded-2xl flex flex-col items-center justify-center text-center border-purple-500/20 hover:border-purple-400/50 transition cursor-pointer group"
       >
-        <div className="space-y-1">
-          <div className="flex items-center gap-1">
-            <p className="text-xs font-medium text-slate-400 group-hover:text-brand-600 transition">
-              กล่องปริศนา
-            </p>
-            <ArrowUpRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-brand-600 transition" />
-          </div>
-          <h4 className="text-xl sm:text-2xl font-bold text-slate-800 font-mono">
-            {isRunning
-              ? (device?.session_mystery_boxes ?? device?.mystery_boxes ?? 0)
-              : (device?.mystery_boxes ?? 0)}
-            <span className="text-xs font-normal text-slate-400 ml-1">กล่อง</span>
-          </h4>
-          <span className="text-[11px] font-semibold text-purple-600">
-            {isRunning
-              ? `รอบนี้ (สะสม ${device?.mystery_boxes ?? 0}) >`
-              : 'ดูสถิติสะสม >'}
-          </span>
+        <div className="w-8 h-8 rounded-full bg-purple-500/20 text-purple-300 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
+          <Gem className="w-4 h-4 text-purple-300" />
         </div>
-        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-purple-50 flex items-center justify-center shrink-0 shadow-xs border border-purple-100 group-hover:scale-105 transition">
-          <img src="/templates/BOX_WOOD.png" alt="กล่อง" className="w-7 h-7 sm:w-8 sm:h-8 object-contain drop-shadow-xs" />
-        </div>
+        <span className="text-[11px] text-purple-300 font-medium">Diamond Box</span>
+        <span className="text-base font-bold text-white mt-0.5 font-mono">{rainbowCount}</span>
       </div>
 
-      {/* 4. Total Uptime */}
-      <div className="bg-white border border-purple-100 rounded-2xl sm:rounded-3xl p-3.5 sm:p-4 shadow-card hover:shadow-md transition flex items-center justify-between">
-        <div className="space-y-1">
-          <p className="text-xs font-medium text-slate-400">เวลาการทำงานบอท</p>
-          <h4 className="text-lg sm:text-xl font-bold text-slate-800 font-mono">
-            {isRunning
-              ? (device?.session_uptime || device?.uptime || '00:00:00')
-              : (device?.uptime || '00:00:00')}
-          </h4>
-          <span
-            className={`text-[11px] font-semibold flex items-center gap-1 ${
-              isFarmer ? 'text-pink-600' : isRunning ? 'text-emerald-600' : 'text-slate-500'
-            }`}
-          >
-            <span
-              className={`w-1.5 h-1.5 rounded-full ${
-                isFarmer ? 'bg-pink-500 animate-pulse' : isRunning ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'
-              }`}
-            ></span>
-            {isFarmer
-              ? 'กำลังปั้มหัวใจ'
-              : isRunning
-              ? (device?.session_start_time ? `เริ่ม ${device.session_start_time}` : 'กำลังทำงาน')
-              : 'พร้อมทำงาน'}
-          </span>
+      {/* 2. Gold Box */}
+      <div
+        onClick={onOpenStats}
+        className="glass-card p-3 rounded-2xl flex flex-col items-center justify-center text-center border-amber-500/20 hover:border-amber-400/50 transition cursor-pointer group"
+      >
+        <div className="w-8 h-8 rounded-full bg-amber-500/20 text-amber-300 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
+          <Box className="w-4 h-4 text-amber-300" />
         </div>
-        <div
-          className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center shrink-0 shadow-xs border ${
-            isFarmer
-              ? 'bg-pink-50 text-pink-600 border-pink-100'
-              : 'bg-emerald-50 text-emerald-600 border-emerald-100'
-          }`}
-        >
-          <Clock className="w-5 h-5 sm:w-6 sm:h-6" />
+        <span className="text-[11px] text-amber-300 font-medium">Gold Box</span>
+        <span className="text-base font-bold text-white mt-0.5 font-mono">{goldCount}</span>
+      </div>
+
+      {/* 3. Silver Box */}
+      <div
+        onClick={onOpenStats}
+        className="glass-card p-3 rounded-2xl flex flex-col items-center justify-center text-center border-slate-400/20 hover:border-slate-300/50 transition cursor-pointer group"
+      >
+        <div className="w-8 h-8 rounded-full bg-slate-500/20 text-slate-300 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
+          <Shield className="w-4 h-4 text-slate-300" />
         </div>
+        <span className="text-[11px] text-slate-300 font-medium">Silver Box</span>
+        <span className="text-base font-bold text-white mt-0.5 font-mono">{silverCount}</span>
+      </div>
+
+      {/* 4. Total Coins */}
+      <div className="glass-card p-3 rounded-2xl flex flex-col items-center justify-center text-center border-yellow-500/20 hover:border-yellow-400/50 transition">
+        <div className="w-8 h-8 rounded-full bg-yellow-500/20 text-yellow-300 flex items-center justify-center mb-1.5">
+          <Coins className="w-4 h-4 text-yellow-300" />
+        </div>
+        <span className="text-[11px] text-yellow-300 font-medium">Total Coins</span>
+        <span className="text-base font-bold text-white mt-0.5 font-mono">
+          {formatCoins(totalCoins)}
+        </span>
+      </div>
+
+      {/* 5. Hearts Run / Cleaner / Rounds */}
+      <div className="glass-card col-span-2 sm:col-span-1 p-3 rounded-2xl flex flex-col items-center justify-center text-center border-pink-500/20 hover:border-pink-400/50 transition">
+        <div className="w-8 h-8 rounded-full bg-pink-500/20 text-pink-300 flex items-center justify-center mb-1.5">
+          {isCleaner ? (
+            <UserMinus className="w-4 h-4 text-teal-300" />
+          ) : isFarmer ? (
+            <Heart className="w-4 h-4 text-pink-300 animate-pulse" />
+          ) : (
+            <Trophy className="w-4 h-4 text-pink-300" />
+          )}
+        </div>
+        <span className="text-[11px] text-pink-300 font-medium">
+          {isCleaner ? 'Cleaner' : isFarmer ? 'Hearts Run' : 'Total Rounds'}
+        </span>
+        <span className="text-base font-bold text-white mt-0.5 font-mono">
+          {isCleaner
+            ? (device?.cleaner_stats?.is_busy ? 'Busy' : 'Idle')
+            : isFarmer
+            ? device?.heart_stats?.success_count ?? 0
+            : roundsCount}
+        </span>
       </div>
     </div>
   );

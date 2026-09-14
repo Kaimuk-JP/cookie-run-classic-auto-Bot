@@ -2,13 +2,11 @@ import React, { useState } from 'react';
 import {
   Play,
   Square,
-  Sparkles,
+  Zap,
   RotateCcw,
-  Wifi,
+  Plug,
   Camera,
-  Settings,
-  Bell,
-  Heart,
+  Sliders,
 } from 'lucide-react';
 import { botApi } from '../../api/botApi';
 import { toast, confirmModal } from '../../context/ToastContext';
@@ -29,10 +27,6 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
   isRunning,
   onStart,
   onStop,
-  onOpenSettings,
-  onOpenMacro,
-  onOpenDiscord,
-  onOpenTools,
 }) => {
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
 
@@ -40,7 +34,7 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
     setLoadingAction('ram');
     try {
       const res = await botApi.clearRam();
-      toast.success(res.message || 'เคลียร์ RAM เรียบร้อย');
+      toast.success(res.message || 'เคลียร์ RAM สำเร็จ');
     } catch (e: any) {
       toast.error('เคลียร์ RAM ไม่สำเร็จ: ' + e.message);
     } finally {
@@ -61,7 +55,7 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
     setLoadingAction('reset');
     try {
       const res = await botApi.resetApp(deviceSerial);
-      toast.success(res.message || 'รีสตาร์ทเกมเรียบร้อย');
+      toast.success(res.message || 'รีสตาร์ทเกมแล้ว');
     } catch (e: any) {
       toast.error('รีสตาร์ทเกมไม่สำเร็จ: ' + e.message);
     } finally {
@@ -74,7 +68,7 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
     setLoadingAction('adb');
     try {
       const res = await botApi.testConnection(deviceSerial);
-      toast.success(res.message || 'ADB ทำงานปกติ');
+      toast.success(res.message || 'เชื่อมต่อ ADB สำเร็จ');
     } catch (e: any) {
       toast.error('ตรวจสอบ ADB ไม่สำเร็จ: ' + e.message);
     } finally {
@@ -85,111 +79,82 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
   const handleCaptureScreen = () => {
     if (!deviceSerial) return toast.warning('กรุณาเลือกจอก่อน');
     window.open(`/api/screen?device=${encodeURIComponent(deviceSerial)}&download=1`, '_blank');
+    toast.success('บันทึกภาพหน้าจอเรียบร้อย');
   };
 
   return (
-    <div className="bg-white border border-purple-100 rounded-3xl p-4 shadow-card space-y-3">
-      <div className="flex items-center justify-between pb-2 border-b border-purple-50">
-        <h3 className="text-xs font-bold text-slate-800">แผงควบคุมและเครื่องมือด่วน</h3>
-        <span className="text-[11px] text-slate-400 font-mono truncate max-w-[140px]">
-          {deviceSerial || '-'}
+    <div className="glass-panel rounded-3xl p-5 shadow-xl space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <h3 className="font-semibold text-sm text-white flex items-center space-x-2">
+          <Sliders className="w-4 h-4 text-purple-400" />
+          <span>แผงควบคุมหลัก (Control Center)</span>
+        </h3>
+        <span className="text-[11px] text-purple-300 font-mono bg-purple-950/60 px-2 py-0.5 rounded border border-purple-500/20 truncate max-w-[140px]">
+          {deviceSerial || '127.0.0.1:5555'}
         </span>
       </div>
 
-      {/* Main Start / Stop Button */}
-      {isRunning ? (
-        <button
-          onClick={onStop}
-          className="w-full py-3.5 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-sm shadow-md shadow-rose-600/30 transition flex items-center justify-center gap-2 active:scale-98 animate-pulse cursor-pointer"
-        >
-          <Square className="w-4 h-4 fill-current" />
-          <span>หยุดบอท</span>
-        </button>
-      ) : (
+      {/* Main Start / Stop Buttons Grid */}
+      <div className="grid grid-cols-2 gap-3">
         <button
           onClick={onStart}
-          className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 text-white font-bold text-sm shadow-btn transition flex items-center justify-center gap-2 active:scale-98 cursor-pointer"
+          className={`py-3 px-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold shadow-lg shadow-emerald-900/40 transition flex items-center justify-center space-x-2 active:scale-95 cursor-pointer ${
+            isRunning ? 'opacity-80 ring-2 ring-emerald-400' : ''
+          }`}
         >
           <Play className="w-4 h-4 fill-current" />
-          <span>เริ่มบอท (Start Bot)</span>
+          <span>เริ่มทำงานบอท</span>
         </button>
-      )}
 
-      {/* 4 Tool Action Buttons */}
-      <div className="grid grid-cols-2 gap-2 text-xs font-semibold">
+        <button
+          onClick={onStop}
+          className="py-3 px-4 rounded-2xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white text-xs font-bold shadow-lg shadow-rose-900/40 transition flex items-center justify-center space-x-2 active:scale-95 cursor-pointer"
+        >
+          <Square className="w-4 h-4 fill-current" />
+          <span>หยุดการทำงาน</span>
+        </button>
+      </div>
+
+      {/* Utility Buttons Grid (4 columns) */}
+      <div className="grid grid-cols-4 gap-2">
         <button
           onClick={handleClearRam}
           disabled={loadingAction === 'ram'}
-          className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl border border-purple-100 hover:border-purple-200 bg-purple-50/50 hover:bg-purple-50 text-brand-700 transition active:scale-95 disabled:opacity-50"
-          title="เคลียร์ RAM 3 ระดับ (Python + Windows + Android)"
+          className="glass-card p-2.5 rounded-xl flex flex-col items-center justify-center hover:bg-purple-800/40 transition text-purple-200 active:scale-95 disabled:opacity-50 cursor-pointer"
+          title="เคลียร์ RAM 3 ระดับ"
         >
-          <Sparkles className="w-3.5 h-3.5 text-brand-600" />
-          <span>เคลียร์ RAM</span>
+          <Zap className="w-4 h-4 text-amber-400 mb-1" />
+          <span className="text-[10px]">เคลียร์ RAM</span>
         </button>
 
         <button
           onClick={handleResetApp}
           disabled={loadingAction === 'reset'}
-          className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl border border-slate-200 hover:border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-700 transition active:scale-95 disabled:opacity-50"
-          title="Force close และเปิดเกม CookieRun ใหม่"
+          className="glass-card p-2.5 rounded-xl flex flex-col items-center justify-center hover:bg-purple-800/40 transition text-purple-200 active:scale-95 disabled:opacity-50 cursor-pointer"
+          title="Force close & รีสตาร์ทเกม CookieRun"
         >
-          <RotateCcw className="w-3.5 h-3.5 text-slate-600" />
-          <span>รีสตาร์ทเกม</span>
+          <RotateCcw className="w-4 h-4 text-purple-400 mb-1" />
+          <span className="text-[10px]">รีสตาร์ทเกม</span>
         </button>
 
         <button
           onClick={handleTestAdb}
           disabled={loadingAction === 'adb'}
-          className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl border border-slate-200 hover:border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-700 transition active:scale-95 disabled:opacity-50"
+          className="glass-card p-2.5 rounded-xl flex flex-col items-center justify-center hover:bg-purple-800/40 transition text-purple-200 active:scale-95 disabled:opacity-50 cursor-pointer"
           title="ทดสอบสัญญาณการเชื่อมต่อ ADB"
         >
-          <Wifi className="w-3.5 h-3.5 text-emerald-600" />
-          <span>เช็ค ADB</span>
+          <Plug className="w-4 h-4 text-emerald-400 mb-1" />
+          <span className="text-[10px]">เช็ค ADB</span>
         </button>
 
         <button
           onClick={handleCaptureScreen}
-          className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl border border-slate-200 hover:border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-700 transition active:scale-95"
+          className="glass-card p-2.5 rounded-xl flex flex-col items-center justify-center hover:bg-purple-800/40 transition text-purple-200 active:scale-95 cursor-pointer"
           title="บันทึกภาพหน้าจอปัจจุบันและดาวน์โหลด"
         >
-          <Camera className="w-3.5 h-3.5 text-indigo-600" />
-          <span>แคปหน้าจอ</span>
-        </button>
-      </div>
-
-      {/* Settings, Macro, Discord, Heart Farmer modal launcher shortcuts */}
-      <div className="pt-2 border-t border-purple-50 grid grid-cols-4 gap-2 text-xs">
-        <button
-          onClick={onOpenSettings}
-          className="flex flex-col items-center gap-1 py-2 px-1 rounded-xl hover:bg-slate-50 text-slate-600 transition"
-        >
-          <Settings className="w-4 h-4 text-brand-600" />
-          <span className="text-[11px] font-medium">ตั้งค่าบอท</span>
-        </button>
-
-        <button
-          onClick={onOpenMacro}
-          className="flex flex-col items-center gap-1 py-2 px-1 rounded-xl bg-purple-50/70 hover:bg-purple-100/80 border border-purple-200 text-purple-700 transition active:scale-95 shadow-2xs"
-          title="ระบบมาโครเล่นตามไทม์ไลน์ (Zero Delay)"
-        >
-          <Sparkles className="w-4 h-4 text-purple-600" />
-          <span className="text-[11px] font-bold">มาโครวิ่ง</span>
-        </button>
-
-        <button
-          onClick={onOpenDiscord}
-          className="flex flex-col items-center gap-1 py-2 px-1 rounded-xl hover:bg-slate-50 text-slate-600 transition"
-        >
-          <Bell className="w-4 h-4 text-indigo-600" />
-          <span className="text-[11px] font-medium">Discord</span>
-        </button>
-
-        <button
-          onClick={onOpenTools}
-          className="flex flex-col items-center gap-1 py-2 px-1 rounded-xl hover:bg-slate-50 text-slate-600 transition"
-        >
-          <Heart className="w-4 h-4 text-pink-600" />
-          <span className="text-[11px] font-medium">ปั๊มหัวใจ</span>
+          <Camera className="w-4 h-4 text-sky-400 mb-1" />
+          <span className="text-[10px]">แคปภาพจอ</span>
         </button>
       </div>
     </div>

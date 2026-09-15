@@ -316,7 +316,10 @@
           <p class="text-xs text-brand-100 leading-relaxed">ให้การเล่นเกมเป็นเรื่องง่าย ด้วยระบบอัตโนมัติเต็มรูปแบบ</p>
           <div class="pt-2 flex items-center justify-between">
             <span
-              class="text-[11px] font-mono font-semibold px-2.5 py-1 rounded-full bg-white/20 backdrop-blur border border-white/30">
+              id="appVersionBadge"
+              title="คลิกเพื่อตรวจหาการอัปเดต"
+              onclick="checkAppUpdate(true)"
+              class="text-[11px] font-mono font-semibold px-2.5 py-1 rounded-full bg-white/20 backdrop-blur border border-white/30 cursor-pointer hover:bg-white/40 transition">
               v2.0.0
             </span>
             <span class="text-xs text-yellow-300">✨ Pro Edition</span>
@@ -329,6 +332,20 @@
 
     <!-- ==================== CENTER CONTENT CANVAS (7 cols) ==================== -->
     <main class="lg:col-span-9 xl:col-span-7 space-y-6">
+
+      <!-- Update Available Banner (Hidden by default) -->
+      <div id="updateBanner" class="hidden bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 text-white p-4 rounded-3xl shadow-lg flex items-center justify-between transition-all">
+        <div class="flex items-center space-x-3">
+          <span class="text-2xl">🚀</span>
+          <div>
+            <div class="font-bold text-sm" id="updateBannerTitle">ตรวจพบเวอร์ชันใหม่!</div>
+            <div class="text-xs text-amber-100" id="updateBannerSub">บอทจะทำงานต่ออัตโนมัติบนทุกจอเดิมทันทีหลังติดตั้งเสร็จ (Auto-Resume)</div>
+          </div>
+        </div>
+        <button onclick="triggerAppUpdate()" id="btnTriggerUpdate" class="px-4 py-2 bg-white text-orange-600 font-bold rounded-2xl text-xs shadow hover:bg-orange-50 transition active:scale-95 whitespace-nowrap">
+          อัปเดตทันที
+        </button>
+      </div>
 
       <!-- Top 4 Quick Metric Cards -->
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -2840,9 +2857,55 @@
       }
     }
 
+    // Auto-Update Functions
+    async function checkAppUpdate(userInitiated = false) {
+      try {
+        const res = await fetch('/api/system/version?check=true');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.version && document.getElementById('appVersionBadge')) {
+          document.getElementById('appVersionBadge').innerText = 'v' + data.version;
+        }
+        if (data.update_info && data.update_info.has_update) {
+          const banner = document.getElementById('updateBanner');
+          if (banner) {
+            document.getElementById('updateBannerTitle').innerText = `ตรวจพบ CookieRun Bot v${data.update_info.latest_version} พร้อมให้อัปเดต!`;
+            banner.classList.remove('hidden');
+          }
+        } else if (userInitiated) {
+          alert(`คุณกำลังใช้งานเวอร์ชันล่าสุด (v${data.version}) เรียบร้อยแล้ว`);
+        }
+      } catch (e) {
+        if (userInitiated) alert('ไม่สามารถตรวจสอบเวอร์ชันได้: ' + e);
+      }
+    }
+
+    async function triggerAppUpdate() {
+      if (!confirm('ยืนยันเริ่มการอัปเดต CookieRun Bot?\n\nระบบจะดาวน์โหลดไฟล์ ติดตั้งทับ และสั่งให้บอทกลับมาเริ่มทำงานต่ออัตโนมัติ (Auto-Resume) บนทุกจอเดิม')) return;
+      const btn = document.getElementById('btnTriggerUpdate');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerText = 'กำลังเริ่มอัปเดต...';
+      }
+      try {
+        const res = await fetch('/api/system/update', { method: 'POST' });
+        const json = await res.json();
+        if (json.success) {
+          alert(json.message || 'กำลังดาวน์โหลดและติดตั้งในพื้นหลัง...');
+        } else {
+          alert('เกิดข้อผิดพลาด: ' + (json.detail || json.message));
+          if (btn) { btn.disabled = false; btn.innerText = 'อัปเดตทันที'; }
+        }
+      } catch (e) {
+        alert('ส่งคำสั่งไม่สำเร็จ: ' + e);
+        if (btn) { btn.disabled = false; btn.innerText = 'อัปเดตทันที'; }
+      }
+    }
+
     // Initial launch
     window.addEventListener('DOMContentLoaded', () => {
       scanDevices();
+      setTimeout(() => checkAppUpdate(false), 4000);
     });
   </script>
 

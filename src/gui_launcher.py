@@ -59,6 +59,8 @@ from PIL import Image
 
 import auth_manager
 import adb
+from version import CURRENT_VERSION
+import updater
 
 # Global background server reference
 _server_thread: Optional[threading.Thread] = None
@@ -91,17 +93,234 @@ def start_backend_server(port: int):
         print(f"[Launcher] Background server error: {e}")
 
 
+# Appearance & Window Config - Warm Bakery Pastel Theme
+ctk.set_appearance_mode("light")
+ctk.set_default_color_theme("blue")
+ctk.DrawEngine.preferred_drawing_method = "polygon_shapes"
+
+
+class UpdateDialog(ctk.CTkToplevel):
+    """Modern modal dialog displaying update info, release notes, and download progress."""
+    def __init__(self, master, update_info: Dict[str, Any]):
+        super().__init__(master)
+        self.master = master
+        self.update_info = update_info
+        self.download_thread = None
+        self.is_downloading = False
+
+        self.title("🍪 อัปเดต CookieRun Bot Pro")
+        self.geometry("520x460")
+        self.resizable(False, False)
+        self.configure(fg_color="#FFFDF6")
+
+        # Modal behavior
+        self.transient(master)
+        self.grab_set()
+
+        # Center on master
+        self.update_idletasks()
+        try:
+            mx = master.winfo_x()
+            my = master.winfo_y()
+            mw = master.winfo_width()
+            mh = master.winfo_height()
+            x = mx + (mw // 2) - 260
+            y = my + (mh // 2) - 230
+            self.geometry(f"520x460+{x}+{y}")
+        except Exception:
+            pass
+
+        # Card container
+        card = ctk.CTkFrame(self, fg_color="#FFFFFF", corner_radius=18, border_width=1.5, border_color="#F0DFCE")
+        card.pack(fill="both", expand=True, padx=20, pady=20)
+
+        # Header
+        lbl_title = ctk.CTkLabel(
+            card,
+            text="🚀 ตรวจพบเวอร์ชันใหม่!",
+            font=ctk.CTkFont(size=18, weight="bold"),
+            text_color="#D97706"
+        )
+        lbl_title.pack(pady=(18, 6))
+
+        # Version Pill
+        cur_v = CURRENT_VERSION
+        new_v = update_info.get("latest_version", "New")
+        ver_frame = ctk.CTkFrame(card, fg_color="#FFF9F0", corner_radius=10, border_width=1, border_color="#EEDBCE")
+        ver_frame.pack(pady=(0, 12))
+        lbl_ver = ctk.CTkLabel(
+            ver_frame,
+            text=f"เวอร์ชันปัจจุบัน: v{cur_v}  ➔  เวอร์ชันใหม่: v{new_v}",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color="#6B4226"
+        )
+        lbl_ver.pack(padx=14, pady=6)
+
+        # Release Notes
+        lbl_notes_title = ctk.CTkLabel(
+            card,
+            text="รายละเอียดการเปลี่ยนแปลง (Changelog):",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color="#452311"
+        )
+        lbl_notes_title.pack(anchor="w", padx=22, pady=(4, 2))
+
+        self.txt_notes = ctk.CTkTextbox(
+            card,
+            height=110,
+            corner_radius=10,
+            fg_color="#FAFAFA",
+            border_width=1,
+            border_color="#E5E7EB",
+            font=ctk.CTkFont(size=11),
+            text_color="#374151"
+        )
+        self.txt_notes.pack(fill="x", padx=22, pady=(0, 10))
+        notes_text = update_info.get("release_notes") or "ปรับปรุงประสิทธิภาพและแก้ไขข้อผิดพลาดในการทำงาน"
+        self.txt_notes.insert("0.0", notes_text)
+        self.txt_notes.configure(state="disabled")
+
+        # Checkbox Auto-Resume
+        self.cb_resume = ctk.CTkCheckBox(
+            card,
+            text="⚡ ทำงานต่ออัตโนมัติบนทุกจอเดิมหลังอัปเดตเสร็จ (Auto-Resume)",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            text_color="#8A3B04",
+            fg_color="#F59E0B",
+            hover_color="#D97706"
+        )
+        self.cb_resume.pack(anchor="w", padx=22, pady=(0, 10))
+        self.cb_resume.select()
+
+        # Progress Bar & Status
+        self.lbl_status = ctk.CTkLabel(
+            card,
+            text="พร้อมเริ่มการอัปเดต",
+            font=ctk.CTkFont(size=11),
+            text_color="#6B7280"
+        )
+        self.lbl_status.pack(pady=(0, 4))
+
+        self.progress_bar = ctk.CTkProgressBar(card, height=12, corner_radius=6, progress_color="#F59E0B")
+        self.progress_bar.pack(fill="x", padx=22, pady=(0, 14))
+        self.progress_bar.set(0)
+
+        # Buttons
+        btn_box = ctk.CTkFrame(card, fg_color="transparent")
+        btn_box.pack(fill="x", padx=22, pady=(0, 16))
+
+        self.btn_cancel = ctk.CTkButton(
+            btn_box,
+            text="ไว้ภายหลัง",
+            width=100,
+            height=36,
+            corner_radius=10,
+            font=ctk.CTkFont(size=12, weight="bold"),
+            fg_color="#F3F4F6",
+            hover_color="#E5E7EB",
+            text_color="#4B5563",
+            command=self.destroy
+        )
+        self.btn_cancel.pack(side="left")
+
+        self.btn_start_update = ctk.CTkButton(
+            btn_box,
+            text="🚀 อัปเดตทันที",
+            height=36,
+            corner_radius=10,
+            font=ctk.CTkFont(size=12, weight="bold"),
+            fg_color="#F59E0B",
+            hover_color="#D97706",
+            text_color="#FFFFFF",
+            command=self.start_download_and_install
+        )
+        self.btn_start_update.pack(side="right", fill="x", expand=True, padx=(12, 0))
+
+    def start_download_and_install(self):
+        if self.is_downloading:
+            return
+        download_url = self.update_info.get("download_url")
+        if not download_url:
+            self.lbl_status.configure(text="❌ ไม่พบไฟล์/ลิงก์ดาวน์โหลดตัวติดตั้ง", text_color="#DC2626")
+            return
+
+        self.is_downloading = True
+        self.btn_start_update.configure(state="disabled", text="⏳ กำลังดาวน์โหลด...")
+        self.btn_cancel.configure(state="disabled")
+
+        # Save Auto-Resume state if checked
+        if self.cb_resume.get() == 1:
+            try:
+                from web_server import engine_manager, bot_engine, _farmer_threads, _farmer_instances
+                active_bots = [s for s, e in engine_manager.get_all_engines().items() if e.is_running]
+                if bot_engine.is_running and "default" not in active_bots:
+                    active_bots.append("default")
+
+                active_farmers = []
+                invites = {}
+                for d, t in list(_farmer_threads.items()):
+                    inst = _farmer_instances.get(d)
+                    if t and t.is_alive() and inst and not inst.stopped:
+                        active_farmers.append(d)
+                        invites[d] = getattr(inst, "invite_url", "")
+
+                updater.save_running_state_before_update(
+                    active_bot_devices=active_bots,
+                    active_farmer_devices=active_farmers,
+                    farmer_invites=invites
+                )
+            except Exception as e:
+                print(f"[UpdateDialog] Auto-resume save error: {e}")
+
+        # Start download thread
+        def worker():
+            def on_progress(downloaded, total, pct):
+                mb_dl = downloaded / (1024 * 1024)
+                mb_tot = total / (1024 * 1024) if total > 0 else 0
+                self.after(0, lambda: self._update_progress_ui(pct, mb_dl, mb_tot))
+
+            installer_path = updater.download_installer(download_url, progress_callback=on_progress)
+            if installer_path and os.path.isfile(installer_path):
+                self.after(0, lambda: self._on_download_complete(installer_path))
+            else:
+                self.after(0, self._on_download_failed)
+
+        self.download_thread = threading.Thread(target=worker, daemon=True)
+        self.download_thread.start()
+
+    def _update_progress_ui(self, pct: float, dl_mb: float, tot_mb: float):
+        self.progress_bar.set(pct / 100.0)
+        self.lbl_status.configure(
+            text=f"กำลังดาวน์โหลด: {pct:.1f}% ({dl_mb:.1f} MB / {tot_mb:.1f} MB)",
+            text_color="#D97706"
+        )
+
+    def _on_download_complete(self, installer_path: str):
+        self.progress_bar.set(1.0)
+        self.lbl_status.configure(
+            text="✅ ดาวน์โหลดเสร็จสิ้น! กำลังติดตั้งทับและรีสตาร์ทบอทอัตโนมัติ...",
+            text_color="#059669"
+        )
+        def launch():
+            time.sleep(1.0)
+            updater.launch_silent_installer_and_exit(installer_path)
+        threading.Thread(target=launch, daemon=True).start()
+
+    def _on_download_failed(self):
+        self.is_downloading = False
+        self.lbl_status.configure(text="❌ ดาวน์โหลดไม่สำเร็จ กรุณาลองใหม่อีกครั้ง", text_color="#DC2626")
+        self.btn_start_update.configure(state="normal", text="🚀 ลองใหม่อีกครั้ง")
+        self.btn_cancel.configure(state="normal")
+
+
 class CookieRunLauncherApp(ctk.CTk):
     def __init__(self):
-        super().__init__()
-
-        # Appearance & Window Config - Warm Bakery / Sweet Kingdom Pastel Theme
-        ctk.set_appearance_mode("light")
-        ctk.set_default_color_theme("blue")
+        super().__init__(fg_color="#FFFDF6")
 
         self.title("CookieRun Classic Bot - Launcher & Manager")
         self.geometry("880x640")
         self.minsize(800, 580)
+        self.configure(fg_color="#FFFDF6")
 
         # Set Window Icon
         icon_path = os.path.join(_this_dir, "bot_icon.ico")
@@ -119,6 +338,7 @@ class CookieRunLauncherApp(ctk.CTk):
         # Current User & State
         self.current_user: Optional[Dict[str, Any]] = None
         self.discovered_devices: List[Dict[str, Any]] = []
+        self.latest_update_info: Optional[Dict[str, Any]] = None
 
         # Container Frame for swapping views - Warm Milk Cream Background
         self.container = ctk.CTkFrame(self, fg_color="#FFFDF6", corner_radius=0)
@@ -135,6 +355,9 @@ class CookieRunLauncherApp(ctk.CTk):
 
         self.build_login_view()
         self.build_welcome_view()
+
+        # Handle window restore/un-minimize to immediately repaint canvases without black flashes
+        self.bind("<Map>", self._on_window_mapped)
 
         # Handle window close
         self.protocol("WM_DELETE_WINDOW", self.on_window_close)
@@ -452,6 +675,23 @@ class CookieRunLauncherApp(ctk.CTk):
         )
         btn_logout.pack(side="right", padx=20, pady=16)
 
+        # Update Badge / Button
+        self.btn_update_badge = ctk.CTkButton(
+            top_bar,
+            text=f"v{CURRENT_VERSION} 🔄",
+            width=110,
+            height=32,
+            corner_radius=10,
+            font=ctk.CTkFont(size=11, weight="bold"),
+            fg_color="#FFF9F0",
+            hover_color="#FDF0DD",
+            border_color="#EEDBCE",
+            border_width=1.5,
+            text_color="#8A3B04",
+            command=self.handle_check_update
+        )
+        self.btn_update_badge.pack(side="right", padx=(0, 10), pady=16)
+
         # Main Body (2 Columns / Biscuit Panels)
         body = ctk.CTkFrame(self.welcome_frame, fg_color="transparent")
         body.pack(fill="both", expand=True, padx=22, pady=18)
@@ -650,7 +890,23 @@ class CookieRunLauncherApp(ctk.CTk):
             text_color="#8A3B04",
             command=self.handle_restart_adb
         )
-        btn_restart_adb.pack(fill="x", padx=18, pady=(0, 18))
+        btn_restart_adb.pack(fill="x", padx=18, pady=(0, 10))
+
+        # Check for updates button
+        self.btn_check_update = ctk.CTkButton(
+            dash_card,
+            text="🔄 ตรวจหาการอัปเดตเวอร์ชันใหม่",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            height=36,
+            corner_radius=12,
+            fg_color="#FFF9F0",
+            hover_color="#FDF0DD",
+            border_color="#EEDBCE",
+            border_width=1.5,
+            text_color="#8A3B04",
+            command=self.handle_check_update
+        )
+        self.btn_check_update.pack(fill="x", padx=18, pady=(0, 18))
 
     def on_entered_welcome(self):
         # Update user label
@@ -669,6 +925,9 @@ class CookieRunLauncherApp(ctk.CTk):
         )
         self.trigger_scan_devices()
 
+        # Non-blocking background update check
+        threading.Thread(target=self._background_update_check, daemon=True).start()
+
     def ensure_background_server(self, auto_open_browser: bool = True):
         global _server_thread, _server_port, _server_started
         if not _server_started:
@@ -684,10 +943,10 @@ class CookieRunLauncherApp(ctk.CTk):
             # Poll for server ready then auto-open web dashboard in browser immediately!
             def check_ready_and_open():
                 time.sleep(1.2)
-                self.lbl_server_status.configure(
+                self.after(0, lambda: self.lbl_server_status.configure(
                     text=f"🟢 เซิร์ฟเวอร์พร้อมทำงาน (พอร์ต {_server_port})",
                     text_color="#10B981"
-                )
+                ))
                 if auto_open_browser:
                     url = f"http://127.0.0.1:{_server_port}"
                     try:
@@ -697,10 +956,10 @@ class CookieRunLauncherApp(ctk.CTk):
 
             threading.Thread(target=check_ready_and_open, daemon=True).start()
         else:
-            self.lbl_server_status.configure(
+            self.after(0, lambda: self.lbl_server_status.configure(
                 text=f"🟢 เซิร์ฟเวอร์พร้อมทำงาน (พอร์ต {_server_port})",
                 text_color="#10B981"
-            )
+            ))
             if auto_open_browser:
                 url = f"http://127.0.0.1:{_server_port}"
                 try:
@@ -839,6 +1098,74 @@ class CookieRunLauncherApp(ctk.CTk):
         self.current_user = None
         self.show_login()
 
+    def _background_update_check(self):
+        """Silently query GitHub in background thread. If update found, highlight UI badge."""
+        try:
+            info = updater.check_for_updates()
+            self.latest_update_info = info
+            if info.get("has_update"):
+                new_v = info.get("latest_version", "")
+                self.after(0, lambda: self._apply_update_available_ui(new_v))
+        except Exception as e:
+            print(f"[Launcher] Background update check error: {e}")
+
+    def _apply_update_available_ui(self, new_ver: str):
+        """Update top bar badge and dash button to attractive emerald glowing style."""
+        if hasattr(self, "btn_update_badge"):
+            self.btn_update_badge.configure(
+                text=f"✨ มีอัปเดต v{new_ver}",
+                fg_color="#ECFDF5",
+                hover_color="#D1FAE5",
+                border_color="#10B981",
+                text_color="#047857"
+            )
+        if hasattr(self, "btn_check_update"):
+            self.btn_check_update.configure(
+                text=f"🚀 มีอัปเดตใหม่ v{new_ver} (กดเพื่ออัปเดต)",
+                fg_color="#ECFDF5",
+                hover_color="#D1FAE5",
+                border_color="#10B981",
+                text_color="#047857"
+            )
+
+    def handle_check_update(self):
+        """User clicked check for update button."""
+        # If already cached and has update, open dialog immediately
+        if self.latest_update_info and self.latest_update_info.get("has_update"):
+            UpdateDialog(self, self.latest_update_info)
+            return
+
+        # Otherwise show loading on button and check
+        self.btn_check_update.configure(text="⏳ กำลังตรวจหาการอัปเดต...")
+
+        def check_worker():
+            info = updater.check_for_updates()
+            self.latest_update_info = info
+            if info.get("has_update"):
+                new_v = info.get("latest_version", "")
+                self.after(0, lambda: self._apply_update_available_ui(new_v))
+                self.after(0, lambda: UpdateDialog(self, info))
+            else:
+                self.after(0, lambda: self.btn_check_update.configure(
+                    text=f"✅ คุณใช้เวอร์ชันล่าสุดแล้ว (v{CURRENT_VERSION})",
+                    fg_color="#FFF9F0",
+                    border_color="#EEDBCE",
+                    text_color="#8A3B04"
+                ))
+                self.after(3000, lambda: self.btn_check_update.configure(
+                    text="🔄 ตรวจหาการอัปเดตเวอร์ชันใหม่"
+                ))
+
+        threading.Thread(target=check_worker, daemon=True).start()
+
+    def _on_window_mapped(self, event):
+        """Synchronously repaint canvases on restore/un-minimize to prevent black boxes."""
+        if event.widget == self:
+            try:
+                self.update_idletasks()
+            except Exception:
+                pass
+
     def on_window_close(self):
         """Cleanup and shutdown server when GUI window is closed."""
         try:
@@ -872,6 +1199,12 @@ def enforce_single_instance(window_title: str = "CookieRun Classic Bot - Launche
             if hwnd:
                 user32.ShowWindow(hwnd, 9)  # SW_RESTORE
                 user32.SetForegroundWindow(hwnd)
+                user32.UpdateWindow(hwnd)
+                # Force immediate synchronous repaint of all child windows and canvases
+                RDW_INVALIDATE = 0x0001
+                RDW_ALLCHILDREN = 0x0080
+                RDW_UPDATENOW = 0x0100
+                user32.RedrawWindow(hwnd, None, None, RDW_INVALIDATE | RDW_ALLCHILDREN | RDW_UPDATENOW)
             sys.exit(0)
     except Exception:
         pass

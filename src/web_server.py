@@ -531,11 +531,123 @@ async def startup_event():
     if not isinstance(sys.stdout, InterceptingStdout):
         sys.stdout = InterceptingStdout(sys.stdout)
     bot_engine.log(f"🌐 Web Server started. ADB path: {get_adb_path()}")
+    # Auto-Resume check after update
+    asyncio.create_task(_async_auto_resume_check())
+
+
+async def _async_auto_resume_check():
+    """Checks if an auto-resume request was queued by the updater before upgrading."""
+    try:
+        from updater import get_saved_running_state, execute_auto_resume
+        state = get_saved_running_state()
+        if not state or not state.get("should_resume"):
+            return
+
+        bot_engine.log("⏳ ตรวจพบคำสั่งกู้คืนการทำงานหลังอัปเดต (Auto-Resume) กำลังรอระบบเตรียมพร้อม...", "info")
+        await asyncio.sleep(3.5)
+
+        def _resume_bot(dev_serial):
+            eng = get_engine_for_device(dev_serial)
+            settings = load_bot_settings(dev_serial)
+            settings["device_serial"] = dev_serial
+            eng.start(settings)
+
+        def _resume_farmer(dev_serial, invite_url):
+            _start_heart_farmer(dev_serial, invite_url)
+
+        def _notify(msg):
+            bot_engine.log(msg, "success")
+            try:
+                discord_notifier.send_message(msg)
+            except Exception:
+                pass
+
+        execute_auto_resume(
+            start_bot_device_fn=_resume_bot,
+            start_farmer_fn=_resume_farmer,
+            notify_fn=_notify,
+        )
+    except Exception as e:
+        print(f"[WebServer] Auto-resume error: {e}", flush=True)
 
 
 @app.on_event("shutdown")
 async def shutdown_event():
     stream_manager.stop_all()
+
+
+@app.get("/api/system/version")
+def api_get_system_version(check: bool = False):
+    from version import CURRENT_VERSION
+    from updater import check_for_updates
+    data = {
+        "version": CURRENT_VERSION,
+        "update_info": None
+    }
+    if check:
+        data["update_info"] = check_for_updates()
+    return data
+
+
+@app.post("/api/system/update")
+def api_trigger_update():
+    from updater import (
+        check_for_updates,
+        save_running_state_before_update,
+        download_installer,
+        launch_silent_installer_and_exit,
+    )
+    update_info = check_for_updates()
+    if not update_info.get("has_update") or not update_info.get("download_url"):
+        raise HTTPException(status_code=400, detail="ไม่พบเวอร์ชันใหม่ หรือลิงก์ดาวน์โหลดไม่ถูกต้อง")
+
+    # 1. Collect running state
+    active_bot_devs = [s for s, e in engine_manager.get_all_engines().items() if e.is_running]
+    if bot_engine.is_running and "default" not in active_bot_devs:
+        active_bot_devs.append("default")
+
+    active_farmer_devs = []
+    farmer_invites = {}
+    for d, t in list(_farmer_threads.items()):
+        inst = _farmer_instances.get(d)
+        if t and t.is_alive() and inst and not inst.stopped:
+            active_farmer_devs.append(d)
+            farmer_invites[d] = getattr(inst, "invite_url", "")
+
+    save_running_state_before_update(
+        active_bot_devices=active_bot_devs,
+        active_farmer_devices=active_farmer_devs,
+        farmer_invites=farmer_invites
+    )
+
+    # 2. Stop running operations cleanly
+    for s in active_bot_devs:
+        try:
+            get_engine_for_device(s).stop()
+        except Exception:
+            pass
+    for d in active_farmer_devs:
+        try:
+            _stop_heart_farmer(d)
+        except Exception:
+            pass
+
+    # 3. Download & Launch in detached thread
+    def _do_update():
+        bot_engine.log(f"📥 กำลังดาวน์โหลดไฟล์อัปเดต v{update_info.get('latest_version')}...", "info")
+        installer_path = download_installer(update_info["download_url"])
+        if installer_path and os.path.isfile(installer_path):
+            bot_engine.log("🚀 ดาวน์โหลดสำเร็จ กำลังปิดระบบและรันการติดตั้งทับอัตโนมัติ...", "success")
+            time.sleep(1.0)
+            launch_silent_installer_and_exit(installer_path)
+        else:
+            bot_engine.log("❌ ดาวน์โหลดไฟล์อัปเดตไม่สำเร็จ", "error")
+
+    threading.Thread(target=_do_update, daemon=True).start()
+    return {
+        "success": True,
+        "message": f"กำลังดาวน์โหลด CookieRun Bot v{update_info.get('latest_version')} และจะเริ่มติดตั้งให้อัตโนมัติ"
+    }
 
 
 @app.get("/api/devices")
@@ -1179,6 +1291,8 @@ def generate_placeholder_frame(text: str = "CookieRun Bot Idle") -> bytes:
     _, buffer = cv2.imencode(".jpg", img, [cv2.IMWRITE_JPEG_QUALITY, 80])
     return buffer.tobytes()
 
+_device_stream_fps: Dict[str, float] = {}
+
 
 @app.get("/api/stream")
 async def video_feed(device: Optional[str] = None, fps: int = 60):
@@ -1209,8 +1323,6 @@ async def video_feed(device: Optional[str] = None, fps: int = 60):
         streamer.start()
     except Exception:
         pass
-
-_device_stream_fps: Dict[str, float] = {}
 
     async def resilient_stream_generator():
         streamer.add_subscriber()

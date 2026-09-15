@@ -84,7 +84,8 @@ _tunnel_process = None
 
 def start_cloudflared_tunnel(port, local_ip="127.0.0.1"):
     global _tunnel_process
-    root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    from path_utils import get_project_root
+    root_dir = get_project_root()
     candidates = [
         os.path.join(root_dir, "bin", "cloudflared.exe"),
         os.path.join(root_dir, "bin", "cloudflared-windows-amd64.exe"),
@@ -195,5 +196,17 @@ if __name__ == "__main__":
     threading.Thread(target=open_browser, args=(port,), daemon=True).start()
 
     # Run FastAPI app (reload=False to prevent background bots from being killed on file changes)
-    uvicorn.run("web_server:app", host="0.0.0.0", port=port, reload=False, log_level="warning")
+    try:
+        from web_server import app
+        uvicorn.run(app, host="0.0.0.0", port=port, reload=False, log_level="warning")
+    except Exception as e:
+        import traceback
+        print("\n" + "=" * 65)
+        print("❌ เกิดข้อผิดพลาดในการเริ่มเซิร์ฟเวอร์:")
+        traceback.print_exc()
+        print("=" * 65)
+        try:
+            input("\nกด Enter เพื่อปิดหน้าต่าง...")
+        except Exception:
+            pass
 

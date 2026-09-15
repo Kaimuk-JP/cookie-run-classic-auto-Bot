@@ -17,8 +17,6 @@ import { MacroModal } from './components/modals/MacroModal';
 import { Device } from './types/bot';
 import { botApi } from './api/botApi';
 import { toast, confirmModal } from './context/ToastContext';
-import candyKingdomBanner from './assets/candy_kingdom_banner.jpg';
-import { CandyCastleIcon, StarJellyIcon } from './components/common/SweetIcons';
 
 export function App() {
   const [devices, setDevices] = useState<Device[]>([]);
@@ -221,49 +219,8 @@ export function App() {
         onOpenSettings={() => setIsSettingsOpen(true)}
         onOpenMacro={() => setIsMacroOpen(true)}
         onOpenTools={() => setIsToolsOpen(true)}
+        onOpenDiscord={() => setIsDiscordOpen(true)}
       />
-
-      {/* Top Candy Kingdom Hero Banner */}
-      <div className="max-w-[1600px] mx-auto w-full px-4 pt-4 md:px-6 md:pt-6">
-        <div className="relative overflow-hidden rounded-3xl border-2 border-[#EEDBCE] bg-[#FFF8EC] shadow-md">
-          {/* Background Illustration with gentle gradient fade */}
-          <div className="absolute inset-0 z-0">
-            <img
-              src={candyKingdomBanner}
-              alt="Candy Kingdom"
-              className="w-full h-full object-cover object-center opacity-30 mix-blend-multiply filter saturate-150"
-            />
-            <div className="absolute inset-0 bg-gradient-to-r from-[#FFF8EC] via-[#FFF8EC]/90 to-transparent"></div>
-          </div>
-
-          <div className="relative z-10 p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center space-x-3.5">
-              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl shadow-md overflow-hidden shrink-0 border-2 border-white flex items-center justify-center">
-                <CandyCastleIcon className="w-full h-full object-cover" />
-              </div>
-              <div>
-                <div className="flex items-center space-x-2">
-                  <h2 className="text-base sm:text-lg font-bold text-[#3D2012] font-heading flex items-center gap-1.5">
-                    CookieRun AutoBot
-                  </h2>
-                </div>
-                <p className="text-xs text-[#8A3B04] font-medium mt-0.5">
-                  ระบบฟาร์มเยลลี่และกล่องสมบัติอัตโนมัติ
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <div className="bg-white/90 backdrop-blur-md px-3.5 py-1.5 rounded-xl border border-[#EEDBCE] shadow-xs flex items-center space-x-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span className="text-xs font-bold text-[#3D2012]">
-                  {activeDevice ? `จอ: ${activeDevice.name || activeDevice.serial}` : 'รอเลือกจอ'}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* Main Content Grid (7 cols on Left, 5 cols on Right) */}
       <main className="flex-1 p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-[1600px] mx-auto w-full">
@@ -335,6 +292,7 @@ export function App() {
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
         deviceSerial={activeDevice?.serial || ''}
+        onOpenDiscord={() => setIsDiscordOpen(true)}
       />
 
       <MacroModal

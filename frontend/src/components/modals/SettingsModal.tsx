@@ -14,6 +14,7 @@ import {
   Check,
   Sparkles,
   Clock,
+  Bell,
 } from 'lucide-react';
 import { BotSettings } from '../../types/bot';
 import { botApi } from '../../api/botApi';
@@ -46,12 +47,14 @@ interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   deviceSerial?: string;
+  onOpenDiscord?: () => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
   isOpen,
   onClose,
   deviceSerial = '',
+  onOpenDiscord,
 }) => {
   const [settings, setSettings] = useState<BotSettings | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -607,15 +610,32 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
         {/* Footer Actions */}
         <div className="flex items-center justify-between pt-3 border-t border-purple-100">
-          <button
-            onClick={handleReset}
-            disabled={isSaving || isResetting || !settings}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-rose-200 bg-rose-50/50 hover:bg-rose-100 text-rose-700 font-bold text-xs transition active:scale-95 disabled:opacity-50"
-            title="รีเซ็ตค่าเริ่มต้น"
-          >
-            <RotateCcw className={`w-3.5 h-3.5 ${isResetting ? 'animate-spin' : ''}`} />
-            <span>{isResetting ? 'กำลังรีเซ็ต...' : 'รีเซ็ต'}</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleReset}
+              disabled={isSaving || isResetting || !settings}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-rose-200 bg-rose-50/50 hover:bg-rose-100 text-rose-700 font-bold text-xs transition active:scale-95 disabled:opacity-50 cursor-pointer"
+              title="รีเซ็ตค่าเริ่มต้น"
+            >
+              <RotateCcw className={`w-3.5 h-3.5 ${isResetting ? 'animate-spin' : ''}`} />
+              <span>{isResetting ? 'กำลังรีเซ็ต...' : 'รีเซ็ต'}</span>
+            </button>
+
+            {onOpenDiscord && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onOpenDiscord();
+                }}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-indigo-200 bg-indigo-50/70 hover:bg-indigo-100 text-indigo-700 font-bold text-xs transition active:scale-95 cursor-pointer"
+                title="เปิดการตั้งค่า Discord Webhook"
+              >
+                <Bell className="w-3.5 h-3.5 text-indigo-600 fill-indigo-600/20" />
+                <span>แจ้งเตือน Discord</span>
+              </button>
+            )}
+          </div>
 
           <div className="flex items-center gap-2">
             <button

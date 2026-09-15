@@ -12,10 +12,84 @@ from typing import Dict, Generator, Optional
 import cv2
 import numpy as np
 
+import os
+import sys
+
 try:
     import scrcpy
 except ImportError:
     scrcpy = None
+
+if scrcpy is not None:
+    # Ensure scrcpy finds scrcpy-server.jar in standalone/frozen exe environments
+    _orig_deploy_server = getattr(scrcpy.Client, "_deploy_server", None)
+
+    def _safe_deploy_server(self):
+        try:
+            from path_utils import get_project_root
+            root = get_project_root()
+            exe_dir = os.path.dirname(os.path.abspath(sys.executable))
+            candidates = [
+                os.path.join(root, "bin", "scrcpy-server.jar"),
+                os.path.join(root, "scrcpy", "scrcpy-server.jar"),
+                os.path.join(root, "scrcpy-server.jar"),
+                os.path.join(exe_dir, "bin", "scrcpy-server.jar"),
+                os.path.join(exe_dir, "scrcpy", "scrcpy-server.jar"),
+                os.path.join(exe_dir, "scrcpy-server.jar"),
+                getattr(scrcpy, "__file__", "") and os.path.join(os.path.dirname(scrcpy.__file__), "scrcpy-server.jar"),
+            ]
+            found_jar = None
+            for c in candidates:
+                if c and os.path.isfile(c):
+                    found_jar = os.path.abspath(c)
+                    break
+
+            if found_jar and os.path.isfile(found_jar):
+                local_size = os.path.getsize(found_jar)
+                if self._remote_jar_size() != local_size:
+                    self.device.push(found_jar, self._SERVER_REMOTE_PATH)
+                server_ver = getattr(getattr(scrcpy, "core", None), "SCRCPY_SERVER_VERSION", "3.3.4")
+                self._server_stream = self.device.shell(
+                    [
+                        "CLASSPATH=" + self._SERVER_REMOTE_PATH,
+                        "app_process",
+                        "/",
+                        "com.genymobile.scrcpy.Server",
+                        str(server_ver),
+                        "log_level=info",
+                        "video=true",
+                        "audio=false",
+                        "video_codec=h264",
+                        f"max_size={self.max_width}",
+                        f"video_bit_rate={self.bitrate}",
+                        f"max_fps={self.max_fps}",
+                        "tunnel_forward=true",
+                        "control=true",
+                        "display_id=0",
+                        "show_touches=false",
+                        f"stay_awake={'true' if self.stay_awake else 'false'}",
+                        "power_off_on_close=false",
+                        "clipboard_autosync=false",
+                        "downsize_on_error=true",
+                        "cleanup=true",
+                        "power_on=true",
+                        "send_device_meta=true",
+                        "send_frame_meta=false",
+                        "send_dummy_byte=true",
+                        "send_codec_meta=true",
+                    ],
+                    stream=True,
+                )
+                self._server_stream.read(10)
+                return
+        except Exception as e:
+            logger.warning(f"Safe deploy jar error: {e}")
+
+        if _orig_deploy_server:
+            return _orig_deploy_server(self)
+
+    if _orig_deploy_server is not None:
+        scrcpy.Client._deploy_server = _safe_deploy_server
 
 logger = logging.getLogger("ScrcpyStreamer")
 
@@ -40,8 +114,8 @@ class ScrcpyDeviceStreamer:
         self.is_running: bool = False
         self.start_error: Optional[str] = None
 
-        # FPS calculation
-        self._frame_times = collections.deque(maxlen=60)
+        # FPS calculation - rolling 15 frames (~250ms) for responsive, dynamic live FPS telemetry
+        self._frame_times = collections.deque(maxlen=15)
         self.current_fps: float = 0.0
 
     def _on_frame(self, frame: Optional[np.ndarray]):

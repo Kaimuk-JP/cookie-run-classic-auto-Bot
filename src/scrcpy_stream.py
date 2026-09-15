@@ -55,7 +55,8 @@ class ScrcpyStream:
 
     def _ensure_server_jar(self) -> str:
         """Ensure scrcpy-server.jar is pushed to Android storage."""
-        local_jar = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bin", "scrcpy-server.jar")
+        from path_utils import get_project_root
+        local_jar = os.path.join(get_project_root(), "bin", "scrcpy-server.jar")
         if not os.path.isfile(local_jar):
             raise FileNotFoundError(f"scrcpy-server.jar not found at {local_jar}")
 

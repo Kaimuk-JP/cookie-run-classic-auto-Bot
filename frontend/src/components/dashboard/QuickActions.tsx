@@ -7,6 +7,8 @@ import {
   Plug,
   Camera,
   Sliders,
+  Bell,
+  Settings,
 } from 'lucide-react';
 import { botApi } from '../../api/botApi';
 import { toast, confirmModal } from '../../context/ToastContext';
@@ -27,6 +29,8 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
   isRunning,
   onStart,
   onStop,
+  onOpenSettings,
+  onOpenDiscord,
 }) => {
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
 
@@ -164,6 +168,29 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
           </div>
           <span className="text-[10px] font-bold text-[#0369A1]">แคปจอ</span>
         </button>
+      </div>
+
+      {/* Settings & Discord Quick Shortcuts */}
+      <div className="grid grid-cols-2 gap-2.5 pt-1">
+        {onOpenSettings && (
+          <button
+            onClick={onOpenSettings}
+            className="biscuit-card py-2.5 px-3 rounded-2xl flex items-center justify-center space-x-2 text-[#452311] hover:border-[#F59E0B] hover:bg-[#FFFDF0] transition cursor-pointer shadow-xs font-bold text-xs"
+          >
+            <Settings className="w-4 h-4 text-[#D97706]" />
+            <span>ตั้งค่าบอท</span>
+          </button>
+        )}
+
+        {onOpenDiscord && (
+          <button
+            onClick={onOpenDiscord}
+            className="biscuit-card py-2.5 px-3 rounded-2xl flex items-center justify-center space-x-2 text-[#5865F2] hover:border-[#5865F2] hover:bg-[#5865F2]/5 transition cursor-pointer shadow-xs font-bold text-xs"
+          >
+            <Bell className="w-4 h-4 text-[#5865F2] fill-[#5865F2]/20" />
+            <span>แจ้งเตือน Discord</span>
+          </button>
+        )}
       </div>
     </div>
   );

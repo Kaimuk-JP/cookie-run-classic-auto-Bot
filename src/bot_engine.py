@@ -87,12 +87,15 @@ from discord_notifier import discord_notifier
 from error_logger import record_game_error
 
 
-SETTINGS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "settings"))
+from path_utils import get_project_root
+_project_root = get_project_root()
+
+SETTINGS_DIR = os.path.join(_project_root, "settings")
 os.makedirs(SETTINGS_DIR, exist_ok=True)
 DEFAULT_SETTINGS_PATH = os.path.join(SETTINGS_DIR, "bot_settings.json")
 LEGACY_SETTINGS_DIR = os.path.dirname(__file__)
 
-HISTORY_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "history"))
+HISTORY_DIR = os.path.join(_project_root, "history")
 os.makedirs(HISTORY_DIR, exist_ok=True)
 
 

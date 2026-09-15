@@ -5,7 +5,29 @@ import os
 
 DEVICE_IP = "127.0.0.1"      # Change to your adb device's IP address
 DEVICE_PORT = 7555           # Change to your adb device's port number
-TEMPLATE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "templates")
+
+def _resolve_template_dir():
+    try:
+        from path_utils import get_project_root
+        root = get_project_root()
+        for cand in [
+            os.path.join(root, "src", "templates"),
+            os.path.join(root, "templates"),
+        ]:
+            if os.path.isdir(cand) and os.path.exists(os.path.join(cand, "MAINMENU_1.png")):
+                return os.path.abspath(cand)
+    except Exception:
+        pass
+    this_dir = os.path.dirname(os.path.abspath(__file__))
+    for cand in [
+        os.path.join(this_dir, "templates"),
+        os.path.join(this_dir, "src", "templates"),
+    ]:
+        if os.path.isdir(cand) and os.path.exists(os.path.join(cand, "MAINMENU_1.png")):
+            return os.path.abspath(cand)
+    return os.path.join(this_dir, "templates")
+
+TEMPLATE_DIR = _resolve_template_dir()
 MATCH_THRESHOLD = 0.8
 SESSION_RESET_INTERVAL = (5400, 10800)  # 1.5-3 hours
 

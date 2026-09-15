@@ -8,9 +8,11 @@ import {
   Sparkles,
   Heart,
   Bot,
+  Bell,
 } from 'lucide-react';
 import { Device } from '../../types/bot';
 import { CookieHeroIcon } from '../common/SweetIcons';
+import candyKingdomBanner from '../../assets/candy_kingdom_banner.jpg';
 
 interface NavbarProps {
   devicesCount: number;
@@ -26,6 +28,7 @@ interface NavbarProps {
   onOpenSettings?: () => void;
   onOpenMacro?: () => void;
   onOpenTools?: () => void;
+  onOpenDiscord?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -42,13 +45,25 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenSettings,
   onOpenMacro,
   onOpenTools,
+  onOpenDiscord,
 }) => {
   const isAnyRunning = runningCount > 0;
 
   return (
-    <header className="biscuit-panel sticky top-0 z-50 px-4 py-2.5 border-b-2 border-[#EEDBCE] flex flex-wrap items-center justify-between gap-3 shadow-md">
-      {/* Logo & Title with Cute Cookie Illustration Mascot */}
-      <div className="flex items-center space-x-3">
+    <header className="relative overflow-hidden biscuit-panel sticky top-0 z-50 px-4 py-2.5 border-b-2 border-[#EEDBCE] shadow-md">
+      {/* Background Banner Illustration on Header */}
+      <div className="absolute inset-0 z-0 pointer-events-none">
+        <img
+          src={candyKingdomBanner}
+          alt="Candy Kingdom"
+          className="w-full h-full object-cover object-center opacity-30 mix-blend-multiply filter saturate-150"
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#FFFDF8] via-[#FFFDF8]/90 to-[#FFFDF8]/70"></div>
+      </div>
+
+      <div className="relative z-10 flex flex-wrap items-center justify-between gap-3">
+        {/* Logo & Title with Cute Cookie Illustration Mascot */}
+        <div className="flex items-center space-x-3">
         <div className="w-10 h-10 rounded-xl shadow-md overflow-hidden shrink-0 border-2 border-white flex items-center justify-center">
           <CookieHeroIcon className="w-full h-full object-cover" />
         </div>
@@ -153,6 +168,17 @@ export const Navbar: React.FC<NavbarProps> = ({
           </button>
         )}
 
+        {onOpenDiscord && (
+          <button
+            onClick={onOpenDiscord}
+            className="candy-btn-soft px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 cursor-pointer text-[#5865F2] hover:bg-[#5865F2]/10"
+            title="ตั้งค่าแจ้งเตือน Discord"
+          >
+            <Bell className="w-3.5 h-3.5 text-[#5865F2] fill-[#5865F2]/20" />
+            <span className="hidden sm:inline">Discord</span>
+          </button>
+        )}
+
         {/* Start All Button (Honey/Caramel 3D Candy Button) */}
         <button
           onClick={onStartAll}
@@ -171,6 +197,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         >
           <Square className="w-3.5 h-3.5 fill-current" />
         </button>
+      </div>
       </div>
     </header>
   );

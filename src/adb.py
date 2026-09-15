@@ -45,7 +45,11 @@ def get_adb_path() -> str:
     if which_adb:
         return which_adb
 
+    from path_utils import get_project_root
+    root_bin = os.path.join(get_project_root(), "bin", "adb.exe")
+
     candidates = [
+        root_bin,
         os.path.join(os.path.dirname(__file__), "adb.exe"),
         r"C:\Program Files\Netease\MuMuPlayer\nx_device\15.0\shell\adb.exe",
         r"C:\Program Files\Netease\MuMuPlayer\nx_main\adb.exe",

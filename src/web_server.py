@@ -1,4 +1,5 @@
 import asyncio
+import collections
 import io
 import json
 import os
@@ -157,15 +158,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from path_utils import get_project_root
+_project_root = get_project_root()
+
 templates_path = os.path.join(os.path.dirname(__file__), "templates")
 if os.path.isdir(templates_path):
     app.mount("/templates", StaticFiles(directory=templates_path), name="templates")
 
-screenshots_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "screenshots")
+screenshots_path = os.path.join(_project_root, "screenshots")
 if os.path.isdir(screenshots_path):
     app.mount("/screenshots", StaticFiles(directory=screenshots_path), name="screenshots")
 
-frontend_dist_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend", "dist")
+frontend_dist_path = os.path.join(_project_root, "frontend", "dist")
 frontend_assets_path = os.path.join(frontend_dist_path, "assets")
 if os.path.isdir(frontend_assets_path):
     app.mount("/assets", StaticFiles(directory=frontend_assets_path), name="assets")
@@ -280,7 +284,7 @@ class DiscordTestRequest(BaseModel):
     webhook_url: str = ""
 
 
-SETTINGS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "settings"))
+SETTINGS_DIR = os.path.join(_project_root, "settings")
 os.makedirs(SETTINGS_DIR, exist_ok=True)
 SETTINGS_FILE = os.path.join(SETTINGS_DIR, "bot_settings.json")
 LEGACY_SETTINGS_FILE = os.path.join(os.path.dirname(__file__), "bot_settings.json")
@@ -477,6 +481,39 @@ class InterceptingStdout:
                 self.original_stdout.flush()
             except Exception:
                 pass
+
+    def isatty(self):
+        if self.original_stdout and hasattr(self.original_stdout, "isatty"):
+            try:
+                return self.original_stdout.isatty()
+            except Exception:
+                return False
+        return False
+
+    def fileno(self):
+        if self.original_stdout and hasattr(self.original_stdout, "fileno"):
+            try:
+                return self.original_stdout.fileno()
+            except Exception:
+                pass
+        raise OSError("fileno not available")
+
+    @property
+    def encoding(self):
+        if self.original_stdout and hasattr(self.original_stdout, "encoding"):
+            return self.original_stdout.encoding
+        return "utf-8"
+
+    @property
+    def errors(self):
+        if self.original_stdout and hasattr(self.original_stdout, "errors"):
+            return self.original_stdout.errors
+        return "replace"
+
+    def __getattr__(self, name):
+        if self.original_stdout:
+            return getattr(self.original_stdout, name)
+        raise AttributeError(f"'InterceptingStdout' object has no attribute '{name}'")
 
 
 # Initialize stdout interception immediately so every module's print statements are captured
@@ -1133,11 +1170,12 @@ def test_discord_webhook(req: DiscordTestRequest):
 
 
 def generate_placeholder_frame(text: str = "CookieRun Bot Idle") -> bytes:
-    img = np.zeros((480, 854, 3), dtype=np.uint8)
-    img[:] = (20, 24, 35)  # Dark slate background
-    cv2.putText(img, "CookieRun Classic Bot", (240, 210), cv2.FONT_HERSHEY_SIMPLEX, 1.1, (255, 200, 100), 2, cv2.LINE_AA)
-    cv2.putText(img, text, (240, 260), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (180, 180, 190), 1, cv2.LINE_AA)
-    cv2.putText(img, "Resolution: 1280x720 | Click Start to stream live screen", (190, 310), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (120, 120, 130), 1, cv2.LINE_AA)
+    img = np.zeros((720, 1280, 3), dtype=np.uint8)
+    img[:] = (28, 20, 16)  # Warm dark chocolate background matching dashboard
+    cv2.rectangle(img, (20, 20), (1260, 700), (70, 50, 40), 2)
+    cv2.putText(img, "CookieRun Classic Bot Pro", (420, 320), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (255, 215, 0), 2, cv2.LINE_AA)
+    cv2.putText(img, str(text), (440, 380), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (230, 230, 240), 1, cv2.LINE_AA)
+    cv2.putText(img, "Emulator screen will appear automatically when connected", (380, 430), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (160, 160, 170), 1, cv2.LINE_AA)
     _, buffer = cv2.imencode(".jpg", img, [cv2.IMWRITE_JPEG_QUALITY, 80])
     return buffer.tobytes()
 
@@ -1146,75 +1184,144 @@ def generate_placeholder_frame(text: str = "CookieRun Bot Idle") -> bytes:
 async def video_feed(device: Optional[str] = None, fps: int = 60):
     fps = max(10, min(60, fps))
     eng = get_engine_for_device(device)
-    target = eng.device_serial or eng.device_ip
+    target = (eng.device_serial or eng.device_ip or (device if device else "")).strip()
 
-    # Attempt high-speed hardware scrcpy stream
+    if not target:
+        try:
+            connected = scan_adb_devices()
+            if connected:
+                target = connected[0].get("serial", "").strip()
+        except Exception:
+            pass
+
+    if not target:
+        async def no_device_gen():
+            frame = generate_placeholder_frame("Waiting for Emulator Connection...")
+            while True:
+                yield b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + frame + b"\r\n"
+                await asyncio.sleep(1.0)
+        return StreamingResponse(no_device_gen(), media_type="multipart/x-mixed-replace; boundary=frame")
+
+    # Start high-speed hardware scrcpy stream
     streamer = stream_manager.get_streamer(target, max_fps=fps)
     streamer.max_fps = fps
-    if streamer.start():
-        async def scrcpy_generator():
-            streamer.add_subscriber()
-            interval = 1.0 / max(1, fps)
-            last_jpeg = None
+    try:
+        streamer.start()
+    except Exception:
+        pass
+
+_device_stream_fps: Dict[str, float] = {}
+
+    async def resilient_stream_generator():
+        streamer.add_subscriber()
+        interval = 1.0 / max(10, min(60, fps))
+        last_jpeg = None
+        last_fallback_time = 0.0
+        fps_deque = collections.deque(maxlen=15)
+
+        # 1. Immediately yield an initial frame to prevent black screen on connect
+        init_jpeg = streamer.latest_jpeg or eng.latest_frame_jpeg
+        if init_jpeg is None:
             try:
-                while True:
-                    jpeg = streamer.latest_jpeg
-                    if jpeg is not None and jpeg is not last_jpeg:
-                        last_jpeg = jpeg
-                        if streamer.latest_frame is not None:
-                            eng.latest_frame = streamer.latest_frame
-                            eng.latest_frame_jpeg = jpeg
-                        yield (
-                            b"--frame\r\n"
-                            b"Content-Type: image/jpeg\r\n\r\n" + jpeg + b"\r\n"
-                        )
-                    await asyncio.sleep(interval)
-            except (GeneratorExit, asyncio.CancelledError, Exception):
+                port = eng.device_port or (int(target.split(":")[1]) if ":" in target else 5555)
+                screen = await asyncio.to_thread(device_capture_screen, target, port)
+                if screen is not None and screen.size > 0:
+                    _, buf = cv2.imencode(".jpg", screen, [cv2.IMWRITE_JPEG_QUALITY, 70])
+                    init_jpeg = buf.tobytes()
+                    eng.update_frame(screen)
+            except Exception:
                 pass
-            finally:
-                streamer.remove_subscriber()
+        if init_jpeg is None:
+            init_jpeg = generate_placeholder_frame(f"Connecting to {target}...")
 
-        return StreamingResponse(scrcpy_generator(), media_type="multipart/x-mixed-replace; boundary=frame")
+        yield b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + init_jpeg + b"\r\n"
+        last_jpeg = init_jpeg
+        fps_deque.append(time.time())
 
-    # Graceful fallback to ADB screencap
-    async def frame_generator():
-        interval = 1.0 / max(5, min(20, fps))
         try:
             while True:
                 now = time.time()
-                frame_bytes = None
-                if eng.is_running and eng.latest_frame_jpeg is not None:
-                    frame_bytes = eng.latest_frame_jpeg
-                else:
-                    if now - eng.last_frame_time > 0.5:
-                        eng.last_frame_time = now
+                jpeg = streamer.latest_jpeg
+
+                # Path A: High-speed hardware Scrcpy frame (30-60 FPS)
+                if jpeg is not None and jpeg is not last_jpeg:
+                    last_jpeg = jpeg
+                    if streamer.latest_frame is not None:
+                        eng.latest_frame = streamer.latest_frame
+                        eng.latest_frame_jpeg = jpeg
+                    
+                    fps_deque.append(now)
+                    if len(fps_deque) > 1:
+                        dur = fps_deque[-1] - fps_deque[0]
+                        if dur > 0:
+                            _device_stream_fps[target] = round((len(fps_deque) - 1) / dur, 1)
+
+                    yield (
+                        b"--frame\r\n"
+                        b"Content-Type: image/jpeg\r\n\r\n" + jpeg + b"\r\n"
+                    )
+                    await asyncio.sleep(interval)
+                    continue
+
+                # Path B: Scrcpy is still warming up or inactive -> Fallback to ADB screencap
+                if now - last_fallback_time > 0.3:
+                    last_fallback_time = now
+                    frame_bytes = None
+                    if eng.is_running and eng.latest_frame_jpeg is not None:
+                        frame_bytes = eng.latest_frame_jpeg
+                    else:
                         try:
-                            screen = await asyncio.to_thread(device_capture_screen, target, eng.device_port)
-                            eng.update_frame(screen)
+                            port = eng.device_port or (int(target.split(":")[1]) if ":" in target else 5555)
+                            screen = await asyncio.to_thread(device_capture_screen, target, port)
+                            if screen is not None and screen.size > 0:
+                                _, buf = cv2.imencode(".jpg", screen, [cv2.IMWRITE_JPEG_QUALITY, 70])
+                                frame_bytes = buf.tobytes()
+                                eng.update_frame(screen)
                         except Exception:
                             pass
-                    frame_bytes = eng.latest_frame_jpeg or generate_placeholder_frame(f"Device {target} Ready")
 
-                yield (
-                    b"--frame\r\n"
-                    b"Content-Type: image/jpeg\r\n\r\n" + frame_bytes + b"\r\n"
-                )
+                    if frame_bytes is None and last_jpeg is None:
+                        frame_bytes = generate_placeholder_frame(f"Device {target} Ready")
+
+                    if frame_bytes is not None and frame_bytes != last_jpeg:
+                        last_jpeg = frame_bytes
+                        fps_deque.append(now)
+                        if len(fps_deque) > 1:
+                            dur = fps_deque[-1] - fps_deque[0]
+                            if dur > 0:
+                                _device_stream_fps[target] = round((len(fps_deque) - 1) / dur, 1)
+
+                        yield (
+                            b"--frame\r\n"
+                            b"Content-Type: image/jpeg\r\n\r\n" + frame_bytes + b"\r\n"
+                        )
+
                 await asyncio.sleep(interval)
         except (GeneratorExit, asyncio.CancelledError, Exception):
             pass
+        finally:
+            streamer.remove_subscriber()
+            _device_stream_fps.pop(target, None)
 
-    return StreamingResponse(frame_generator(), media_type="multipart/x-mixed-replace; boundary=frame")
+    return StreamingResponse(resilient_stream_generator(), media_type="multipart/x-mixed-replace; boundary=frame")
 
 
 @app.get("/api/stream-stats")
 def get_stream_stats(device: Optional[str] = None):
     eng = get_engine_for_device(device)
-    target = eng.device_serial or eng.device_ip
+    target = (eng.device_serial or eng.device_ip or (device if device else "")).strip()
     streamer = stream_manager.get_streamer(target)
+
+    # Priority 1: Scrcpy active frame rate
+    calc_fps = streamer.current_fps if streamer.is_running and streamer.current_fps > 0 else 0.0
+    # Priority 2: Stream generator real delivery frame rate
+    if calc_fps <= 0:
+        calc_fps = _device_stream_fps.get(target, 0.0)
+
     return {
         "device": target,
         "is_scrcpy": streamer.is_running,
-        "fps": streamer.current_fps,
+        "fps": calc_fps,
         "max_fps": streamer.max_fps,
         "subscribers": streamer.subscribers,
     }
@@ -1631,14 +1738,28 @@ async def websocket_logs(websocket: WebSocket, device: Optional[str] = None):
 
 
 @app.get("/", response_class=HTMLResponse)
-def get_index():
-    react_index_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend", "dist", "index.html")
+def get_index(ui: Optional[str] = None):
+    legacy_index_path = os.path.join(os.path.dirname(__file__), "web", "index.html")
+    react_index_path = os.path.join(_project_root, "frontend", "dist", "index.html")
+
+    if ui == "legacy" and os.path.isfile(legacy_index_path):
+        with open(legacy_index_path, "r", encoding="utf-8") as f:
+            return f.read()
+
     if os.path.isfile(react_index_path):
         with open(react_index_path, "r", encoding="utf-8") as f:
             return f.read()
 
-    index_path = os.path.join(os.path.dirname(__file__), "web", "index.html")
-    if os.path.isfile(index_path):
-        with open(index_path, "r", encoding="utf-8") as f:
+    if os.path.isfile(legacy_index_path):
+        with open(legacy_index_path, "r", encoding="utf-8") as f:
             return f.read()
     return "<h1>Web Dashboard UI file not found</h1>"
+
+
+@app.get("/legacy", response_class=HTMLResponse)
+def get_legacy_page():
+    legacy_index_path = os.path.join(os.path.dirname(__file__), "web", "index.html")
+    if os.path.isfile(legacy_index_path):
+        with open(legacy_index_path, "r", encoding="utf-8") as f:
+            return f.read()
+    return HTMLResponse("<h1>Legacy UI not found</h1>", status_code=404)

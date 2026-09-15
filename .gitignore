@@ -28,19 +28,34 @@ ENV/
 !.env.example
 
 # ==========================================
-# Device-Specific & Sensitive Settings
+# Build & Distribution Artifacts (Nuitka / Inno Setup)
 # ==========================================
-# Ignore per-device auto-generated settings while preserving the base template
+/dist/
+/dist_build/
+/dist_installer/
+*.build/
+*.dist/
+
+# ==========================================
+# Device-Specific & Sensitive Credentials
+# ==========================================
+# Ignore personal login session tokens & device-specific configs
+settings/auth_session.json
+**/auth_session.json
 settings/bot_settings_*.json
 !settings/bot_settings.json
 settings/discord_config.json
 settings/*.local.json
+src/settings/
+**/src/settings/
 
 # ==========================================
 # Runtime Screenshots, Logs & History
 # ==========================================
 screenshots/
 **/screenshots/
+src/screenshots/
+**/src/screenshots/
 logs_error/
 **/logs_error/
 debug_screens/
@@ -53,16 +68,22 @@ history/*.json
 *.log
 *.tmp
 *.temp
+err.txt
+out.txt
+*.xml
+crash_log.txt
+**/crash_log.txt
 /macros/*.json
 
 # ==========================================
-# Root-level Temporary / Debug Images
+# Root-level Temporary / Debug Images & Stray Files
 # ==========================================
 /*.png
 /*.jpg
 /*.jpeg
 /*.bmp
 /*.webp
+/bot_icon.ico
 
 # ==========================================
 # Node / Frontend Build & Caches

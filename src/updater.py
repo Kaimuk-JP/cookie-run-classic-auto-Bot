@@ -22,6 +22,7 @@ import requests
 from version import CURRENT_VERSION, RELEASES_API_URL, RAW_VERSION_URL, is_newer_version
 from path_utils import get_settings_dir, get_project_root
 
+GITHUB_TOKEN = "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"
 RESUME_STATE_FILE = os.path.join(get_settings_dir(), "update_resume_state.json")
 
 
@@ -47,6 +48,9 @@ def check_for_updates(timeout: int = 5) -> Dict[str, Any]:
         "User-Agent": "CookieRunBot-Updater",
         "Accept": "application/vnd.github.v3+json",
     }
+    if GITHUB_TOKEN:
+        headers["Authorization"] = f"token {GITHUB_TOKEN}"
+
     try:
         resp = requests.get(RELEASES_API_URL, headers=headers, timeout=timeout)
         if resp.status_code == 200:
@@ -63,7 +67,7 @@ def check_for_updates(timeout: int = 5) -> Dict[str, Any]:
                 for asset in assets:
                     name = asset.get("name", "")
                     if name.lower().endswith(".exe") and "setup" in name.lower():
-                        result["download_url"] = asset.get("browser_download_url", "")
+                        result["download_url"] = asset.get("url") or asset.get("browser_download_url", "")
                         result["asset_name"] = name
                         result["file_size"] = asset.get("size", 0)
                         break
@@ -73,7 +77,7 @@ def check_for_updates(timeout: int = 5) -> Dict[str, Any]:
                     for asset in assets:
                         name = asset.get("name", "")
                         if name.lower().endswith(".exe"):
-                            result["download_url"] = asset.get("browser_download_url", "")
+                            result["download_url"] = asset.get("url") or asset.get("browser_download_url", "")
                             result["asset_name"] = name
                             result["file_size"] = asset.get("size", 0)
                             break
@@ -231,8 +235,14 @@ def download_installer(
         target_path = os.path.join(tempfile.gettempdir(), fname)
 
     try:
-        headers = {"User-Agent": "CookieRunBot-Updater"}
-        with requests.get(download_url, headers=headers, stream=True, timeout=15) as r:
+        headers = {
+            "User-Agent": "CookieRunBot-Updater",
+            "Accept": "application/octet-stream",
+        }
+        if GITHUB_TOKEN and "api.github.com" in download_url:
+            headers["Authorization"] = f"token {GITHUB_TOKEN}"
+
+        with requests.get(download_url, headers=headers, stream=True, timeout=15, allow_redirects=True) as r:
             r.raise_for_status()
             total_size = int(r.headers.get("content-length", 0))
             downloaded = 0

@@ -22,8 +22,16 @@ pip install -r src/requirements.txt
 ```
 
 ## 🎮 How to Run
+
+### Method 1: Desktop GUI Launcher (Recommended)
+Double-click `START_GUI.bat` to launch the Sweet Bakery Desktop Launcher with automatic emulator discovery, single-instance protection, and instant dashboard opening.
+
+### Method 2: Command-Line / Direct Web Server
 Double-click `START_BOT.bat` or run:
 ```bash
 python src/run_web.py
 ```
 Open your browser at `http://localhost:8000` to access the Web Dashboard.
+
+## 📦 Build Installer (.exe)
+Run `BUILD_INSTALLER.bat` to compile the application into a standalone native Windows Installer (`dist_installer/CookieRunBot_Setup_v2.0.0.exe`) that runs on any PC without requiring Python.

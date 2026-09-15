@@ -73,7 +73,7 @@ def main():
     try:
         from version import CURRENT_VERSION
     except Exception:
-        CURRENT_VERSION = "2.0.0"
+        CURRENT_VERSION = "2.0.1"
 
     res = subprocess.run([iscc, f"/DMyAppVersion={CURRENT_VERSION}", iss_file], cwd=root_dir)
     if res.returncode != 0:

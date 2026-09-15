@@ -678,8 +678,8 @@ class CookieRunLauncherApp(ctk.CTk):
         # Update Badge / Button
         self.btn_update_badge = ctk.CTkButton(
             top_bar,
-            text=f"v{CURRENT_VERSION} 🔄",
-            width=110,
+            text=f"v{CURRENT_VERSION}",
+            width=90,
             height=32,
             corner_radius=10,
             font=ctk.CTkFont(size=11, weight="bold"),
@@ -895,7 +895,7 @@ class CookieRunLauncherApp(ctk.CTk):
         # Check for updates button
         self.btn_check_update = ctk.CTkButton(
             dash_card,
-            text="🔄 ตรวจหาการอัปเดตเวอร์ชันใหม่",
+            text="⚡ ตรวจหาการอัปเดตเวอร์ชันใหม่",
             font=ctk.CTkFont(size=12, weight="bold"),
             height=36,
             corner_radius=12,

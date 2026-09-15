@@ -59,24 +59,30 @@ jobs:
             Write-Host "No frontend/package.json found, skipping."
           }
 
-      - name: 🔨 Build Native Executable & Windows Installer
-        shell: pwsh
-        run: |
-          python build_installer.py --force-rebuild
-
-      - name: 🔍 Determine Release Tag
+      - name: 🔍 Resolve Version from Git Tag
         id: get_tag
         shell: pwsh
         run: |
           $tag = "${{ github.ref_name }}"
           if ("${{ github.event_name }}" -eq "workflow_dispatch" -and "${{ github.event.inputs.version_tag }}" -ne "") {
             $tag = "${{ github.event.inputs.version_tag }}"
-          } elseif ($tag -notmatch "^v\d") {
+          }
+          if ($tag -match "^v?(\d+\.\d+\.\d+)") {
+            $clean_ver = $Matches[1]
+            Write-Host "Syncing version in src/version.py to $clean_ver..."
+            (Get-Content "src/version.py") -replace 'CURRENT_VERSION\s*=\s*"[^"]*"', "CURRENT_VERSION = `"$clean_ver`"" | Set-Content "src/version.py"
+            $tag = "v$clean_ver"
+          } else {
             $ver = python -c "import sys; sys.path.insert(0, 'src'); from version import CURRENT_VERSION; print(CURRENT_VERSION)"
             $tag = "v$ver"
           }
           Write-Host "Resolved Release Tag: $tag"
           echo "RELEASE_TAG=$tag" >> $env:GITHUB_ENV
+
+      - name: 🔨 Build Native Executable & Windows Installer
+        shell: pwsh
+        run: |
+          python build_installer.py --force-rebuild
 
       - name: 🚀 Publish GitHub Release & Upload Installer
         uses: softprops/action-gh-release@v2

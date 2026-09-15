@@ -21,4 +21,4 @@ echo ========================================================
 echo [DONE] Installer created successfully!
 echo Opening folder...
 echo ========================================================
-explorer /select,"%~dp0dist_installer\CookieRunBot_Setup_v2.0.0.exe"
+explorer "%~dp0dist_installer"

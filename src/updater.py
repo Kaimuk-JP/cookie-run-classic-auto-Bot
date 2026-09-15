@@ -26,6 +26,43 @@ GITHUB_TOKEN = "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"
 RESUME_STATE_FILE = os.path.join(get_settings_dir(), "update_resume_state.json")
 
 
+def clean_release_notes(raw_notes: str, ver: str = "") -> str:
+    """Format and filter raw release notes into clean, human-readable bullet points."""
+    if not raw_notes:
+        return (
+            f"• อัปเดต CookieRun Bot เวอร์ชัน {ver or CURRENT_VERSION}\n"
+            "• ปรับปรุงประสิทธิภาพและเสถียรภาพการทำงาน\n"
+            "• รองรับระบบทำงานต่ออัตโนมัติ (Auto-Resume)"
+        )
+
+    import re
+    cleaned_lines = []
+    for line in raw_notes.strip().splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        # Skip raw compare links and header noise
+        if "full changelog" in line.lower() or "compare/" in line or line.startswith("http"):
+            continue
+        # Remove GitHub PR links and mentions: "by @user in https://..."
+        line = re.sub(r"\s+by\s+@\S+\s+in\s+https://\S+", "", line)
+        line = re.sub(r"https://github\.com/\S+", "", line).strip()
+        if line.startswith("* ") or line.startswith("- "):
+            line = "• " + line[2:].strip()
+        elif not line.startswith("• "):
+            line = "• " + line
+        if line and line != "•":
+            cleaned_lines.append(line)
+
+    if not cleaned_lines:
+        return (
+            f"• อัปเดต CookieRun Bot เวอร์ชัน {ver or CURRENT_VERSION}\n"
+            "• ปรับปรุงประสิทธิภาพและความเสถียรของระบบ\n"
+            "• ปรับปรุงการทำงานของบอทและหน้าต่างควบคุม"
+        )
+    return "\n".join(cleaned_lines)
+
+
 def check_for_updates(timeout: int = 5) -> Dict[str, Any]:
     """
     Check if a newer version is available from GitHub Releases or raw version.json.
@@ -60,7 +97,7 @@ def check_for_updates(timeout: int = 5) -> Dict[str, Any]:
                 clean_ver = remote_tag.lstrip("v")
                 result["latest_version"] = clean_ver
                 result["release_name"] = data.get("name") or remote_tag
-                result["release_notes"] = data.get("body", "").strip()
+                result["release_notes"] = clean_release_notes(data.get("body", ""), clean_ver)
 
                 # Locate installer .exe or asset
                 assets = data.get("assets", [])

@@ -69,12 +69,18 @@ def main():
 
     # 3. Compile Installer
     print("\n🔨 [3/3] Compiling Setup Installer with Inno Setup...")
-    res = subprocess.run([iscc, iss_file], cwd=root_dir)
+    sys.path.insert(0, os.path.join(root_dir, "src"))
+    try:
+        from version import CURRENT_VERSION
+    except Exception:
+        CURRENT_VERSION = "2.0.0"
+
+    res = subprocess.run([iscc, f"/DMyAppVersion={CURRENT_VERSION}", iss_file], cwd=root_dir)
     if res.returncode != 0:
         print("\n❌ Error compiling installer!")
         sys.exit(res.returncode)
 
-    installer_output = os.path.join(root_dir, "dist_installer", "CookieRunBot_Setup_v2.0.0.exe")
+    installer_output = os.path.join(root_dir, "dist_installer", f"CookieRunBot_Setup_v{CURRENT_VERSION}.exe")
     print("\n" + "=" * 70)
     print("🎉 INSTALLER CREATED SUCCESSFULLY! 🎉")
     print("=" * 70)

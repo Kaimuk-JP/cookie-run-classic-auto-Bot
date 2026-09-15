@@ -1,0 +1,89 @@
+name: Build & Release CookieRun Bot
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version_tag:
+        description: 'Version Tag (e.g. v2.0.1) - Leave empty to use version from src/version.py'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 🐍 Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: 🟢 Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: 📦 Install Inno Setup
+        run: |
+          choco install innosetup -y --no-progress
+          echo "C:\Program Files (x86)\Inno Setup 6" >> $env:GITHUB_PATH
+
+      - name: 📦 Install Python Build Dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          python -m pip install -r src/requirements.txt
+          python -m pip install nuitka zstandard ziglang
+
+      - name: ⚛️ Build React Frontend
+        shell: pwsh
+        run: |
+          if (Test-Path "frontend/package.json") {
+            Write-Host "Building React frontend..."
+            cd frontend
+            npm install
+            npm run build
+            cd ..
+          } else {
+            Write-Host "No frontend/package.json found, skipping."
+          }
+
+      - name: 🔨 Build Native Executable & Windows Installer
+        shell: pwsh
+        run: |
+          python build_installer.py --force-rebuild
+
+      - name: 🔍 Determine Release Tag
+        id: get_tag
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          if ("${{ github.event_name }}" -eq "workflow_dispatch" -and "${{ github.event.inputs.version_tag }}" -ne "") {
+            $tag = "${{ github.event.inputs.version_tag }}"
+          } elseif ($tag -notmatch "^v\d") {
+            $ver = python -c "import sys; sys.path.insert(0, 'src'); from version import CURRENT_VERSION; print(CURRENT_VERSION)"
+            $tag = "v$ver"
+          }
+          Write-Host "Resolved Release Tag: $tag"
+          echo "RELEASE_TAG=$tag" >> $env:GITHUB_ENV
+
+      - name: 🚀 Publish GitHub Release & Upload Installer
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: CookieRun Bot Pro ${{ env.RELEASE_TAG }}
+          files: dist_installer/*.exe
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

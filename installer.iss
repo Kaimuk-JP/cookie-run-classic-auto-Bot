@@ -1,8 +1,10 @@
 ; Script generated for Inno Setup 6
 ; CookieRun Classic Bot Pro - Windows Installer Script
 
-#define MyAppName "CookieRun Classic Bot Pro"
+#ifndef MyAppVersion
 #define MyAppVersion "2.0.0"
+#endif
+#define MyAppName "CookieRun Classic Bot Pro"
 #define MyAppPublisher "CookieRun Bot Team"
 #define MyAppExeName "CookieRunBot.exe"
 
@@ -15,7 +17,7 @@ DefaultDirName={autopf}\CookieRunBot
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 OutputDir=dist_installer
-OutputBaseFilename=CookieRunBot_Setup_v2.0.0
+OutputBaseFilename=CookieRunBot_Setup_v{#MyAppVersion}
 SetupIconFile=src\bot_icon.ico
 Compression=lzma2/ultra64
 SolidCompression=yes

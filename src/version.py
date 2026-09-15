@@ -9,7 +9,7 @@ RELEASES_API_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
 
 
 def parse_version(ver_str: str) -> tuple:
-    """Parse a version string (e.g., 'v2.0.1', '2.0.0') into a comparable tuple of ints."""
+    """Parse a version string (e.g., 'v2.1.1', '2.0.0') into a comparable tuple of ints."""
     if not ver_str:
         return (0, 0, 0)
     cleaned = ver_str.strip().lower().lstrip("v")

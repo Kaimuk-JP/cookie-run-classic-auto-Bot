@@ -59,6 +59,10 @@ def main():
         "--windows-console-mode=disable",
         "--enable-plugin=tk-inter",
         "--no-deployment-flag=excluded-module-usage",
+        # === SPEED OPTIMIZATIONS (safe, no security loss) ===
+        "--lto=no",              # Skip Link-Time Optimization (saves 20+ min on GitHub Actions)
+        "--jobs=4",              # Parallel compile using 4 CPU cores
+        # =====================================================
         "--include-package=customtkinter",
         "--include-package=darkdetect",
         "--include-package-data=customtkinter",

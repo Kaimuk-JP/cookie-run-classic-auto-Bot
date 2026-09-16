@@ -35,6 +35,14 @@ jobs:
         with:
           node-version: 20
 
+      - name: ⚡ Cache Nuitka compiled C++ objects (ccache)
+        uses: actions/cache@v4
+        with:
+          path: C:\Users\runneradmin\AppData\Local\Nuitka\Nuitka\Cache
+          key: nuitka-ccache-win-${{ hashFiles('src/**/*.py', 'build_exe.py') }}
+          restore-keys: |
+            nuitka-ccache-win-
+
       - name: 📦 Install Inno Setup
         run: |
           choco install innosetup -y --no-progress
@@ -98,3 +106,4 @@ jobs:
           generate_release_notes: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+

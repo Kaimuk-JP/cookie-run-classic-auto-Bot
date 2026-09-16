@@ -110,11 +110,14 @@ def start_backend_server(port: int):
 
     try:
         import asyncio
-        # CRITICAL: On Windows, default is ProactorEventLoop which breaks uvicorn.
-        # Force SelectorEventLoop so uvicorn's asyncio mode works in compiled EXE.
+        import selectors
+        # Use SelectorEventLoop explicitly — avoids ProactorEventLoop issues
+        # and is compatible with Python 3.12+ (WindowsSelectorEventLoopPolicy is deprecated)
         if sys.platform == "win32":
-            asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-        loop = asyncio.new_event_loop()
+            selector = selectors.SelectSelector()
+            loop = asyncio.SelectorEventLoop(selector)
+        else:
+            loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
     except Exception:
         pass
@@ -999,10 +1002,10 @@ class CookieRunLauncherApp(ctk.CTk):
             )
             _server_thread.start()
 
-            # Poll for HTTP ready before opening browser!
+            # Poll for HTTP ready before opening browser — wait up to 60 seconds
             def check_ready_and_open():
                 server_ok = False
-                for _ in range(80):  # poll up to 20 seconds (0.25s interval)
+                for _ in range(240):  # poll up to 60 seconds (0.25s interval)
                     time.sleep(0.25)
                     if is_http_ready(_server_port):
                         server_ok = True

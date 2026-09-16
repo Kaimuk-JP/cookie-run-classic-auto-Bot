@@ -84,12 +84,14 @@ silence_windows_proactor_connection_lost()
 # Heart Farmer (imported lazily to avoid circular deps)
 try:
     from heart_farmer import HeartFarmer as _HeartFarmer
-except ImportError:
+except Exception as _hf_err:
+    print(f"[WebServer] Note: heart_farmer not loaded: {_hf_err}", flush=True)
     _HeartFarmer = None
 
 try:
     from friend_cleaner import friend_cleaner_scheduler, clean_level1_friends
-except ImportError:
+except Exception as _fc_err:
+    print(f"[WebServer] Note: friend_cleaner not loaded: {_fc_err}", flush=True)
     friend_cleaner_scheduler = None
     clean_level1_friends = None
 

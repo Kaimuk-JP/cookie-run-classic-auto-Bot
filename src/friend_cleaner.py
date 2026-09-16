@@ -832,11 +832,17 @@ def clean_level1_friends(device: str, log_func=None, restart_app: bool = False) 
     # 4. แตะติ๊กเลือกเพื่อนเวล 1
     total_ticked = 0
     consecutive_empty_scrolls = 0
-    max_scrolls = 40
+    # 4. กระบวนการลบเพื่อนเวล 1 ทีละชุด (Batch Deletion):
+    # เมื่อจัดเรียง Level ▲ เพื่อนเวล 1 จะอยู่ด้านบนสุดเสมอ
+    # เมื่อเลือกลบแล้ว รายชื่อด้านล่างจะเลื่อนขึ้นมาแทนที่ด้านบนอัตโนมัติ
+    # จึงเลือกลบทีละชุดทันที โดยไม่ต้องเลื่อนจอลงไปไกล ทำให้ไม่เลื่อนมั่วและลบได้หมดจด 100%
+    total_deleted = 0
+    max_batches = 75  # รองรับลบได้ถึง 75x4 = 300 คน
+    consecutive_no_lvl1 = 0
 
-    _log("4. เริ่มกระบวนการติ๊กเลือกเพื่อนเวล 1 (เฉพาะในโหมดจัดการเพื่อนเท่านั้น)...")
+    _log("4. เริ่มกระบวนการลบเพื่อนเวล 1 ทีละชุด (Batch Deletion)...")
 
-    for scroll_idx in range(max_scrolls):
+    for batch_idx in range(1, max_batches + 1):
         screen = device_capture_screen(device)
         if screen is None:
             time.sleep(0.5)
@@ -844,85 +850,63 @@ def clean_level1_friends(device: str, log_func=None, restart_app: bool = False) 
 
         # CRITICAL GUARD: ต้องอยู่ในหน้า Manage Friends เท่านั้น ห้ามแตะหน้าอื่นเด็ดขาด!
         if is_in_manage_friends_mode(screen) is None:
-            _log("⚠️ หน้าจอไม่ได้อยู่ในหน้า Manage Friends แล้ว! หยุดการติ๊กเพื่อนทันทีเพื่อความปลอดภัย")
+            _log("⚠️ หน้าจอไม่ได้อยู่ในหน้า Manage Friends แล้ว! หยุดการทำงานทันทีเพื่อความปลอดภัย")
             break
 
         badges = detect_level1_badges(screen)
 
         if len(badges) == 0:
-            consecutive_empty_scrolls += 1
-            if consecutive_empty_scrolls >= 2:
-                _log("   ✨ [ตรวจจอ: เลื่อนครบแล้ว] ไม่พบเพื่อนเวล 1 ติดต่อกัน 2 ครั้ง -> ติ๊กครบหมดแล้ว!")
+            consecutive_no_lvl1 += 1
+            if consecutive_no_lvl1 >= 2:
+                _log("   ✨ ตรวจสอบแล้วไม่พบเพื่อนเลเวล 1 บนหน้าจออีกต่อไป -> ลบครบหมดเกลี้ยง 100%!")
                 break
-        else:
-            consecutive_empty_scrolls = 0
-            _log(f"   [รอบเลื่อนที่ {scroll_idx + 1}] พบเพื่อนเวล 1 บนหน้าจอ {len(badges)} คน")
+            # เผื่อติดขอบเล็กน้อย ลองสะกิดเลื่อนขึ้นเบาๆ กลับมาบนสุด
+            _adb_swipe(device, 500, 300, 500, 450, duration=250, delay=0.5)
+            continue
 
-            for pt in FRIEND_ROW_POINTS:
-                px, py = pt[0], pt[1]
-                has_lvl1 = any(abs(b_y - (py - 40)) < 65 for b_y in badges)
-                if not has_lvl1:
-                    continue
+        consecutive_no_lvl1 = 0
+        _log(f"   [ชุดที่ {batch_idx}] ตรวจพบเพื่อนเวล 1 บนหน้าจอ {len(badges)} คน กำลังเลือก...")
 
-                # ตรวจจอก่อนกด: แถวนี้ถูกติ๊กเลือกแล้วหรือยัง
-                b, g, r = screen[py, px]
-                is_selected = (int(r) - int(g) > 25) and (int(r) - int(b) > 25)
+        # แตะเลือกเพื่อนเลเวล 1 แต่ละแถว (แตะที่กึ่งกลางแถว X=500 เพื่อความแม่นยำ)
+        selected_count = 0
+        for pt in FRIEND_ROW_POINTS:
+            px, py = pt[0], pt[1]
+            has_lvl1 = any(abs(b_y - (py - 40)) < 65 for b_y in badges)
+            if not has_lvl1:
+                continue
 
-                if not is_selected:
-                    _log(f"   👉 [ตรวจจอก่อนกด: ยังไม่ติ๊ก] แตะเพื่อนเวล 1 ที่จุด ({px}, {py})")
-                    _adb_tap(device, px, py, jitter=2, delay=0.3)
+            # ตรวจสอบสีพิกเซลก่อนกด ถ้ายังไม่เป็นสีชมพู/แดง (ยังไม่เลือก)
+            b, g, r = screen[py, px]
+            is_selected = (int(r) - int(g) > 25) and (int(r) - int(b) > 25)
+            if not is_selected:
+                _adb_tap(device, 500, py, jitter=2, delay=0.2)
+                selected_count += 1
 
-                    # ตรวจจอหลังกด: ยืนยันว่าแถวเปลี่ยนเป็นติ๊กเลือกแล้ว
-                    screen_check = device_capture_screen(device)
-                    if screen_check is not None:
-                        cb, cg, cr = screen_check[py, px]
-                        if (int(cr) - int(cg) > 20) and (int(cr) - int(cb) > 20):
-                            _log(f"      ✅ [ตรวจจอหลังกด: สำเร็จ] แถวที่จุด ({px}, {py}) ติ๊กเลือกแล้ว")
-                    total_ticked += 1
+        # เก็บตกแถวที่ตรวจเจอ Level 1 badge แต่ไม่ตรงจุดหลัก 4 จุด
+        screen_after_tap = device_capture_screen(device)
+        if screen_after_tap is not None:
+            badges_after = detect_level1_badges(screen_after_tap)
+            for b_y in badges_after:
+                if not is_row_selected(screen_after_tap, b_y):
+                    _adb_tap(device, 500, b_y + 20, jitter=2, delay=0.2)
+                    selected_count += 1
 
-            # เก็บตกแถวที่ตรวจเจอแต่ไม่ตรงจุด 4 จุดหลัก (แตะที่ X=980 ช่องดาวเลือก)
-            screen_after = device_capture_screen(device)
-            if screen_after is not None:
-                badges_after = detect_level1_badges(screen_after)
-                for b_y in badges_after:
-                    if not is_row_selected(screen_after, b_y):
-                        _log(f"   👉 [เก็บตก: ก่อนกด] แตะติ๊กเพื่อนเวล 1 ที่ (980, {b_y + 20})")
-                        _adb_tap(device, 980, b_y + 20, jitter=2, delay=0.3)
-                        total_ticked += 1
+        # แตะปุ่ม Clear selection (956, 650) เพื่อสั่งลบชุดนี้
+        _log(f"   👉 [ชุดที่ {batch_idx}] แตะปุ่มลบ (Clear selection)...")
+        _adb_tap(device, CLEAR_SELECTION_BUTTON[0], CLEAR_SELECTION_BUTTON[1], jitter=1, delay=1.0)
 
-        # เลื่อนหน้าจอลงเพื่อตรวจคนถัดไป
-        _log("   📜 เลื่อนหน้าจอลงเพื่อตรวจสอบเพื่อนคนถัดไป...")
-        _adb_swipe(device, 500, 580, 500, 250, duration=350, delay=0.8)
+        # ตรวจหาปุ่มยืนยัน Confirm สีเขียว
+        screen_confirm = device_capture_screen(device)
+        conf_btn = _find_green_confirm_button(screen_confirm)
+        conf_coord = conf_btn if conf_btn is not None else CONFIRM_REMOVE_BUTTON
+        _log(f"   👉 [ชุดที่ {batch_idx}] แตะยืนยัน Confirm...")
+        _adb_tap(device, conf_coord[0], conf_coord[1], jitter=1, delay=2.0)
 
-    _log(f"✅ ติ๊กเลือกเพื่อนเลเวล 1 เสร็จสิ้น (ทั้งหมด ~{total_ticked} รายการ)")
+        total_deleted += selected_count
+        _log(f"   ✅ [ชุดที่ {batch_idx}] ลบเพื่อนเลเวล 1 ชุดนี้เรียบร้อย (สะสม ~{total_deleted} คน)")
+        time.sleep(0.6)
 
-    # 5. ลบให้หมด: ถ้ามีติ๊กไว้ ให้กดเคลียร์ -> ยืนยันลบ
-    if total_ticked > 0:
-        screen = device_capture_screen(device)
-        manage_btn = is_in_manage_friends_mode(screen)
-        if manage_btn is not None or is_friends_dialog_open(screen):
-            btn_coord = manage_btn if manage_btn is not None else CLEAR_SELECTION_BUTTON
-            _log(f"5. [ตรวจจอก่อนกด: พบหน้าจัดการเพื่อน] แตะ: ({btn_coord[0]}, {btn_coord[1]}) ปุ่มเคลียร์ (Clear selection)")
-            _adb_tap(device, btn_coord[0], btn_coord[1], jitter=1, delay=1.2)
-
-            # ตรวจหาปุ่มยืนยันลบ (สีเขียว Confirm)
-            screen_confirm = device_capture_screen(device)
-            conf_btn = _find_green_confirm_button(screen_confirm)
-            conf_coord = conf_btn if conf_btn is not None else CONFIRM_REMOVE_BUTTON
-            _log(f"   แตะ: ({conf_coord[0]}, {conf_coord[1]}) ปุ่มยืนยันลบ (Confirm)")
-            _adb_tap(device, conf_coord[0], conf_coord[1], jitter=1, delay=2.5)
-
-            # ตรวจจอหลังกดลบ: รอให้หน้าต่างยืนยันปิด และรายการเพื่อนอัปเดตเสร็จ
-            for _ in range(6):
-                screen_wait = device_capture_screen(device)
-                if screen_wait is not None and _find_green_confirm_button(screen_wait) is None:
-                    _log("   ✅ [ตรวจจอหลังกดยืนยัน: สำเร็จ] ลบเพื่อนเลเวล 1 ที่เลือกเรียบร้อยแล้ว!")
-                    break
-                time.sleep(0.5)
-        else:
-            _log("⚠️ ตรวจไม่พบหน้าต่างเพื่อน ข้ามขั้นตอนลบเพื่อความปลอดภัย")
-    else:
-        _log("ℹ️ ไม่มีเพื่อนเวล 1 ให้ลบในรอบนี้")
+    _log(f"🎉 เสร็จสิ้นขั้นตอนลบเพื่อนเลเวล 1 ทั้งหมด (~{total_deleted} รายการ)")
 
     # 6. ออกสู่หน้าหลัก (Lobby): ตรวจจับภาพและปิดตามลำดับ (ปิด Manage mode ก่อน แล้วปิดหน้าต่างหลัก)
     _log("6. เริ่มขั้นตอนออกจากหน้าต่างเพื่อนกลับสู่หน้าหลัก (Lobby)...")
@@ -974,8 +958,8 @@ def clean_level1_friends(device: str, log_func=None, restart_app: bool = False) 
     return {
         "success": True,
         "device": device,
-        "total_ticked": total_ticked,
-        "message": f"ลบเพื่อนเลเวล 1 บนจอ {device} เสร็จสิ้น (~{total_ticked} รายการ)"
+        "total_ticked": total_deleted,
+        "message": f"ลบเพื่อนเลเวล 1 บนจอ {device} เสร็จสิ้น (~{total_deleted} รายการ)"
     }
 
 

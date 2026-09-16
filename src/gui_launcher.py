@@ -110,14 +110,7 @@ def start_backend_server(port: int):
 
     try:
         import asyncio
-        import selectors
-        # Use SelectorEventLoop explicitly — avoids ProactorEventLoop issues
-        # and is compatible with Python 3.12+ (WindowsSelectorEventLoopPolicy is deprecated)
-        if sys.platform == "win32":
-            selector = selectors.SelectSelector()
-            loop = asyncio.SelectorEventLoop(selector)
-        else:
-            loop = asyncio.new_event_loop()
+        loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
     except Exception:
         pass
@@ -415,9 +408,6 @@ class CookieRunLauncherApp(ctk.CTk):
 
         # Handle window close
         self.protocol("WM_DELETE_WINDOW", self.on_window_close)
-
-        # Start pre-warming background web server AFTER build_welcome_view so lbl_server_status exists
-        self.after(100, lambda: self.ensure_background_server(auto_open_browser=False))
 
         # Check for saved session
         saved_session = auth_manager.load_saved_session()
@@ -989,11 +979,10 @@ class CookieRunLauncherApp(ctk.CTk):
         global _server_thread, _server_port, _server_started
         if not _server_started:
             _server_port = find_free_port(8000)
-            if hasattr(self, "lbl_server_status"):
-                self.lbl_server_status.configure(
-                    text=f"⏳ กำลังเริ่มเซิร์ฟเวอร์ (พอร์ต {_server_port})...",
-                    text_color="#D97706"
-                )
+            self.lbl_server_status.configure(
+                text=f"⏳ กำลังเริ่มเซิร์ฟเวอร์ (พอร์ต {_server_port})...",
+                text_color="#D97706"
+            )
             _server_thread = threading.Thread(
                 target=start_backend_server,
                 args=(_server_port,),

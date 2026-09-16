@@ -402,14 +402,14 @@ class CookieRunLauncherApp(ctk.CTk):
         self.build_login_view()
         self.build_welcome_view()
 
-        # Start pre-warming background web server immediately so it is 100% ready by the time user logs in!
-        self.ensure_background_server(auto_open_browser=False)
-
         # Handle window restore/un-minimize to immediately repaint canvases without black flashes
         self.bind("<Map>", self._on_window_mapped)
 
         # Handle window close
         self.protocol("WM_DELETE_WINDOW", self.on_window_close)
+
+        # Start pre-warming background web server AFTER build_welcome_view so lbl_server_status exists
+        self.after(100, lambda: self.ensure_background_server(auto_open_browser=False))
 
         # Check for saved session
         saved_session = auth_manager.load_saved_session()
@@ -981,10 +981,11 @@ class CookieRunLauncherApp(ctk.CTk):
         global _server_thread, _server_port, _server_started
         if not _server_started:
             _server_port = find_free_port(8000)
-            self.lbl_server_status.configure(
-                text=f"⏳ กำลังเริ่มเซิร์ฟเวอร์ (พอร์ต {_server_port})...",
-                text_color="#D97706"
-            )
+            if hasattr(self, "lbl_server_status"):
+                self.lbl_server_status.configure(
+                    text=f"⏳ กำลังเริ่มเซิร์ฟเวอร์ (พอร์ต {_server_port})...",
+                    text_color="#D97706"
+                )
             _server_thread = threading.Thread(
                 target=start_backend_server,
                 args=(_server_port,),
@@ -1003,10 +1004,11 @@ class CookieRunLauncherApp(ctk.CTk):
                         break
 
                 if server_ok:
-                    self.after(0, lambda: self.lbl_server_status.configure(
-                        text=f"🟢 เซิร์ฟเวอร์พร้อมทำงาน (พอร์ต {_server_port})",
-                        text_color="#10B981"
-                    ))
+                    if hasattr(self, "lbl_server_status"):
+                        self.after(0, lambda: self.lbl_server_status.configure(
+                            text=f"🟢 เซิร์ฟเวอร์พร้อมทำงาน (พอร์ต {_server_port})",
+                            text_color="#10B981"
+                        ))
                     if hasattr(self, "btn_open_web"):
                         self.after(0, lambda: self.btn_open_web.configure(state="normal", text="🚀 เปิด Web Dashboard"))
                     if auto_open_browser:
@@ -1016,10 +1018,11 @@ class CookieRunLauncherApp(ctk.CTk):
                         except Exception:
                             webbrowser.open(url)
                 else:
-                    self.after(0, lambda: self.lbl_server_status.configure(
-                        text=f"❌ ไม่สามารถเริ่มเซิร์ฟเวอร์ได้ (พอร์ต {_server_port})",
-                        text_color="#EF4444"
-                    ))
+                    if hasattr(self, "lbl_server_status"):
+                        self.after(0, lambda: self.lbl_server_status.configure(
+                            text=f"❌ ไม่สามารถเริ่มเซิร์ฟเวอร์ได้ (พอร์ต {_server_port})",
+                            text_color="#EF4444"
+                        ))
                     if hasattr(self, "btn_open_web"):
                         self.after(0, lambda: self.btn_open_web.configure(state="normal", text="🔄 ลองเปิดอีกครั้ง"))
 

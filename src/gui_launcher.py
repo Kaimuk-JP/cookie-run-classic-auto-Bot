@@ -90,12 +90,14 @@ def find_free_port(start_port=8000, max_attempts=30):
     return start_port
 
 
-def is_port_listening(port: int, host: str = "127.0.0.1", timeout: float = 0.3) -> bool:
-    """Test if server is actively listening on target host:port."""
+def is_http_ready(port: int, host: str = "127.0.0.1", timeout: float = 0.4) -> bool:
+    """Test if FastAPI HTTP server is actually responding with 200 OK (ready for browser)."""
+    import urllib.request
     try:
-        with socket.create_connection((host, port), timeout=timeout):
-            return True
-    except (OSError, ConnectionRefusedError):
+        url = f"http://{host}:{port}/"
+        with urllib.request.urlopen(url, timeout=timeout) as resp:
+            return resp.status in (200, 304, 307)
+    except Exception:
         return False
 
 
@@ -988,12 +990,12 @@ class CookieRunLauncherApp(ctk.CTk):
             )
             _server_thread.start()
 
-            # Poll for server ready using true socket connection check before opening browser!
+            # Poll for HTTP ready before opening browser!
             def check_ready_and_open():
                 server_ok = False
-                for _ in range(60):  # poll up to 15 seconds (0.25s interval)
+                for _ in range(80):  # poll up to 20 seconds (0.25s interval)
                     time.sleep(0.25)
-                    if is_port_listening(_server_port):
+                    if is_http_ready(_server_port):
                         server_ok = True
                         break
 
@@ -1002,6 +1004,8 @@ class CookieRunLauncherApp(ctk.CTk):
                         text=f"🟢 เซิร์ฟเวอร์พร้อมทำงาน (พอร์ต {_server_port})",
                         text_color="#10B981"
                     ))
+                    if hasattr(self, "btn_open_web"):
+                        self.after(0, lambda: self.btn_open_web.configure(state="normal", text="🚀 เปิด Web Dashboard"))
                     if auto_open_browser:
                         url = f"http://127.0.0.1:{_server_port}"
                         try:
@@ -1013,12 +1017,14 @@ class CookieRunLauncherApp(ctk.CTk):
                         text=f"❌ ไม่สามารถเริ่มเซิร์ฟเวอร์ได้ (พอร์ต {_server_port})",
                         text_color="#EF4444"
                     ))
+                    if hasattr(self, "btn_open_web"):
+                        self.after(0, lambda: self.btn_open_web.configure(state="normal", text="🔄 ลองเปิดอีกครั้ง"))
 
             threading.Thread(target=check_ready_and_open, daemon=True).start()
         else:
-            # Check if server is actually still listening
+            # Check if server is actually still responding
             def verify_and_open():
-                if is_port_listening(_server_port):
+                if is_http_ready(_server_port):
                     self.after(0, lambda: self.lbl_server_status.configure(
                         text=f"🟢 เซิร์ฟเวอร์พร้อมทำงาน (พอร์ต {_server_port})",
                         text_color="#10B981"
@@ -1158,7 +1164,7 @@ class CookieRunLauncherApp(ctk.CTk):
         threading.Thread(target=restart_worker, daemon=True).start()
 
     def handle_open_web_dashboard(self):
-        if is_port_listening(_server_port):
+        if is_http_ready(_server_port):
             url = f"http://127.0.0.1:{_server_port}"
             try:
                 os.startfile(url)

@@ -76,6 +76,8 @@ MAILBOX_CLOSE_BUTTON = (1130, 88)      # ปุ่ม X ปิดกล่อง
 TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), "templates")
 LVL1_TEMPLATE_PATH = os.path.join(TEMPLATE_DIR, "level1_badge.png")
 NO_LIVES_TEMPLATE_PATH = os.path.join(TEMPLATE_DIR, "no_lives_text.png")
+MAILBOX_TITLE_TEMPLATE = os.path.join(TEMPLATE_DIR, "mailbox_title.png")
+NO_LIVES_RECEIVED_TEMPLATE = os.path.join(TEMPLATE_DIR, "no_lives_received.png")
 FRIENDS_DIALOG_X_TEMPLATE_PATH = os.path.join(TEMPLATE_DIR, "FRIENDS_DIALOG_X_BTN.png")
 MANAGE_MODE_X_TEMPLATE_PATH = os.path.join(TEMPLATE_DIR, "MANAGE_MODE_X_BTN.png")
 
@@ -174,12 +176,12 @@ def _find_green_confirm_button(screen: Optional[np.ndarray]) -> Optional[Tuple[i
                 th, tw = tmpl.shape[:2]
                 return (450 + max_loc[0] + tw // 2, 350 + max_loc[1] + th // 2)
 
-    # 3. Color detection for 2-button popup green Confirm (X: 630..820, Y: 410..500)
-    roi_btn = screen[410:500, 630:820]
+    # 3. Color detection for green Confirm button (X: 480..820, Y: 400..510)
+    roi_btn = screen[400:510, 480:820]
     green = (roi_btn[:, :, 1] > 160) & (roi_btn[:, :, 0] < 100) & (roi_btn[:, :, 2] < 180)
-    if green.sum() > 2000:
+    if green.sum() > 1500:
         ys, xs = np.where(green)
-        return (int(xs.mean()) + 630, int(ys.mean()) + 410)
+        return (int(xs.mean()) + 480, int(ys.mean()) + 400)
 
     # 4. Check if popup title is visible (No Lives or All Lives)
     if is_no_lives_to_receive(screen) or is_all_lives_received_and_sent(screen):
@@ -214,26 +216,59 @@ def is_at_lobby(screen: Optional[np.ndarray]) -> bool:
     return False
 
 
+def is_no_lives_received_screen(screen: Optional[np.ndarray]) -> bool:
+    """Check if mailbox is on Lives tab and displays 'No Lives received!'"""
+    if screen is None:
+        return False
+    h, w = screen.shape[:2]
+    if (w, h) != (1280, 720):
+        screen = cv2.resize(screen, (1280, 720))
+    if os.path.exists(NO_LIVES_RECEIVED_TEMPLATE):
+        t = cv2.imread(NO_LIVES_RECEIVED_TEMPLATE)
+        if t is not None:
+            res = cv2.matchTemplate(screen[400:600, 450:850], t, cv2.TM_CCOEFF_NORMED)
+            if float(np.max(res)) >= 0.75:
+                return True
+    return False
+
+
 def is_mailbox_open(screen: Optional[np.ndarray]) -> bool:
     """
     Check if the Mailbox dialog is currently open on screen.
     1. Must not be at Lobby.
-    2. Check the green 'Quick Receive & Send Lives' button area at the bottom: (X: 400..880, Y: 580..620).
-    3. If modal popup is active over mailbox (Confirm button present), returns True.
+    2. Check the teal header title 'Mailbox' (X: 480..750, Y: 60..150).
+    3. Check the green 'Quick Receive & Send Lives' button area: (X: 400..880, Y: 580..620).
+    4. If modal popup is active over mailbox (Confirm button present), returns True.
+    5. If 'No Lives received!' empty text is displayed, returns True.
     """
     if screen is None or is_at_lobby(screen):
         return False
     h, w = screen.shape[:2]
     if (w, h) != (1280, 720):
         screen = cv2.resize(screen, (1280, 720))
-    # Quick Receive button green
+
+    # 1. Check header title "Mailbox"
+    if os.path.exists(MAILBOX_TITLE_TEMPLATE):
+        t = cv2.imread(MAILBOX_TITLE_TEMPLATE)
+        if t is not None and t.shape[0] <= screen.shape[0] and t.shape[1] <= screen.shape[1]:
+            res = cv2.matchTemplate(screen[60:150, 480:750], t, cv2.TM_CCOEFF_NORMED)
+            if float(np.max(res)) >= 0.75:
+                return True
+
+    # 2. Quick Receive button green
     roi = screen[580:620, 400:880]
     green = (roi[:, :, 1] > 130) & (roi[:, :, 0] < 110) & (roi[:, :, 2] < 160)
     if green.sum() > 1000:
         return True
-    # If Confirm dialog is open inside mailbox
+
+    # 3. If Confirm dialog is open inside mailbox
     if _find_green_confirm_button(screen) is not None:
         return True
+
+    # 4. Check "No Lives received!" empty state
+    if is_no_lives_received_screen(screen):
+        return True
+
     return False
 
 
@@ -434,11 +469,21 @@ def clear_all_lobby_popups(device: str, max_wait: float = 35.0, log_func=None) -
             _adb_tap(device, 1215, 95, jitter=2, delay=1.2)
             continue
 
-        # 3. ตรวจสอบปุ่ม Confirm สีเขียวกลางจอ (Pop-up รางวัล/ยินดีต้อนรับ)
+        # 3. ตรวจสอบปุ่ม Confirm สีเขียวกลางจอ (Pop-up รางวัล/ยินดีต้อนรับ/Search failed)
         btn = _find_green_confirm_button(screen)
         if btn is not None:
             _log(f"⚡ ตรวจพบ Pop-up กลางจอ -> แตะ Confirm ที่ {btn}...")
             _adb_tap(device, btn[0], btn[1], jitter=2, delay=1.2)
+            continue
+
+        # 4. ตรวจสอบหน้าต่างเพื่อน หรือหน้าจัดการเพื่อนที่ค้างอยู่
+        if is_in_manage_friends_mode(screen) is not None:
+            _log("⚡ ตรวจพบหน้าจัดการเพื่อนค้างอยู่ -> แตะปิดที่ (1054, 52)...")
+            _adb_tap(device, 1054, 52, jitter=1, delay=1.2)
+            continue
+        if is_friends_dialog_open(screen):
+            _log("⚡ ตรวจพบหน้าต่างเพื่อนค้างอยู่ -> แตะปิดที่ (1009, 69)...")
+            _adb_tap(device, 1009, 69, jitter=1, delay=1.2)
             continue
 
         # 4. ตรวจสอบว่าถึงหน้า Lobby สะอาดเรียบร้อยแล้ว
@@ -513,7 +558,8 @@ def receive_mailbox_hearts(device: str, log_func=None) -> bool:
     ตรวจจอก่อนกด และตรวจจอหลังกดทุกขั้นตอน:
       - ตรวจสอบหน้าล็อบบี้ก่อนเปิดกล่องข้อความ
       - ยืนยันว่าหน้าต่าง Mailbox เปิดจริงก่อนกดปุ่มภายใน
-      - รับหัวใจจนกว่าจะขึ้น 'No Lives to receive!'
+      - แตะ Quick Receive & Send Lives
+      - กดยืนยัน Pop-up ส่งใจให้เพื่อนต่อเนื่องจนหมด
       - ปิดกล่องข้อความและยืนยันกลับสู่หน้าล็อบบี้ 100%
     """
     def _log(msg: str):
@@ -525,7 +571,9 @@ def receive_mailbox_hearts(device: str, log_func=None) -> bool:
     # 1. ตรวจจอก่อนกด: ตรวจสอบว่าพร้อมที่หน้าล็อบบี้
     _log("💌 1. ตรวจสอบหน้าจอ: รอให้พร้อมที่หน้าล็อบบี้ก่อนเปิดกล่องข้อความ...")
     if not wait_for_lobby(device, timeout=8.0, log_func=_log):
-        _log("   ⚠️ หน้าจออาจยังไม่ได้อยู่ล็อบบี้ กำลังตรวจสอบหน้าจอ...")
+        _log("   ⚠️ หน้าจออาจยังไม่ได้อยู่ล็อบบี้ กำลังเคลียร์ Pop-up และรอหน้าล็อบบี้...")
+        clear_all_lobby_popups(device, max_wait=6.0, log_func=_log)
+        wait_for_lobby(device, timeout=5.0, log_func=_log)
 
     mailbox_opened = False
     for attempt in range(5):
@@ -550,75 +598,65 @@ def receive_mailbox_hearts(device: str, log_func=None) -> bool:
     _log("💌 2. กดแท็บ Lives...")
     _adb_tap(device, MAILBOX_LIVES_TAB[0], MAILBOX_LIVES_TAB[1], jitter=2, delay=1.0)
 
-    # ตรวจจอทันที: ถ้าขึ้น 'No Lives to receive!' อยู่แล้ว
+    # ตรวจจอทันที: ถ้าขึ้น 'No Lives to receive!' หรือ 'No Lives received!' อยู่แล้ว
     screen = device_capture_screen(device)
-    if is_no_lives_to_receive(screen):
-        _log("   🛑 ตรวจพบ 'No Lives to receive!' -> รับหัวใจหมดแล้ว! กด Confirm แล้วหยุดรับทันที")
+    if is_no_lives_to_receive(screen) or is_no_lives_received_screen(screen):
+        _log("   🛑 ตรวจพบไม่มีหัวใจค้างในกล่องข้อความ (No Lives) -> ปิดกล่องข้อความทันที")
         btn = _find_green_confirm_button(screen)
         if btn is not None:
             _adb_tap(device, btn[0], btn[1], jitter=2, delay=0.8)
 
         _log("💌 ปิดกล่องข้อความกลับสู่หน้าหลัก...")
-        for _ in range(3):
-            screen_curr = device_capture_screen(device)
-            if is_at_lobby(screen_curr):
-                break
-            _adb_tap(device, MAILBOX_CLOSE_BUTTON[0], MAILBOX_CLOSE_BUTTON[1], jitter=1, delay=1.2)
+        _adb_tap(device, MAILBOX_CLOSE_BUTTON[0], MAILBOX_CLOSE_BUTTON[1], jitter=1, delay=1.2)
+        clear_all_lobby_popups(device, max_wait=5.0, log_func=_log)
         wait_for_lobby(device, timeout=6.0, log_func=_log)
         return True
 
-    _log("💌 3. เริ่มลูปกดรับหัวใจต่อเนื่องจนกว่าจะขึ้น 'No Lives to receive!'...")
-    no_confirm_streak = 0
+    _log("💌 3. แตะปุ่ม Quick Receive & Send Lives และยืนยันรับ-ส่งใจ...")
+    _adb_tap(device, MAILBOX_QUICK_RECEIVE[0], MAILBOX_QUICK_RECEIVE[1], jitter=2, delay=1.2)
+
     total_confirmed = 0
+    no_confirm_streak = 0
     max_rounds = 40
 
     for round_num in range(1, max_rounds + 1):
         screen = device_capture_screen(device)
-        if not is_mailbox_open(screen):
-            _log("   ⚠️ หน้าต่าง Mailbox ไม่ได้เปิดอยู่แล้ว หยุดลูปรับหัวใจ")
+        if is_at_lobby(screen):
+            _log("   ✅ ตรวจพบว่าอยู่ที่หน้าล็อบบี้แล้ว")
             break
 
-        # ตรวจจอก่อนกด: เช็ค No Lives to receive!
+        # ตรวจสอบ Pop-up 'No Lives to receive!'
         if is_no_lives_to_receive(screen):
-            _log("   🛑 ตรวจพบ 'No Lives to receive!' -> รับหมดแล้ว! กดยืนยันแล้วหยุดรับใจทันที")
+            _log("   🛑 ตรวจพบ 'No Lives to receive!' -> รับหมดแล้ว! กดยืนยัน")
             btn = _find_green_confirm_button(screen)
             if btn is not None:
                 _adb_tap(device, btn[0], btn[1], jitter=2, delay=0.8)
             break
 
+        # ตรวจสอบปุ่มยืนยันสีเขียว (Confirm ส่งใจให้เพื่อน หรือ All Lives received)
         btn = _find_green_confirm_button(screen)
         if btn is not None:
-            _log(f"   👉 พบปุ่มยืนยัน Pop-up ที่ {btn} (รอบที่ {round_num}) -> กด Confirm...")
+            _log(f"   👉 พบปุ่มยืนยัน Pop-up ที่ {btn} (ครั้งที่ {total_confirmed + 1}) -> กด Confirm...")
             _adb_tap(device, btn[0], btn[1], jitter=2, delay=1.0)
             total_confirmed += 1
             no_confirm_streak = 0
             continue
 
-        _log(f"   👉 กดปุ่ม 'Quick Receive & Send Lives' (รอบที่ {round_num})...")
-        _adb_tap(device, MAILBOX_QUICK_RECEIVE[0], MAILBOX_QUICK_RECEIVE[1], jitter=2, delay=1.0)
-
-        # ตรวจจอหลังกด
-        time.sleep(0.8)
-        screen = device_capture_screen(device)
-
-        if is_no_lives_to_receive(screen):
-            _log("   🛑 ตรวจพบ 'No Lives to receive!' -> รับหมดแล้ว! กดยืนยันแล้วหยุดรับใจทันที")
-            btn = _find_green_confirm_button(screen)
-            if btn is not None:
-                _adb_tap(device, btn[0], btn[1], jitter=2, delay=0.8)
-            break
-
-        btn = _find_green_confirm_button(screen)
-        if btn is not None:
-            _log(f"   👉 มี Pop-up Confirm โผล่ขึ้นมาที่ {btn} -> กด Confirm...")
-            _adb_tap(device, btn[0], btn[1], jitter=2, delay=1.0)
+        # ถ้าไม่เจอปุ่มทันที ให้รอสักครู่เพื่อกันจังหวะอนิเมชั่น Pop-up ถัดไป
+        time.sleep(1.0)
+        screen_retry = device_capture_screen(device)
+        btn_retry = _find_green_confirm_button(screen_retry)
+        if btn_retry is not None:
+            _log(f"   👉 พบปุ่มยืนยัน Pop-up ที่ {btn_retry} (ครั้งที่ {total_confirmed + 1}) -> กด Confirm...")
+            _adb_tap(device, btn_retry[0], btn_retry[1], jitter=2, delay=1.0)
             total_confirmed += 1
             no_confirm_streak = 0
-        else:
-            no_confirm_streak += 1
-            if no_confirm_streak >= 2:
-                _log("   ✨ ไม่มีปุ่มยืนยัน (Confirm) ขึ้นมาอีกแล้ว -> รับหัวใจทั้งหมดสำเร็จ 100%!")
-                break
+            continue
+
+        no_confirm_streak += 1
+        if no_confirm_streak >= 2:
+            _log("   ✨ ไม่มีปุ่มยืนยัน (Confirm) ขึ้นมาอีกแล้ว -> รับหัวใจทั้งหมดสำเร็จ!")
+            break
 
     # 4. ออกจากรับใจตรวจจอ: ตรวจจอก่อนแตะปิด และตรวจจอหลังแตะปิด
     _log(f"💌 4. ปิดกล่องข้อความกลับสู่หน้าหลัก (กดยืนยันไปทั้งหมด {total_confirmed} ครั้ง)...")
@@ -627,19 +665,25 @@ def receive_mailbox_hearts(device: str, log_func=None) -> bool:
         if is_at_lobby(screen_curr):
             _log("   ✅ ตรวจจอพบว่าอยู่ที่หน้าล็อบบี้แล้ว 100%")
             break
+
+        # ถ้ายังมี Pop-up Confirm ค้างอยู่ ให้กดยืนยันให้หมดก่อน
+        btn = _find_green_confirm_button(screen_curr)
+        if btn is not None:
+            _log(f"   👉 กดปุ่มยืนยัน Pop-up ที่ค้างอยู่: {btn}")
+            _adb_tap(device, btn[0], btn[1], jitter=1, delay=1.0)
+            continue
+
         if is_mailbox_open(screen_curr):
             _log(f"   แตะ: ({MAILBOX_CLOSE_BUTTON[0]}, {MAILBOX_CLOSE_BUTTON[1]}) ปุ่มปิดกล่องข้อความ (รอบ {close_attempt + 1})")
             _adb_tap(device, MAILBOX_CLOSE_BUTTON[0], MAILBOX_CLOSE_BUTTON[1], jitter=1, delay=1.2)
         else:
-            btn = _find_green_confirm_button(screen_curr)
-            if btn is not None:
-                _adb_tap(device, btn[0], btn[1], jitter=1, delay=1.0)
-            else:
-                _adb_tap(device, MAILBOX_CLOSE_BUTTON[0], MAILBOX_CLOSE_BUTTON[1], jitter=1, delay=1.2)
-        time.sleep(0.8)
+            # ถ้าเป็น Pop-up อื่นๆ ให้ปิด
+            clear_all_lobby_popups(device, max_wait=3.0, log_func=_log)
+        time.sleep(0.6)
 
+    clear_all_lobby_popups(device, max_wait=4.0, log_func=_log)
     wait_for_lobby(device, timeout=6.0, log_func=_log)
-    _log("✅ รับหัวใจครบถ้วน 100% เรียบร้อยแล้ว!")
+    _log("✅ รับหัวใจจากกล่องข้อความเรียบร้อย 100%!")
     return True
 
 def detect_level1_badges(screen_bgr: np.ndarray, threshold: float = 0.70) -> List[int]:
@@ -731,13 +775,18 @@ def clean_level1_friends(device: str, log_func=None, restart_app: bool = False) 
             print(f"[{time.strftime('%H:%M:%S')}][FriendCleaner][{device}] {msg}", flush=True)
 
     _log("==========================================")
-    _log("🧹 เริ่มกระบวนการลบเพื่อนเวล 1...")
+    _log("🧹 เริ่มกระบวนการรับหัวใจและลบเพื่อนเวล 1...")
     _log("==========================================")
 
     # ตรวจสอบหน้าจอ: รอให้เกมกลับสู่หน้าล็อบบี้ก่อนเริ่ม
     _log("🔍 ตรวจสอบหน้าจอ: รอให้เกมแสดงผลหน้าล็อบบี้อย่างสมบูรณ์...")
     wait_for_lobby(device, timeout=10, log_func=_log)
     time.sleep(0.5)
+
+    # 0. รับหัวใจจากกล่องข้อความก่อนลบเพื่อน
+    _log("0. [เตรียมตัว] เปิดกล่องข้อความเพื่อรับหัวใจและส่งหัวใจกลับให้เพื่อนก่อนลบ...")
+    receive_mailbox_hearts(device, log_func=_log)
+    time.sleep(0.8)
 
     # 1. กดเข้าเพื่อน: (801, 302) ตรวจสอบหน้าจอก่อนกด
     friends_opened = False
@@ -781,6 +830,14 @@ def clean_level1_friends(device: str, log_func=None, restart_app: bool = False) 
             _log("   ✅ อยู่ในหน้า Manage Friends เรียบร้อยแล้ว!")
             manage_opened = True
             break
+
+        # ตรวจสอบว่ามี Pop-up แจ้งเตือนขึ้นบังจอ (เช่น Search failed!) หรือไม่
+        conf_btn = _find_green_confirm_button(screen)
+        if conf_btn is not None:
+            _log(f"   ⚡ พบหน้าต่างแจ้งเตือนกลางจอ แตะ Confirm ที่ {conf_btn}...")
+            _adb_tap(device, conf_btn[0], conf_btn[1], jitter=1, delay=1.2)
+            continue
+
         if not is_friends_dialog_open(screen):
             _log("   ⚠️ หน้าต่าง Friends ปิดไปแล้ว พยายามเปิดใหม่...")
             _adb_tap(device, LOBBY_FRIENDS_BUTTON[0], LOBBY_FRIENDS_BUTTON[1], jitter=1, delay=1.5)

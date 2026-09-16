@@ -27,6 +27,12 @@ PrivilegesRequiredOverridesAllowed=dialog commandline
 CloseApplications=yes
 RestartApplications=yes
 
+[InstallDelete]
+Type: files; Name: "{app}\python3*.dll"
+Type: files; Name: "{app}\*.pyd"
+Type: files; Name: "{app}\libcrypto-*.dll"
+Type: files; Name: "{app}\libssl-*.dll"
+
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
 

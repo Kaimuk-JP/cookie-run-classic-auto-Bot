@@ -72,6 +72,8 @@ def main():
         "--include-package=pydantic",
         "--include-package=pydantic_core",
         "--include-package=websockets",
+        "--include-package=scrcpy",
+        "--include-package=av",
         f"--output-filename=CookieRunBot.exe",
         f"--output-dir={output_dir}",
     ]

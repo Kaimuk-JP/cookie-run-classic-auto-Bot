@@ -30,13 +30,13 @@ if scrcpy is not None:
             root = get_project_root()
             exe_dir = os.path.dirname(os.path.abspath(sys.executable))
             candidates = [
+                getattr(scrcpy, "__file__", "") and os.path.join(os.path.dirname(scrcpy.__file__), "scrcpy-server.jar"),
+                os.path.join(exe_dir, "scrcpy", "scrcpy-server.jar"),
+                os.path.join(exe_dir, "bin", "scrcpy-server.jar"),
+                os.path.join(exe_dir, "scrcpy-server.jar"),
                 os.path.join(root, "bin", "scrcpy-server.jar"),
                 os.path.join(root, "scrcpy", "scrcpy-server.jar"),
                 os.path.join(root, "scrcpy-server.jar"),
-                os.path.join(exe_dir, "bin", "scrcpy-server.jar"),
-                os.path.join(exe_dir, "scrcpy", "scrcpy-server.jar"),
-                os.path.join(exe_dir, "scrcpy-server.jar"),
-                getattr(scrcpy, "__file__", "") and os.path.join(os.path.dirname(scrcpy.__file__), "scrcpy-server.jar"),
             ]
             found_jar = None
             for c in candidates:

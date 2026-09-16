@@ -1,6 +1,6 @@
 {
-  "version": "2.0.0",
+  "version": "2.1.2",
   "download_url": "https://github.com/Jakprim-2004/cookie-run-classic-auto-Bot/releases/latest",
-  "changelog": "Initial release with In-App Auto-Update & Auto-Resume capability.",
-  "release_date": "2026-09-15"
+  "changelog": "Fix Scrcpy 60 FPS live stream jar version mismatch (v3.3.4), enhance friend cleaner with robust stop/recovery, and add new detection templates.",
+  "release_date": "2026-09-16"
 }

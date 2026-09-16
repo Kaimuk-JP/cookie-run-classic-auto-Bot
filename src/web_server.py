@@ -141,9 +141,9 @@ def _stop_heart_farmer(device: str) -> dict:
     try:
         from adb import get_adb_path
         import subprocess
-        adb_path = get_adb_path()
-        subprocess.run([adb_path, "-s", device, "shell", "am", "force-stop", "com.linecorp.LGCOOKIE"],
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
+        for pkg in ["com.devsisters.crg", "com.linecorp.LGCOOKIE"]:
+            subprocess.run([adb_path, "-s", device, "shell", "am", "force-stop", pkg],
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
     except Exception:
         pass
     bot_engine.log(f"[FARMER] สั่งหยุดระบบปั้มหัวใจบนจอ {device} และปิดเกมทันที", "farmer")
@@ -1009,11 +1009,34 @@ def api_cleaner_start(req: FriendCleanerStartRequest):
     return {"success": True, "message": f"เริ่มระบบลบเพื่อนเวล 1 อัตโนมัติแล้ว (ทำซ้ำทุก {req.interval_minutes} นาที)"}
 
 
+def _stop_cleaner_system():
+    """Stops friend cleaner scheduler and sets stop event on all loaded friend_cleaner instances."""
+    try:
+        import sys
+        if 'friend_cleaner' in sys.modules:
+            fc = sys.modules['friend_cleaner']
+            if hasattr(fc, '_GLOBAL_STOP_EVENT'):
+                fc._GLOBAL_STOP_EVENT.set()
+            if hasattr(fc, 'stop_all'):
+                fc.stop_all()
+        import friend_cleaner
+        if hasattr(friend_cleaner, '_GLOBAL_STOP_EVENT'):
+            friend_cleaner._GLOBAL_STOP_EVENT.set()
+        if hasattr(friend_cleaner, 'stop_all'):
+            friend_cleaner.stop_all()
+    except Exception:
+        pass
+
+    if friend_cleaner_scheduler:
+        try:
+            friend_cleaner_scheduler.stop()
+        except Exception:
+            pass
+
+
 @app.post("/api/cleaner/stop")
 def api_cleaner_stop():
-    if friend_cleaner_scheduler is None:
-        raise HTTPException(status_code=500, detail="FriendCleaner module not loaded")
-    friend_cleaner_scheduler.stop()
+    _stop_cleaner_system()
     bot_engine.log("[CLEANER] สั่งหยุดระบบลบเพื่อนเวล 1 อัตโนมัติ", "cleaner")
     return {"success": True, "message": "สั่งหยุดระบบลบเพื่อนเวล 1 เรียบร้อยแล้ว"}
 
@@ -1084,18 +1107,21 @@ def stop_bot(req: Optional[StopBotRequest] = None, device: Optional[str] = None)
     # 1. Stop Heart Farmer on this device if running
     _stop_heart_farmer(dev)
 
-    # 2. Stop Bot Engine
+    # 2. Stop Friend Cleaner immediately
+    _stop_cleaner_system()
+
+    # 3. Stop Bot Engine
     eng = get_engine_for_device(dev)
     eng.log(f"[BOT] สั่งหยุดการทำงานบอทสำหรับจอ {dev}", "bot")
     res = eng.stop()
 
-    # 3. Force stop game app immediately via ADB
+    # 4. Force stop game app immediately via ADB
     try:
         from adb import get_adb_path
         import subprocess
-        adb_path = get_adb_path()
-        subprocess.run([adb_path, "-s", dev, "shell", "am", "force-stop", "com.linecorp.LGCOOKIE"],
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
+        for pkg in ["com.devsisters.crg", "com.linecorp.LGCOOKIE"]:
+            subprocess.run([adb_path, "-s", dev, "shell", "am", "force-stop", pkg],
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
     except Exception:
         pass
 
@@ -1152,11 +1178,7 @@ def api_stop_all():
             stopped.append(d)
 
     # 3. Stop cleaner
-    if friend_cleaner_scheduler:
-        try:
-            friend_cleaner_scheduler.stop()
-        except Exception:
-            pass
+    _stop_cleaner_system()
 
     # 4. Force-stop game on all scanned devices immediately
     try:
@@ -1167,8 +1189,9 @@ def api_stop_all():
         for d in devices:
             serial = d.get("serial")
             if serial:
-                subprocess.Popen([adb_path, "-s", serial, "shell", "am", "force-stop", "com.linecorp.LGCOOKIE"],
-                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                for pkg in ["com.devsisters.crg", "com.linecorp.LGCOOKIE"]:
+                    subprocess.Popen([adb_path, "-s", serial, "shell", "am", "force-stop", pkg],
+                                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     except Exception:
         pass
 

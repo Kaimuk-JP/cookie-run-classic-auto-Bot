@@ -81,22 +81,44 @@ NO_LIVES_RECEIVED_TEMPLATE = os.path.join(TEMPLATE_DIR, "no_lives_received.png")
 FRIENDS_DIALOG_X_TEMPLATE_PATH = os.path.join(TEMPLATE_DIR, "FRIENDS_DIALOG_X_BTN.png")
 MANAGE_MODE_X_TEMPLATE_PATH = os.path.join(TEMPLATE_DIR, "MANAGE_MODE_X_BTN.png")
 
+# Global stop event — ถูก set เมื่อกด Stop บน web dashboard
+# ทุก loop ใน friend_cleaner จะ check ก่อน action ด้วย _should_stop()
+_GLOBAL_STOP_EVENT = threading.Event()
+
+
+def _should_stop() -> bool:
+    """Returns True if user has requested bot to stop. ใช้ check ใน loop ยาวๆ ทุก function."""
+    return _GLOBAL_STOP_EVENT.is_set()
+
+
+def stop_all():
+    """Signals all running cleaner loops to stop immediately."""
+    _GLOBAL_STOP_EVENT.set()
+
+
+def reset_stop():
+    """Resets the stop signal so new tasks can run."""
+    _GLOBAL_STOP_EVENT.clear()
 
 def _adb_tap(device: str, x: int, y: int, jitter: int = 4, delay: float = 0.5):
+    if _should_stop():
+        return
     target = _format_target(device)
     adb = get_adb_path()
     jx = x + (random.randint(-jitter, jitter) if jitter > 0 else 0)
     jy = y + (random.randint(-jitter, jitter) if jitter > 0 else 0)
     _run_cmd([adb, "-s", target, "shell", "input", "tap", str(jx), str(jy)], timeout=10)
-    if delay > 0:
+    if delay > 0 and not _should_stop():
         time.sleep(delay)
 
 
 def _adb_swipe(device: str, x1: int, y1: int, x2: int, y2: int, duration: int = 350, delay: float = 0.8):
+    if _should_stop():
+        return
     target = _format_target(device)
     adb = get_adb_path()
     _run_cmd([adb, "-s", target, "shell", "input", "swipe", str(x1), str(y1), str(x2), str(y2), str(duration)], timeout=10)
-    if delay > 0:
+    if delay > 0 and not _should_stop():
         time.sleep(delay)
 
 
@@ -143,10 +165,116 @@ def is_no_lives_to_receive(screen: Optional[np.ndarray], threshold: float = 0.75
     return float(np.max(res)) >= threshold
 
 
-def _find_green_confirm_button(screen: Optional[np.ndarray]) -> Optional[Tuple[int, int]]:
+def _has_dialog_overlay(screen: np.ndarray) -> bool:
+    """
+    ตรวจว่าหน้าจอมี modal dialog popup (มีพื้นหลังมืด dimming จริงๆ).
+    ใช้เฉพาะ dark corners เพื่อป้องกัน false positive กับ Friends dialog (ขาวแต่ไม่ dim)
+    - Modal popup จริง: เกมจะ dim พื้นหลัง → corners มืดลง (< 80)
+    - Friends dialog / Mailbox: ไม่ dim corners → corners ยังสว่าง
+    """
+    h, w = screen.shape[:2]
+    if (w, h) != (1280, 720):
+        screen = cv2.resize(screen, (1280, 720))
+
+    # ตรวจ semi-transparent dark overlay: ขอบนอกจอ (corners) มืดกว่าปกติ
+    # เมื่อมี modal popup เกมจะ dim พื้นหลัง → corners มืดลงชัดเจน
+    corners = [
+        screen[0:80, 0:120],        # top-left
+        screen[0:80, 1160:1280],    # top-right
+        screen[640:720, 0:120],     # bottom-left
+        screen[640:720, 1160:1280], # bottom-right
+    ]
+    corner_brightness = [float(c.mean()) for c in corners]
+    avg_corner = sum(corner_brightness) / len(corner_brightness)
+
+    # เมื่อมี dim overlay มุมของจะมืดลง (< 80)
+    # Friends dialog / Mailbox ไม่ dim corners → avg_corner จะสูงกว่า
+    return avg_corner < 80
+
+
+
+def is_turn_off_lives_warning(screen: Optional[np.ndarray]) -> bool:
+    """
+    ตรวจจับ dialog เตือน "If you turn this off, you won't receive messages from friends!"
+    มีปุ่ม Cancel (สีเทา) ทางซ้าย และ Confirm (สีเขียว) ทางขวา
+    บอตต้องกด Cancel เสมอ ไม่งั้นจะปิดการรับหัวใจจากเพื่อน!
+    """
+    if screen is None:
+        return False
+    h, w = screen.shape[:2]
+
+    # 1. เช็คข้อความบน Pop-up ด้วย Template matching 'TURN_OFF_MSG_DIALOG.png' (multiscale)
+    tmpl_msg_path = os.path.join(TEMPLATE_DIR, "TURN_OFF_MSG_DIALOG.png")
+    if os.path.exists(tmpl_msg_path):
+        tmpl_msg = cv2.imread(tmpl_msg_path)
+        if tmpl_msg is not None:
+            for s in [0.65, 0.70, 0.75, 0.80, 0.85, 0.90, 0.95, 1.0, 1.05]:
+                ts = cv2.resize(tmpl_msg, (0, 0), fx=s, fy=s)
+                if ts.shape[0] <= screen.shape[0] and ts.shape[1] <= screen.shape[1]:
+                    res = cv2.matchTemplate(screen, ts, cv2.TM_CCOEFF_NORMED)
+                    if float(np.max(res)) >= 0.48:
+                        return True
+
+    # 2. ตรวจปุ่ม Cancel สีเทา ทางซ้าย และ Confirm สีเขียว ทางขวา (ในพิกัด 1280x720)
+    if (w, h) != (1280, 720):
+        screen_1280 = cv2.resize(screen, (1280, 720))
+    else:
+        screen_1280 = screen
+
+    roi_cancel = screen_1280[425:485, 470:660]
+    gray_cancel = (
+        (roi_cancel[:, :, 0].astype(int) > 90) & (roi_cancel[:, :, 0].astype(int) < 210) &
+        (np.abs(roi_cancel[:, :, 0].astype(int) - roi_cancel[:, :, 1].astype(int)) < 30) &
+        (np.abs(roi_cancel[:, :, 1].astype(int) - roi_cancel[:, :, 2].astype(int)) < 30)
+    )
+
+    roi_confirm = screen_1280[425:485, 660:870]
+    green_confirm = (
+        (roi_confirm[:, :, 1] > 130) &
+        (roi_confirm[:, :, 0] < 120) &
+        (roi_confirm[:, :, 2] < 180)
+    )
+
+    # ต้องมีทั้ง Cancel เทา + Confirm เขียว
+    if gray_cancel.sum() > 600 and green_confirm.sum() > 600:
+        # แยก 'Send a free Life?' vs 'If you turn this off'
+        # ถ้ามีข้อความ 'a free Life' แสดงว่าเป็นหน้าต่างส่งใจ ไม่ใช่ turn off warning
+        p_free_life = os.path.join(TEMPLATE_DIR, "A_FREE_LIFE_TEXT.png")
+        if os.path.exists(p_free_life):
+            t_life = cv2.imread(p_free_life)
+            if t_life is not None:
+                res_life = cv2.matchTemplate(screen_1280[200:320, 420:700], t_life, cv2.TM_CCOEFF_NORMED)
+                if float(np.max(res_life)) >= 0.70:
+                    return False
+
+        # ถ้ามีปุ่ม X วงกลมเทาที่มุมขวาบน dialog (X:600..680, Y:140..220) แสดงว่าเป็น Send Life dialog
+        roi_round_x = screen_1280[140:220, 600:680]
+        gray_circ = (roi_round_x[:, :, 0] > 90) & (roi_round_x[:, :, 0] < 180) & \
+                    (np.abs(roi_round_x[:, :, 0].astype(int) - roi_round_x[:, :, 1].astype(int)) < 25) & \
+                    (np.abs(roi_round_x[:, :, 1].astype(int) - roi_round_x[:, :, 2].astype(int)) < 25)
+        white_x = (roi_round_x[:, :, 0] > 220) & (roi_round_x[:, :, 1] > 220) & (roi_round_x[:, :, 2] > 220)
+        if gray_circ.sum() > 400 and white_x.sum() > 50:
+            return False
+
+        # ไม่มีทั้งปุ่ม X และไม่ใช่ Send Life -> เป็น Turn Off Warning จริง
+        return True
+
+    return False
+
+
+def get_turn_off_lives_cancel_pos() -> Tuple[int, int]:
+    """Returns Cancel button center position for 'If you turn this off' dialog."""
+    return (560, 452)
+
+
+def _find_green_confirm_button(screen: Optional[np.ndarray], require_overlay: bool = True) -> Optional[Tuple[int, int]]:
     """
     Detects green Confirm button in center dialog popup area.
     Handles 'Send ... a free Life?', 'All Lives received and sent!', and 'No Lives to receive!'.
+
+    Args:
+        require_overlay: True = ต้องมี dark overlay (ใช้ใน lobby context)
+                         False = ไม่ต้องมี overlay (ใช้ใน mailbox context)
     """
     if screen is None:
         return None
@@ -154,38 +282,46 @@ def _find_green_confirm_button(screen: Optional[np.ndarray]) -> Optional[Tuple[i
     if (w, h) != (1280, 720):
         screen = cv2.resize(screen, (1280, 720))
 
+    # 0. ถ้าเจอ dialog เตือนปิดรับใจ ต้องไม่กด Confirm เด็ดขาด! (return None ทันที)
+    if is_turn_off_lives_warning(screen):
+        return None
+
     # 1. Template match CONFIRM_SEND_LIFE_1.png (2-button popup: Cancel / Confirm)
     p_send = os.path.join(TEMPLATE_DIR, "CONFIRM_SEND_LIFE_1.png")
     if os.path.exists(p_send):
         tmpl = cv2.imread(p_send)
         if tmpl is not None:
-            res = cv2.matchTemplate(screen[350:550, 500:950], tmpl, cv2.TM_CCOEFF_NORMED)
-            if float(np.max(res)) >= 0.75:
+            res = cv2.matchTemplate(screen[300:580, 400:960], tmpl, cv2.TM_CCOEFF_NORMED)
+            if float(np.max(res)) >= 0.72:
                 _, max_val, _, max_loc = cv2.minMaxLoc(res)
                 th, tw = tmpl.shape[:2]
-                return (500 + max_loc[0] + tw // 2, 350 + max_loc[1] + th // 2)
+                return (400 + max_loc[0] + tw // 2, 300 + max_loc[1] + th // 2)
 
     # 2. Template match CONFIRM_BUTTON_1.png (1-button popup)
     p_conf = os.path.join(TEMPLATE_DIR, "CONFIRM_BUTTON_1.png")
     if os.path.exists(p_conf):
         tmpl = cv2.imread(p_conf)
         if tmpl is not None:
-            res = cv2.matchTemplate(screen[350:550, 450:850], tmpl, cv2.TM_CCOEFF_NORMED)
-            if float(np.max(res)) >= 0.72:
+            res = cv2.matchTemplate(screen[300:580, 380:900], tmpl, cv2.TM_CCOEFF_NORMED)
+            if float(np.max(res)) >= 0.70:
                 _, max_val, _, max_loc = cv2.minMaxLoc(res)
                 th, tw = tmpl.shape[:2]
-                return (450 + max_loc[0] + tw // 2, 350 + max_loc[1] + th // 2)
+                return (380 + max_loc[0] + tw // 2, 300 + max_loc[1] + th // 2)
 
-    # 3. Color detection for green Confirm button (X: 480..820, Y: 400..510)
-    roi_btn = screen[400:510, 480:820]
-    green = (roi_btn[:, :, 1] > 160) & (roi_btn[:, :, 0] < 100) & (roi_btn[:, :, 2] < 180)
-    if green.sum() > 1500:
-        ys, xs = np.where(green)
-        return (int(xs.mean()) + 480, int(ys.mean()) + 400)
-
-    # 4. Check if popup title is visible (No Lives or All Lives)
+    # 3. Check if popup title is visible (No Lives or All Lives)
     if is_no_lives_to_receive(screen) or is_all_lives_received_and_sent(screen):
         return (640, 462)
+
+    # 4. Color detection for green Confirm button
+    #    require_overlay=True: ใช้ใน lobby — ต้องมี dark overlay ก่อน (ป้องกัน false positive)
+    #    require_overlay=False: ใช้ใน mailbox — ไม่ต้องการ overlay (mailbox มี popup สีเขียวจริงเสมอ)
+    if not require_overlay or _has_dialog_overlay(screen):
+        # ค้นหาใน range ที่กว้างขึ้น เพื่อครอบ dialog ทั้งใน lobby และ mailbox
+        roi_btn = screen[350:530, 440:870]
+        green = (roi_btn[:, :, 1] > 150) & (roi_btn[:, :, 0] < 110) & (roi_btn[:, :, 2] < 180)
+        if green.sum() > (1200 if not require_overlay else 2500):
+            ys, xs = np.where(green)
+            return (int(xs.mean()) + 440, int(ys.mean()) + 350)
 
     return None
 
@@ -451,6 +587,9 @@ def clear_all_lobby_popups(device: str, max_wait: float = 35.0, log_func=None) -
 
     t_end = time.time() + max_wait
     while time.time() < t_end:
+        if _should_stop():
+            _log("🛑 [Stop] ได้รับคำสั่งหยุด -> ออกจาก clear_all_lobby_popups")
+            return False
         screen = device_capture_screen(device)
         if screen is None:
             time.sleep(0.5)
@@ -469,14 +608,15 @@ def clear_all_lobby_popups(device: str, max_wait: float = 35.0, log_func=None) -
             _adb_tap(device, 1215, 95, jitter=2, delay=1.2)
             continue
 
-        # 3. ตรวจสอบปุ่ม Confirm สีเขียวกลางจอ (Pop-up รางวัล/ยินดีต้อนรับ/Search failed)
-        btn = _find_green_confirm_button(screen)
-        if btn is not None:
-            _log(f"⚡ ตรวจพบ Pop-up กลางจอ -> แตะ Confirm ที่ {btn}...")
-            _adb_tap(device, btn[0], btn[1], jitter=2, delay=1.2)
+        # 3. ตรวจ dialog เตือนปิดรับใจจากเพื่อน -> ต้องกด Cancel ก่อนทุกกรณี!
+        if is_turn_off_lives_warning(screen):
+            cancel_pos = get_turn_off_lives_cancel_pos()
+            _log(f"⚠️⚠️⚠️ ตรวจพบ dialog 'ปิดรับใจจากเพื่อน' -> กด Cancel ที่ {cancel_pos} ห้ามกด Confirm!")
+            _adb_tap(device, cancel_pos[0], cancel_pos[1], jitter=2, delay=1.5)
             continue
 
-        # 4. ตรวจสอบหน้าต่างเพื่อน หรือหน้าจัดการเพื่อนที่ค้างอยู่
+        # 4. ปิด Friends/Manage dialog ก่อน Confirm check เสมอ!
+        #    เพื่อป้องกัน false positive กดปุ่ม toggle ส่งใจ/รับใจใน Friends list
         if is_in_manage_friends_mode(screen) is not None:
             _log("⚡ ตรวจพบหน้าจัดการเพื่อนค้างอยู่ -> แตะปิดที่ (1054, 52)...")
             _adb_tap(device, 1054, 52, jitter=1, delay=1.2)
@@ -486,16 +626,24 @@ def clear_all_lobby_popups(device: str, max_wait: float = 35.0, log_func=None) -
             _adb_tap(device, 1009, 69, jitter=1, delay=1.2)
             continue
 
-        # 4. ตรวจสอบว่าถึงหน้า Lobby สะอาดเรียบร้อยแล้ว
+        # 5. ตรวจสอบว่าถึงหน้า Lobby สะอาดเรียบร้อยแล้ว (ตรวจก่อน Confirm check เพื่อป้องกันแตะโดนปุ่มในล็อบบี้)
         if is_at_lobby(screen):
-            time.sleep(1.0)
+            time.sleep(0.8)
             chk = device_capture_screen(device)
             if chk is not None and check_banner_or_news_popup(chk) is None and not check_select_mode_popup(chk):
                 _log("✅ ยืนยันหน้าล็อบบี้สะอาดเรียบร้อย 100%!")
                 return True
 
+        # 6. ตรวจสอบปุ่ม Confirm สีเขียวกลางจอ (เฉพาะเมื่อมี Modal Pop-up เท่านั้น)
+        btn = _find_green_confirm_button(screen, require_overlay=True)
+        if btn is not None:
+            _log(f"⚡ ตรวจพบ Pop-up กลางจอ -> แตะ Confirm ที่ {btn}...")
+            _adb_tap(device, btn[0], btn[1], jitter=2, delay=1.2)
+            continue
+
         time.sleep(1.0)
     return False
+
 
 
 def stop_game_app(device: str, log_func=None):
@@ -510,6 +658,20 @@ def stop_game_app(device: str, log_func=None):
     time.sleep(1.5)
 
 
+def is_game_process_running(device: str) -> bool:
+    """Check if CookieRun game process is currently running."""
+    target = _format_target(device)
+    adb = get_adb_path()
+    for pkg in [GAME_PACKAGE, "com.devsisters.crg", "com.linecorp.LGCOOKIE"]:
+        try:
+            res = _run_cmd([adb, "-s", target, "shell", "pidof", pkg], capture_output=True, text=True, timeout=5)
+            if res.stdout and res.stdout.strip():
+                return True
+        except Exception:
+            pass
+    return False
+
+
 def start_game_app(device: str, log_func=None):
     """Launch CookieRun app on device."""
     target = _format_target(device)
@@ -518,7 +680,13 @@ def start_game_app(device: str, log_func=None):
         log_func(f"สั่งเปิดเกม Cookie Run บนจอ {device}...")
     else:
         print(f"[{time.strftime('%H:%M:%S')}][AppControl][{device}] สั่งเปิดเกม Cookie Run...", flush=True)
-    _run_cmd([adb, "-s", target, "shell", "monkey", "-p", GAME_PACKAGE, "-c", "android.intent.category.LAUNCHER", "1"], timeout=10)
+    for pkg in [GAME_PACKAGE, "com.devsisters.crg", "com.linecorp.LGCOOKIE"]:
+        try:
+            res = _run_cmd([adb, "-s", target, "shell", "monkey", "-p", pkg, "-c", "android.intent.category.LAUNCHER", "1"], capture_output=True, text=True, timeout=10)
+            if res.stdout and "Events injected: 1" in res.stdout:
+                break
+        except Exception:
+            pass
 
 
 def launch_game_and_wait_lobby(device: str, timeout: float = 60.0, log_func=None) -> bool:
@@ -526,8 +694,51 @@ def launch_game_and_wait_lobby(device: str, timeout: float = 60.0, log_func=None
     เปิดเกม Cookie Run และรอจนกว่าจะโหลดเสร็จ พร้อมเคลียร์หน้าข่าว/แบนเนอร์/Pop-up อัตโนมัติ
     """
     start_game_app(device, log_func=log_func)
-    time.sleep(5.0)
+    for _ in range(50):
+        if _should_stop():
+            return False
+        time.sleep(0.1)
     return clear_all_lobby_popups(device, max_wait=timeout, log_func=log_func)
+
+
+def ensure_game_at_lobby(device: str, timeout: float = 60.0, log_func=None) -> bool:
+    """
+    ตรวจว่าเกมเปิดอยู่และอยู่ที่หน้าล็อบบี้พร้อมทำงานหรือไม่:
+    - ถ้าอยู่ที่หน้าล็อบบี้แล้ว -> return True ทันที
+    - ถ้าเกมยังไม่เปิด (หน้า Home) -> สั่งเปิดเกมทันทีและรอจนกว่าจะถึงหน้าล็อบบี้
+    - ถ้าเกมเปิดอยู่แต่ติด popup/โหลด -> เคลียร์ popup จนถึงหน้าล็อบบี้
+    """
+    if _should_stop():
+        return False
+
+    def _l(msg: str):
+        if log_func:
+            log_func(msg)
+        else:
+            print(f"[{time.strftime('%H:%M:%S')}][AppControl][{device}] {msg}", flush=True)
+
+    # 1. ตรวจสอบว่าหน้าจออยู่ที่ล็อบบี้อยู่แล้วหรือไม่
+    screen = device_capture_screen(device)
+    if screen is not None and is_at_lobby(screen):
+        _l("   ✅ ตรวจพบหน้าจออยู่ที่ล็อบบี้เรียบร้อยแล้ว")
+        return True
+
+    # 2. ตรวจสอบว่าแอปเกมเปิดอยู่หรือไม่ (ถ้าอยู่หน้า Home / เกมปิด)
+    if not is_game_process_running(device):
+        _l("🚀 ตรวจพบหน้าจออยู่หน้าโฮม (เกมปิดอยู่) -> สั่งเปิดเกม Cookie Run ทันที...")
+        return launch_game_and_wait_lobby(device, timeout=timeout, log_func=log_func)
+
+    # 3. แอปเปิดอยู่แต่อาจติดหน้าข่าวสาร/แบนเนอร์/Popup
+    _l("🔍 ตรวจพบเกมเปิดอยู่ กำลังเคลียร์ Pop-up และรอหน้าล็อบบี้...")
+    if clear_all_lobby_popups(device, max_wait=15.0, log_func=log_func):
+        chk = device_capture_screen(device)
+        if chk is not None and is_at_lobby(chk):
+            _l("   ✅ เข้าสู่หน้าล็อบบี้เรียบร้อยแล้ว!")
+            return True
+
+    # 4. ถ้ายังไม่ถึงล็อบบี้ ให้เปิดเกมใหม่
+    _l("🔄 ยังไม่สามารถเข้าสู่หน้าล็อบบี้ได้ สั่งเปิดเกมใหม่...")
+    return launch_game_and_wait_lobby(device, timeout=timeout, log_func=log_func)
 
 
 def wait_for_lobby(device: str, timeout: float = 15.0, log_func=None) -> bool:
@@ -537,6 +748,8 @@ def wait_for_lobby(device: str, timeout: float = 15.0, log_func=None) -> bool:
     """
     start_time = time.time()
     while time.time() - start_time < timeout:
+        if _should_stop():
+            return False
         screen = device_capture_screen(device)
         if screen is not None:
             if check_banner_or_news_popup(screen) or check_select_mode_popup(screen):
@@ -548,7 +761,10 @@ def wait_for_lobby(device: str, timeout: float = 15.0, log_func=None) -> bool:
             return True
         if log_func:
             log_func("   [รอ] กำลังรอให้เกมแสดงผลหน้าล็อบบี้...")
-        time.sleep(1.0)
+        for _ in range(10):
+            if _should_stop():
+                return False
+            time.sleep(0.1)
     return False
 
 
@@ -568,15 +784,28 @@ def receive_mailbox_hearts(device: str, log_func=None) -> bool:
         else:
             print(f"[{time.strftime('%H:%M:%S')}][ReceiveHearts][{device}] {msg}", flush=True)
 
-    # 1. ตรวจจอก่อนกด: ตรวจสอบว่าพร้อมที่หน้าล็อบบี้
-    _log("💌 1. ตรวจสอบหน้าจอ: รอให้พร้อมที่หน้าล็อบบี้ก่อนเปิดกล่องข้อความ...")
-    if not wait_for_lobby(device, timeout=8.0, log_func=_log):
-        _log("   ⚠️ หน้าจออาจยังไม่ได้อยู่ล็อบบี้ กำลังเคลียร์ Pop-up และรอหน้าล็อบบี้...")
-        clear_all_lobby_popups(device, max_wait=6.0, log_func=_log)
-        wait_for_lobby(device, timeout=5.0, log_func=_log)
+    if _should_stop():
+        _log("🛑 [Stop] ได้รับคำสั่งหยุด -> ยกเลิกการรับหัวใจทันที")
+        return False
+
+    # 1. ตรวจจอก่อนกด: ตรวจสอบความพร้อมที่หน้าล็อบบี้ (ถ้าอยู่หน้าโฮมจะสั่งเปิดเกมทันที)
+    _log("💌 1. ตรวจสอบหน้าจอ: ตรวจสอบความพร้อมที่หน้าล็อบบี้ก่อนเปิดกล่องข้อความ...")
+    if not ensure_game_at_lobby(device, timeout=60.0, log_func=_log):
+        if _should_stop():
+            _log("🛑 [Stop] ได้รับคำสั่งหยุด -> ยกเลิกการทำงานทันที")
+        else:
+            _log("⚠️ ไม่สามารถเปิดเกมหรือเข้าหน้าล็อบบี้ได้ ยกเลิกขั้นตอนรับหัวใจเพื่อความปลอดภัย")
+        return False
+
+    if _should_stop():
+        _log("🛑 [Stop] ได้รับคำสั่งหยุด -> ยกเลิกการเปิดกล่องข้อความ")
+        return False
 
     mailbox_opened = False
     for attempt in range(5):
+        if _should_stop():
+            _log("🛑 [Stop] ได้รับคำสั่งหยุด ระหว่างเปิดกล่องข้อความ -> ยกเลิกทันที")
+            return False
         screen = device_capture_screen(device)
         if is_mailbox_open(screen):
             _log("   ✅ ตรวจพบกล่องข้อความ (Mailbox) เปิดอยู่แล้ว!")
@@ -584,14 +813,22 @@ def receive_mailbox_hearts(device: str, log_func=None) -> bool:
             break
         _log(f"   แตะ: ({LOBBY_MAILBOX_BUTTON[0]}, {LOBBY_MAILBOX_BUTTON[1]}) ปุ่มกล่องข้อความ (รอบที่ {attempt + 1})...")
         _adb_tap(device, LOBBY_MAILBOX_BUTTON[0], LOBBY_MAILBOX_BUTTON[1], jitter=2, delay=1.5)
+        if _should_stop():
+            return False
         screen_chk = device_capture_screen(device)
         if is_mailbox_open(screen_chk):
             _log("   ✅ ตรวจพบกล่องข้อความ (Mailbox) เปิดขึ้นมาแล้ว!")
             mailbox_opened = True
             break
-        time.sleep(0.8)
+        for _ in range(8):
+            if _should_stop():
+                return False
+            time.sleep(0.1)
 
     if not mailbox_opened:
+        if _should_stop():
+            _log("🛑 [Stop] ได้รับคำสั่งหยุด -> ยกเลิกขั้นตอนรับหัวใจ")
+            return False
         _log("⚠️ ไม่สามารถเปิดกล่องข้อความได้ หรือหน้าจอไม่ตรง ข้ามขั้นตอนรับหัวใจเพื่อความปลอดภัย")
         return False
 
@@ -602,7 +839,7 @@ def receive_mailbox_hearts(device: str, log_func=None) -> bool:
     screen = device_capture_screen(device)
     if is_no_lives_to_receive(screen) or is_no_lives_received_screen(screen):
         _log("   🛑 ตรวจพบไม่มีหัวใจค้างในกล่องข้อความ (No Lives) -> ปิดกล่องข้อความทันที")
-        btn = _find_green_confirm_button(screen)
+        btn = _find_green_confirm_button(screen, require_overlay=False)
         if btn is not None:
             _adb_tap(device, btn[0], btn[1], jitter=2, delay=0.8)
 
@@ -613,77 +850,151 @@ def receive_mailbox_hearts(device: str, log_func=None) -> bool:
         return True
 
     _log("💌 3. แตะปุ่ม Quick Receive & Send Lives และยืนยันรับ-ส่งใจ...")
-    _adb_tap(device, MAILBOX_QUICK_RECEIVE[0], MAILBOX_QUICK_RECEIVE[1], jitter=2, delay=1.2)
+    _adb_tap(device, MAILBOX_QUICK_RECEIVE[0], MAILBOX_QUICK_RECEIVE[1], jitter=2, delay=1.8)
 
     total_confirmed = 0
     no_confirm_streak = 0
-    max_rounds = 40
+    max_rounds = 60  # เพิ่มรอบสำรองกรณีมีเพื่อนเยอะ
 
     for round_num in range(1, max_rounds + 1):
+        if _should_stop():
+            _log("   🛑 [Stop] ได้รับคำสั่งหยุด -> ออกจาก receive loop")
+            break
         screen = device_capture_screen(device)
         if is_at_lobby(screen):
             _log("   ✅ ตรวจพบว่าอยู่ที่หน้าล็อบบี้แล้ว")
             break
 
-        # ตรวจสอบ Pop-up 'No Lives to receive!'
-        if is_no_lives_to_receive(screen):
-            _log("   🛑 ตรวจพบ 'No Lives to receive!' -> รับหมดแล้ว! กดยืนยัน")
-            btn = _find_green_confirm_button(screen)
+        # 0. ตรวจสอบ Pop-up เตือนปิดการรับใจ ("If you turn this off...") -> ต้องกด Cancel เสมอ! ห้ามกด Confirm!
+        if is_turn_off_lives_warning(screen):
+            cancel_pos = get_turn_off_lives_cancel_pos()
+            _log(f"   🛑 ตรวจพบ Pop-up ประเภท: เตือนปิดรับใจ ('If you turn this off...') -> กด Cancel ที่ {cancel_pos} ทันที! (ไม่กด Confirm เพื่อรักษาการรับหัวใจ)")
+            _adb_tap(device, cancel_pos[0], cancel_pos[1], jitter=2, delay=1.2)
+            continue
+
+        # 1. ตรวจสอบ Pop-up 'No Lives to receive!' หรือ 'All Lives received!'
+        if is_no_lives_to_receive(screen) or is_all_lives_received_and_sent(screen):
+            _log("   🛑 ตรวจพบ Pop-up ประเภท: สิ้นสุดการรับใจ (No Lives / All Lives received) -> กดยืนยันปิด")
+            btn = _find_green_confirm_button(screen, require_overlay=False)
             if btn is not None:
-                _adb_tap(device, btn[0], btn[1], jitter=2, delay=0.8)
+                _adb_tap(device, btn[0], btn[1], jitter=2, delay=1.0)
             break
 
-        # ตรวจสอบปุ่มยืนยันสีเขียว (Confirm ส่งใจให้เพื่อน หรือ All Lives received)
-        btn = _find_green_confirm_button(screen)
+        # 2. ตรวจสอบปุ่มยืนยันสีเขียว (Confirm ส่งใจให้เพื่อนรายคน)
+        btn = _find_green_confirm_button(screen, require_overlay=False)
         if btn is not None:
-            _log(f"   👉 พบปุ่มยืนยัน Pop-up ที่ {btn} (ครั้งที่ {total_confirmed + 1}) -> กด Confirm...")
-            _adb_tap(device, btn[0], btn[1], jitter=2, delay=1.0)
+            _log(f"   👉 ตรวจพบ Pop-up ประเภท: ยืนยันส่งใจคืนเพื่อน ('Send a free Life?') -> กด Confirm ที่ {btn} (ครั้งที่ {total_confirmed + 1})...")
+            _adb_tap(device, btn[0], btn[1], jitter=2, delay=1.2)
             total_confirmed += 1
             no_confirm_streak = 0
             continue
 
-        # ถ้าไม่เจอปุ่มทันที ให้รอสักครู่เพื่อกันจังหวะอนิเมชั่น Pop-up ถัดไป
-        time.sleep(1.0)
+        # ถ้าไม่เจอปุ่มทันที ให้รอนานขึ้นเผื่อ animation Pop-up ถัดไป
+        _log(f"   ⏳ ไม่พบ Confirm ทันที รอ animation... (streak={no_confirm_streak+1})")
+        time.sleep(1.2)
+        if _should_stop():
+            _log("   🛑 [Stop] ได้รับคำสั่งหยุด -> ออกจาก receive loop")
+            break
         screen_retry = device_capture_screen(device)
-        btn_retry = _find_green_confirm_button(screen_retry)
+
+        # ตรวจอีกครั้ง: เตือนปิดรับใจ
+        if is_turn_off_lives_warning(screen_retry):
+            cancel_pos = get_turn_off_lives_cancel_pos()
+            _log(f"   🛑 [retry] ตรวจพบ Pop-up ประเภท: เตือนปิดรับใจ -> กด Cancel ที่ {cancel_pos} ทันที!")
+            _adb_tap(device, cancel_pos[0], cancel_pos[1], jitter=2, delay=1.2)
+            continue
+
+        # ตรวจอีกครั้ง: No Lives / All Lives received
+        if is_no_lives_to_receive(screen_retry) or is_all_lives_received_and_sent(screen_retry):
+            _log("   🛑 [retry] ตรวจพบ Pop-up ประเภท: สิ้นสุดการรับใจ -> กดยืนยันและออก")
+            btn2 = _find_green_confirm_button(screen_retry, require_overlay=False)
+            if btn2 is not None:
+                _adb_tap(device, btn2[0], btn2[1], jitter=2, delay=1.0)
+            break
+
+        btn_retry = _find_green_confirm_button(screen_retry, require_overlay=False)
         if btn_retry is not None:
-            _log(f"   👉 พบปุ่มยืนยัน Pop-up ที่ {btn_retry} (ครั้งที่ {total_confirmed + 1}) -> กด Confirm...")
-            _adb_tap(device, btn_retry[0], btn_retry[1], jitter=2, delay=1.0)
+            _log(f"   👉 [retry] ตรวจพบ Pop-up ประเภท: ยืนยันส่งใจคืนเพื่อน -> กด Confirm ที่ {btn_retry} (ครั้งที่ {total_confirmed + 1})...")
+            _adb_tap(device, btn_retry[0], btn_retry[1], jitter=2, delay=1.2)
             total_confirmed += 1
             no_confirm_streak = 0
             continue
 
         no_confirm_streak += 1
-        if no_confirm_streak >= 2:
-            _log("   ✨ ไม่มีปุ่มยืนยัน (Confirm) ขึ้นมาอีกแล้ว -> รับหัวใจทั้งหมดสำเร็จ!")
+        # เพิ่ม threshold เป็น 5 เพื่อป้องกันออกก่อนเวลา (บางครั้ง popup ช้ามาก)
+        if no_confirm_streak >= 5:
+            _log(f"   ✨ ไม่มีปุ่มยืนยัน (Confirm) ขึ้นมาอีก {no_confirm_streak} รอบซ้อน -> รับหัวใจทั้งหมดสำเร็จ!")
+            break
+
+    # 3.5 Final sweep: รอ animation สุดท้ายแล้วตรวจอีกรอบก่อนปิด
+    _log("💌 3.5 Final sweep: รอ animation สุดท้ายและตรวจ popup ที่เหลืออยู่...")
+    time.sleep(1.5)
+    for sweep_i in range(8):  # ตรวจสูงสุด 8 รอบ
+        if _should_stop():
+            break
+        screen_sw = device_capture_screen(device)
+        if screen_sw is None:
+            break
+        if is_at_lobby(screen_sw):
+            break
+        if is_turn_off_lives_warning(screen_sw):
+            cancel_pos = get_turn_off_lives_cancel_pos()
+            _log(f"   🛑 [Final sweep] ตรวจพบ Pop-up ประเภท: เตือนปิดรับใจ -> กด Cancel ที่ {cancel_pos}!")
+            _adb_tap(device, cancel_pos[0], cancel_pos[1], jitter=2, delay=1.2)
+            continue
+        btn_sw = _find_green_confirm_button(screen_sw, require_overlay=False)
+        if btn_sw is not None:
+            _log(f"   🔁 [Final sweep {sweep_i+1}] พบ Confirm popup ที่ {btn_sw} -> กด")
+            _adb_tap(device, btn_sw[0], btn_sw[1], jitter=2, delay=1.2)
+            total_confirmed += 1
+            time.sleep(1.2)  # รอ animation ถัดไป
+        elif is_no_lives_to_receive(screen_sw) or is_all_lives_received_and_sent(screen_sw):
+            _log("   🛑 [Final sweep] พบสัญญาณสิ้นสุด -> กดยืนยันและออก")
+            btn_end = _find_green_confirm_button(screen_sw, require_overlay=False)
+            if btn_end:
+                _adb_tap(device, btn_end[0], btn_end[1], jitter=2, delay=1.0)
+            break
+        else:
+            # ไม่มี popup แล้ว -> หยุด sweep
             break
 
     # 4. ออกจากรับใจตรวจจอ: ตรวจจอก่อนแตะปิด และตรวจจอหลังแตะปิด
     _log(f"💌 4. ปิดกล่องข้อความกลับสู่หน้าหลัก (กดยืนยันไปทั้งหมด {total_confirmed} ครั้ง)...")
-    for close_attempt in range(5):
+    for close_attempt in range(8):
+        if _should_stop():
+            _log("   🛑 [Stop] ได้รับคำสั่งหยุด -> ออกจาก mailbox close loop")
+            break
         screen_curr = device_capture_screen(device)
         if is_at_lobby(screen_curr):
             _log("   ✅ ตรวจจอพบว่าอยู่ที่หน้าล็อบบี้แล้ว 100%")
             break
 
-        # ถ้ายังมี Pop-up Confirm ค้างอยู่ ให้กดยืนยันให้หมดก่อน
-        btn = _find_green_confirm_button(screen_curr)
+        if is_turn_off_lives_warning(screen_curr):
+            cancel_pos = get_turn_off_lives_cancel_pos()
+            _log(f"   🛑 [Close Mailbox] ตรวจพบ Pop-up ประเภท: เตือนปิดรับใจ -> กด Cancel ที่ {cancel_pos}!")
+            _adb_tap(device, cancel_pos[0], cancel_pos[1], jitter=2, delay=1.2)
+            continue
+
+        # ถ้ายังมี Confirm popup ค้างอยู่ ต้องกดยืนยันก่อนปิด Mailbox เสมอ!
+        btn = _find_green_confirm_button(screen_curr, require_overlay=False)
         if btn is not None:
-            _log(f"   👉 กดปุ่มยืนยัน Pop-up ที่ค้างอยู่: {btn}")
-            _adb_tap(device, btn[0], btn[1], jitter=1, delay=1.0)
+            _log(f"   👉 กดปุ่มยืนยัน Pop-up ที่ค้างอยู่: {btn} (close_attempt={close_attempt})")
+            _adb_tap(device, btn[0], btn[1], jitter=1, delay=1.2)
+            total_confirmed += 1
+            time.sleep(1.0)  # รอดูว่ามี popup ถัดมาไหม
             continue
 
         if is_mailbox_open(screen_curr):
             _log(f"   แตะ: ({MAILBOX_CLOSE_BUTTON[0]}, {MAILBOX_CLOSE_BUTTON[1]}) ปุ่มปิดกล่องข้อความ (รอบ {close_attempt + 1})")
-            _adb_tap(device, MAILBOX_CLOSE_BUTTON[0], MAILBOX_CLOSE_BUTTON[1], jitter=1, delay=1.2)
+            _adb_tap(device, MAILBOX_CLOSE_BUTTON[0], MAILBOX_CLOSE_BUTTON[1], jitter=1, delay=1.5)
         else:
             # ถ้าเป็น Pop-up อื่นๆ ให้ปิด
             clear_all_lobby_popups(device, max_wait=3.0, log_func=_log)
-        time.sleep(0.6)
+        time.sleep(0.8)
 
     clear_all_lobby_popups(device, max_wait=4.0, log_func=_log)
     wait_for_lobby(device, timeout=6.0, log_func=_log)
-    _log("✅ รับหัวใจจากกล่องข้อความเรียบร้อย 100%!")
+    _log(f"✅ รับหัวใจจากกล่องข้อความเรียบร้อย 100%! (ยืนยันรวม {total_confirmed} ครั้ง)")
     return True
 
 def detect_level1_badges(screen_bgr: np.ndarray, threshold: float = 0.70) -> List[int]:
@@ -778,15 +1089,24 @@ def clean_level1_friends(device: str, log_func=None, restart_app: bool = False) 
     _log("🧹 เริ่มกระบวนการรับหัวใจและลบเพื่อนเวล 1...")
     _log("==========================================")
 
-    # ตรวจสอบหน้าจอ: รอให้เกมกลับสู่หน้าล็อบบี้ก่อนเริ่ม
-    _log("🔍 ตรวจสอบหน้าจอ: รอให้เกมแสดงผลหน้าล็อบบี้อย่างสมบูรณ์...")
-    wait_for_lobby(device, timeout=10, log_func=_log)
+    # ตรวจสอบสถานะเกม: มั่นใจว่าเกมเปิดอยู่และถึงหน้าล็อบบี้เรียบร้อยก่อนเริ่ม (ถ้าอยู่หน้าโฮมจะสั่งเปิดเกม)
+    _log("🔍 ตรวจสอบสถานะเกม: รอให้เกมแสดงผลหน้าล็อบบี้ (ถ้าอยู่หน้าโฮมจะสั่งเปิดเกม)...")
+    if not ensure_game_at_lobby(device, timeout=60.0, log_func=_log):
+        if _should_stop():
+            _log("🛑 [Stop] ได้รับคำสั่งหยุด -> ยกเลิกการทำงาน")
+            return {"success": False, "total_ticked": 0, "stopped": True}
+        _log("❌ ไม่สามารถเปิดเกมหรือเข้าสู่หน้าล็อบบี้ได้ ยกเลิกขั้นตอนลบเพื่อนเพื่อความปลอดภัย")
+        return {"success": False, "message": "Failed to reach lobby"}
     time.sleep(0.5)
 
     # 0. รับหัวใจจากกล่องข้อความก่อนลบเพื่อน
     _log("0. [เตรียมตัว] เปิดกล่องข้อความเพื่อรับหัวใจและส่งหัวใจกลับให้เพื่อนก่อนลบ...")
     receive_mailbox_hearts(device, log_func=_log)
     time.sleep(0.8)
+
+    if _should_stop():
+        _log("🛑 [Stop] ได้รับคำสั่งหยุด หลังรับหัวใจเสร็จสิ้น -> ยกเลิกขั้นตอนลบเพื่อนทันที")
+        return {"success": False, "total_ticked": 0, "stopped": True}
 
     # 1. กดเข้าเพื่อน: (801, 302) ตรวจสอบหน้าจอก่อนกด
     friends_opened = False
@@ -900,6 +1220,9 @@ def clean_level1_friends(device: str, log_func=None, restart_app: bool = False) 
     _log("4. เริ่มกระบวนการลบเพื่อนเวล 1 ทีละชุด (Batch Deletion)...")
 
     for batch_idx in range(1, max_batches + 1):
+        if _should_stop():
+            _log("🛑 [Stop] ได้รับคำสั่งหยุด ระหว่างขั้นตอนลบเพื่อน -> ออกจากลูปทันที")
+            break
         screen = device_capture_screen(device)
         if screen is None:
             time.sleep(0.5)
@@ -1060,7 +1383,10 @@ class FriendCleanerScheduler:
             self.is_running = True
             self.current_step = "กำลังเริ่มระบบวนลูป..."
             self._stop_event.clear()
+        # Clear global stop event เมื่อเริ่มใหม่
+        _GLOBAL_STOP_EVENT.clear()
 
+        with self.lock:
             if self._thread is None or not self._thread.is_alive():
                 self._thread = threading.Thread(
                     target=self._worker_loop,
@@ -1079,6 +1405,8 @@ class FriendCleanerScheduler:
             for dev in self.device_statuses:
                 self.device_statuses[dev]["status"] = "stopped"
                 self.device_statuses[dev]["current_step"] = "หยุดการทำงานแล้ว"
+        # ส่ง stop signal ไปยัง global event ทำให้ทุก loop หยุดทันที
+        _GLOBAL_STOP_EVENT.set()
 
     def get_status(self) -> Dict[str, Any]:
         with self.lock:

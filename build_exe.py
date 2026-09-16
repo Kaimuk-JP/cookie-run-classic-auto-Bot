@@ -62,6 +62,12 @@ def main():
         "--include-package=customtkinter",
         "--include-package=darkdetect",
         "--include-package-data=customtkinter",
+        "--include-package=uvicorn",
+        "--include-package=fastapi",
+        "--include-package=starlette",
+        "--include-package=pydantic",
+        "--include-package=pydantic_core",
+        "--include-package=websockets",
         f"--output-filename=CookieRunBot.exe",
         f"--output-dir={output_dir}",
     ]
@@ -202,6 +208,13 @@ def main():
             os.makedirs(os.path.join(final_dist, "src"), exist_ok=True)
             shutil.copy2(src_img, os.path.join(final_dist, img_name))
             shutil.copy2(src_img, os.path.join(final_dist, "src", img_name))
+
+    # Copy src python scripts to final_dist/src and final_dist as guaranteed runtime fallback
+    os.makedirs(os.path.join(final_dist, "src"), exist_ok=True)
+    for f in os.listdir(src_dir):
+        if f.endswith(".py"):
+            shutil.copy2(os.path.join(src_dir, f), os.path.join(final_dist, "src", f))
+            shutil.copy2(os.path.join(src_dir, f), os.path.join(final_dist, f))
 
     # Ensure required empty directories exist (and clean out any screenshots or user data)
     for folder in ["settings", "history", "logs_error", "screenshots", "macros"]:

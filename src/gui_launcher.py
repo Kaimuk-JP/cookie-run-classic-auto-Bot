@@ -30,13 +30,9 @@ else:
     except Exception:
         pass
 
-# Ensure 'src' is on sys.path
+# Ensure 'src' and root are on sys.path
 _this_dir = os.path.dirname(os.path.abspath(__file__))
-if _this_dir not in sys.path:
-    sys.path.insert(0, _this_dir)
 _parent_dir = os.path.dirname(_this_dir)
-if _parent_dir not in sys.path:
-    sys.path.insert(0, _parent_dir)
 
 from path_utils import get_project_root, get_settings_dir
 _root_dir = get_project_root()
@@ -44,6 +40,10 @@ try:
     os.chdir(_root_dir)
 except Exception:
     pass
+
+for _p in [_this_dir, _parent_dir, _root_dir, os.path.join(_root_dir, "src"), os.path.join(_this_dir, "src")]:
+    if os.path.isdir(_p) and _p not in sys.path:
+        sys.path.insert(0, _p)
 
 # Setup TCL_LIBRARY and TK_LIBRARY if bundled
 for _base in [_root_dir, _this_dir, _parent_dir]:
@@ -54,6 +54,7 @@ for _base in [_root_dir, _this_dir, _parent_dir]:
     if os.path.isdir(_tk_candidate) and "TK_LIBRARY" not in os.environ:
         os.environ["TK_LIBRARY"] = _tk_candidate
 
+import socket
 import customtkinter as ctk
 from PIL import Image
 
@@ -61,6 +62,15 @@ import auth_manager
 import adb
 from version import CURRENT_VERSION
 import updater
+
+# Ensure uvicorn and web_server are traced by compilers
+import uvicorn
+try:
+    import web_server
+    from web_server import app, silence_windows_proactor_connection_lost
+    silence_windows_proactor_connection_lost()
+except Exception as _e:
+    pass
 
 # Global background server reference
 _server_thread: Optional[threading.Thread] = None
@@ -70,7 +80,6 @@ _server_tunnel_url: Optional[str] = None
 
 
 def find_free_port(start_port=8000, max_attempts=30):
-    import socket
     for port in range(start_port, start_port + max_attempts):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             try:
@@ -81,16 +90,51 @@ def find_free_port(start_port=8000, max_attempts=30):
     return start_port
 
 
-def start_backend_server(port: int):
-    """Run uvicorn FastAPI server in background thread."""
-    global _server_started
-    import uvicorn
-    from web_server import app
-    _server_started = True
+def is_port_listening(port: int, host: str = "127.0.0.1", timeout: float = 0.3) -> bool:
+    """Test if server is actively listening on target host:port."""
     try:
-        uvicorn.run(app, host="0.0.0.0", port=port, reload=False, log_level="warning")
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except (OSError, ConnectionRefusedError):
+        return False
+
+
+def start_backend_server(port: int):
+    """Run uvicorn FastAPI server in background thread with proper logging and asyncio loop."""
+    global _server_started
+    log_dir = os.path.join(_root_dir, "logs_error")
+    os.makedirs(log_dir, exist_ok=True)
+    err_log_path = os.path.join(log_dir, "server_error.log")
+
+    try:
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    except Exception:
+        pass
+
+    try:
+        from web_server import app
+        _server_started = True
+        config = uvicorn.Config(
+            app=app,
+            host="0.0.0.0",
+            port=port,
+            reload=False,
+            log_level="warning",
+            loop="asyncio"
+        )
+        server = uvicorn.Server(config)
+        server.run()
     except Exception as e:
-        print(f"[Launcher] Background server error: {e}")
+        _server_started = False
+        import traceback
+        err_msg = traceback.format_exc()
+        try:
+            with open(err_log_path, "a", encoding="utf-8") as f:
+                f.write(f"\n[{time.strftime('%Y-%m-%d %H:%M:%S')}] Server Crash on port {port}:\n{err_msg}\n")
+        except Exception:
+            pass
 
 
 # Appearance & Window Config - Warm Bakery Pastel Theme
@@ -932,6 +976,10 @@ class CookieRunLauncherApp(ctk.CTk):
         global _server_thread, _server_port, _server_started
         if not _server_started:
             _server_port = find_free_port(8000)
+            self.lbl_server_status.configure(
+                text=f"⏳ กำลังเริ่มเซิร์ฟเวอร์ (พอร์ต {_server_port})...",
+                text_color="#D97706"
+            )
             _server_thread = threading.Thread(
                 target=start_backend_server,
                 args=(_server_port,),
@@ -940,32 +988,54 @@ class CookieRunLauncherApp(ctk.CTk):
             )
             _server_thread.start()
 
-            # Poll for server ready then auto-open web dashboard in browser immediately!
+            # Poll for server ready using true socket connection check before opening browser!
             def check_ready_and_open():
-                time.sleep(1.2)
-                self.after(0, lambda: self.lbl_server_status.configure(
-                    text=f"🟢 เซิร์ฟเวอร์พร้อมทำงาน (พอร์ต {_server_port})",
-                    text_color="#10B981"
-                ))
-                if auto_open_browser:
-                    url = f"http://127.0.0.1:{_server_port}"
-                    try:
-                        os.startfile(url)
-                    except Exception:
-                        webbrowser.open(url)
+                server_ok = False
+                for _ in range(60):  # poll up to 15 seconds (0.25s interval)
+                    time.sleep(0.25)
+                    if is_port_listening(_server_port):
+                        server_ok = True
+                        break
+
+                if server_ok:
+                    self.after(0, lambda: self.lbl_server_status.configure(
+                        text=f"🟢 เซิร์ฟเวอร์พร้อมทำงาน (พอร์ต {_server_port})",
+                        text_color="#10B981"
+                    ))
+                    if auto_open_browser:
+                        url = f"http://127.0.0.1:{_server_port}"
+                        try:
+                            os.startfile(url)
+                        except Exception:
+                            webbrowser.open(url)
+                else:
+                    self.after(0, lambda: self.lbl_server_status.configure(
+                        text=f"❌ ไม่สามารถเริ่มเซิร์ฟเวอร์ได้ (พอร์ต {_server_port})",
+                        text_color="#EF4444"
+                    ))
 
             threading.Thread(target=check_ready_and_open, daemon=True).start()
         else:
-            self.after(0, lambda: self.lbl_server_status.configure(
-                text=f"🟢 เซิร์ฟเวอร์พร้อมทำงาน (พอร์ต {_server_port})",
-                text_color="#10B981"
-            ))
-            if auto_open_browser:
-                url = f"http://127.0.0.1:{_server_port}"
-                try:
-                    os.startfile(url)
-                except Exception:
-                    webbrowser.open(url)
+            # Check if server is actually still listening
+            def verify_and_open():
+                if is_port_listening(_server_port):
+                    self.after(0, lambda: self.lbl_server_status.configure(
+                        text=f"🟢 เซิร์ฟเวอร์พร้อมทำงาน (พอร์ต {_server_port})",
+                        text_color="#10B981"
+                    ))
+                    if auto_open_browser:
+                        url = f"http://127.0.0.1:{_server_port}"
+                        try:
+                            os.startfile(url)
+                        except Exception:
+                            webbrowser.open(url)
+                else:
+                    # Restart server
+                    global _server_started
+                    _server_started = False
+                    self.after(0, lambda: self.ensure_background_server(auto_open_browser))
+
+            threading.Thread(target=verify_and_open, daemon=True).start()
 
     def trigger_scan_devices(self):
         self.btn_scan.configure(text="⏳ กำลังค้นหา...", state="disabled")
@@ -1088,11 +1158,21 @@ class CookieRunLauncherApp(ctk.CTk):
         threading.Thread(target=restart_worker, daemon=True).start()
 
     def handle_open_web_dashboard(self):
-        url = f"http://127.0.0.1:{_server_port}"
-        try:
-            os.startfile(url)
-        except Exception:
-            webbrowser.open(url)
+        if is_port_listening(_server_port):
+            url = f"http://127.0.0.1:{_server_port}"
+            try:
+                os.startfile(url)
+            except Exception:
+                webbrowser.open(url)
+        else:
+            # Server not responding, re-trigger start with auto open
+            self.lbl_server_status.configure(
+                text=f"⏳ กำลังเตรียมเซิร์ฟเวอร์ (พอร์ต {_server_port})...",
+                text_color="#D97706"
+            )
+            global _server_started
+            _server_started = False
+            self.ensure_background_server(auto_open_browser=True)
 
     def handle_logout(self):
         self.current_user = None

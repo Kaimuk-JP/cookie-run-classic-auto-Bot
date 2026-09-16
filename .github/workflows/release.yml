@@ -90,6 +90,11 @@ jobs:
           tag_name: ${{ env.RELEASE_TAG }}
           name: CookieRun Bot Pro ${{ env.RELEASE_TAG }}
           files: dist_installer/*.exe
-          generate_release_notes: true
+          body: |
+            • อัปเดต CookieRun Bot เวอร์ชัน ${{ env.RELEASE_TAG }}
+            • ปรับปรุงความเสถียรของระบบและ Web Dashboard
+            • ปรับปรุงระบบตรวจสอบสถานะเซิร์ฟเวอร์อัตโนมัติ (Socket Health Check)
+            • รองรับการทำงานต่ออัตโนมัติบนทุกจอเดิมทันที (Auto-Resume)
+          generate_release_notes: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

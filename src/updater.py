@@ -42,13 +42,16 @@ RESUME_STATE_FILE = os.path.join(get_settings_dir(), "update_resume_state.json")
 
 
 def clean_release_notes(raw_notes: str, ver: str = "") -> str:
-    """Format and filter raw release notes into clean, human-readable bullet points."""
+    """Format and filter raw release notes into clean, human-readable bullet points with zero URLs."""
+    v_str = f"v{ver.lstrip('v')}" if ver else f"v{CURRENT_VERSION}"
+    default_notes = (
+        f"• อัปเดต CookieRun Bot เวอร์ชัน {v_str}\n"
+        "• ปรับปรุงประสิทธิภาพและความเสถียรของระบบ\n"
+        "• ระบบตรวจสอบสถานะเซิร์ฟเวอร์อัตโนมัติ (Socket Health Check)\n"
+        "• รองรับระบบทำงานต่ออัตโนมัติทันทีหลังอัปเดต (Auto-Resume)"
+    )
     if not raw_notes:
-        return (
-            f"• อัปเดต CookieRun Bot เวอร์ชัน {ver or CURRENT_VERSION}\n"
-            "• ปรับปรุงประสิทธิภาพและเสถียรภาพการทำงาน\n"
-            "• รองรับระบบทำงานต่ออัตโนมัติ (Auto-Resume)"
-        )
+        return default_notes
 
     import re
     cleaned_lines = []
@@ -56,25 +59,30 @@ def clean_release_notes(raw_notes: str, ver: str = "") -> str:
         line = line.strip()
         if not line:
             continue
-        # Skip raw compare links and header noise
-        if "full changelog" in line.lower() or "compare/" in line or line.startswith("http"):
+        # Skip raw compare links, changelog headers, URLs, and git metadata
+        lower = line.lower()
+        if any(kw in lower for kw in ["full changelog", "compare/", "http://", "https://", "github.com", "see changes"]):
             continue
-        # Remove GitHub PR links and mentions: "by @user in https://..."
-        line = re.sub(r"\s+by\s+@\S+\s+in\s+https://\S+", "", line)
-        line = re.sub(r"https://github\.com/\S+", "", line).strip()
+        if line.startswith("#"):
+            continue
+
+        # Remove markdown bold/italic headers and author tags
+        line = re.sub(r"\*\*([^*]+)\*\*", r"\1", line)
+        line = re.sub(r"\s+by\s+@\S+.*", "", line)
+        line = re.sub(r"https?://\S+", "", line).strip()
+
         if line.startswith("* ") or line.startswith("- "):
             line = "• " + line[2:].strip()
         elif not line.startswith("• "):
             line = "• " + line
-        if line and line != "•":
+
+        line = line.strip()
+        if line and line != "•" and len(line) > 3:
             cleaned_lines.append(line)
 
     if not cleaned_lines:
-        return (
-            f"• อัปเดต CookieRun Bot เวอร์ชัน {ver or CURRENT_VERSION}\n"
-            "• ปรับปรุงประสิทธิภาพและความเสถียรของระบบ\n"
-            "• ปรับปรุงการทำงานของบอทและหน้าต่างควบคุม"
-        )
+        return default_notes
+
     return "\n".join(cleaned_lines)
 
 

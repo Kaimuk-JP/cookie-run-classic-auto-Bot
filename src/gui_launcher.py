@@ -104,12 +104,16 @@ def is_http_ready(port: int, host: str = "127.0.0.1", timeout: float = 0.4) -> b
 def start_backend_server(port: int):
     """Run uvicorn FastAPI server in background thread with proper logging and asyncio loop."""
     global _server_started
-    log_dir = os.path.join(_root_dir, "logs_error")
+    log_dir = os.path.join(get_settings_dir(), "logs_error")
     os.makedirs(log_dir, exist_ok=True)
     err_log_path = os.path.join(log_dir, "server_error.log")
 
     try:
         import asyncio
+        # CRITICAL: On Windows, default is ProactorEventLoop which breaks uvicorn.
+        # Force SelectorEventLoop so uvicorn's asyncio mode works in compiled EXE.
+        if sys.platform == "win32":
+            asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
     except Exception:
@@ -137,6 +141,7 @@ def start_backend_server(port: int):
                 f.write(f"\n[{time.strftime('%Y-%m-%d %H:%M:%S')}] Server Crash on port {port}:\n{err_msg}\n")
         except Exception:
             pass
+
 
 
 # Appearance & Window Config - Warm Bakery Pastel Theme

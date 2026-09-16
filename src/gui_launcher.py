@@ -402,6 +402,9 @@ class CookieRunLauncherApp(ctk.CTk):
         self.build_login_view()
         self.build_welcome_view()
 
+        # Start pre-warming background web server immediately so it is 100% ready by the time user logs in!
+        self.ensure_background_server(auto_open_browser=False)
+
         # Handle window restore/un-minimize to immediately repaint canvases without black flashes
         self.bind("<Map>", self._on_window_mapped)
 

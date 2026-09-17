@@ -314,6 +314,8 @@ DEFAULT_BOT_SETTINGS = {
     "stop_goal_rounds_target": 50,
     "stop_goal_time_enabled": False,
     "stop_goal_time_hours": 2.0,
+    "early_exit_boxes_enabled": True,
+    "early_exit_boxes_target": 2,
     "auto_action_enabled": False,
     "auto_action_mode": "both",
     "auto_action_interval": 1.5,
@@ -822,9 +824,14 @@ def save_settings(settings: BotSettings, device: Optional[str] = None):
 
     # Immediately hot-reload settings into engine if running or initialized
     try:
-        eng = get_engine_for_device(dev) if dev else bot_engine
-        if eng:
-            eng.check_and_apply_settings_update(settings_dict)
+        if dev:
+            eng = get_engine_for_device(dev)
+            if eng:
+                eng.check_and_apply_settings_update(settings_dict)
+        else:
+            bot_engine.check_and_apply_settings_update(settings_dict)
+            for running_eng in engine_manager.get_all_engines().values():
+                running_eng.check_and_apply_settings_update(settings_dict)
     except Exception as e:
         print(f"[WebServer] Hot reload settings error: {e}")
 

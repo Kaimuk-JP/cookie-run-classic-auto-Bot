@@ -319,6 +319,7 @@ class BotEngine:
         self.early_exit_boxes_target: int = 2
         self.early_exit_triggered: bool = False
         self._last_box_check_time: float = 0.0
+        self._box_target_consecutive_hits: int = 0
         self.stop_goal_time_enabled: bool = False
         self.stop_goal_time_hours: float = 2.0
         self.auto_action_enabled: bool = False
@@ -559,6 +560,7 @@ class BotEngine:
             self.early_exit_boxes_enabled = bool(user_config.get("early_exit_boxes_enabled", True))
             self.early_exit_boxes_target = int(user_config.get("early_exit_boxes_target", 2))
             self.early_exit_triggered = False
+            self._box_target_consecutive_hits = 0
             self.stop_goal_time_enabled = bool(user_config.get("stop_goal_time_enabled", False))
             self.stop_goal_time_hours = float(user_config.get("stop_goal_time_hours", 2.0))
             self.macro_enabled = bool(user_config.get("macro_enabled", getattr(self, "macro_enabled", False)))
@@ -954,19 +956,24 @@ class BotEngine:
                     if now - self._last_box_check_time >= 0.35:
                         self._last_box_check_time = now
                         box_count = detect_ingame_box_count(device_screen)
-                        if box_count >= self.early_exit_boxes_target:
-                            self.early_exit_triggered = True
-                            self.log(
-                                f"📦 [Box Farming] เก็บกล่องในรอบนี้ได้ {box_count} กล่อง (ครบเป้าหมาย {self.early_exit_boxes_target} กล่องแล้ว)! กำลังกด Pause เพื่อออกจากห้องและเริ่มรอบใหม่...",
-                                "success",
-                            )
-                            if hasattr(self, "macro_player") and self.macro_player.is_running:
-                                self.macro_player.stop()
-                            exit_in_game_run(target, self.device_port, log_fn=self.log)
-                            detection_group = "POST_GAME"
-                            last_stage = None
-                            last_detected_time = time.time()
-                            continue
+                        if box_count >= self.early_exit_boxes_target and box_count > 0:
+                            self._box_target_consecutive_hits += 1
+                            if self._box_target_consecutive_hits >= 2:
+                                self.early_exit_triggered = True
+                                self._box_target_consecutive_hits = 0
+                                self.log(
+                                    f"📦 [Box Farming] เก็บกล่องในรอบนี้ได้ {box_count} กล่อง (ครบเป้าหมาย {self.early_exit_boxes_target} กล่องแล้ว)! กำลังกด Pause เพื่อออกจากห้องและเริ่มรอบใหม่...",
+                                    "success",
+                                )
+                                if hasattr(self, "macro_player") and self.macro_player.is_running:
+                                    self.macro_player.stop()
+                                exit_in_game_run(target, self.device_port, log_fn=self.log)
+                                detection_group = "POST_GAME"
+                                last_stage = None
+                                last_detected_time = time.time()
+                                continue
+                        else:
+                            self._box_target_consecutive_hits = 0
 
                 # 🏃 Auto Jump / Slide or Macro playback during active in-game running
                 if detection_group == "IN_GAME" and stage is None:
@@ -1146,6 +1153,7 @@ class BotEngine:
                     self.current_round_screen = None
                     self.early_exit_triggered = False
                     self._last_box_check_time = 0.0
+                    self._box_target_consecutive_hits = 0
                     self.log(f"🏁 Round {self.rounds_played} started!", "success")
                     if self.interruptible_sleep(0.2):
                         break

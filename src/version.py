@@ -2,7 +2,7 @@
 Centralized Version and Repository Information for CookieRun Bot.
 """
 
-CURRENT_VERSION = "2.1.6"
+CURRENT_VERSION = "2.1.7"
 GITHUB_REPO = "Jakprim-2004/cookie-run-classic-auto-Bot"
 RAW_VERSION_URL = f"https://raw.githubusercontent.com/{GITHUB_REPO}/main/version.json"
 RELEASES_API_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"

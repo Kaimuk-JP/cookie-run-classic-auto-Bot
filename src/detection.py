@@ -549,38 +549,57 @@ def detect_ingame_box_count(screen) -> int:
     # Search region for in-game mystery box in HUD (top left below items)
     box_roi = screen_bgr[200:330, 50:180]
     res = cv2.matchTemplate(box_roi, box_tmpl, cv2.TM_CCOEFF_NORMED)
-    _, max_v, _, _ = cv2.minMaxLoc(res)
+    _, max_v, _, max_loc = cv2.minMaxLoc(res)
     if max_v < 0.65:
         return 0
 
     # Box icon found -> At least 1 box collected
-    # Check for 'x 2' in the region to the right of the box
-    x2_roi = screen_bgr[210:320, 140:260]
+    box_x = 50 + max_loc[0]
+    box_y = 200 + max_loc[1]
 
-    # Check A: White pixel contours of the number 2
-    white_mask = (x2_roi[:, :, 0] > 180) & (x2_roi[:, :, 1] > 180) & (x2_roi[:, :, 2] > 180)
-    cnts, _ = cv2.findContours((white_mask * 255).astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    for c in cnts:
-        bx, by, bw, bh = cv2.boundingRect(c)
-        if 18 <= bh <= 35 and 10 <= bw <= 28:
-            return 2
+    # Search region for 'x 2' strictly relative to the detected box position
+    # The 'x 2' HUD element is anchored directly to the right side of the box
+    rx1 = max(0, box_x + 60)
+    rx2 = min(1280, box_x + 175)
+    ry1 = max(0, box_y - 12)
+    ry2 = min(720, box_y + 70)
+    x2_roi = screen_bgr[ry1:ry2, rx1:rx2]
+    if x2_roi.size == 0:
+        return 1
 
-    # Check B: Template match of x2
     x2_tmpl = _get_template("INGAME_MYSTERY_BOX_X2.png")
     if x2_tmpl is None:
         path = os.path.join(TEMPLATE_DIR, "INGAME_MYSTERY_BOX_X2.png")
         if os.path.exists(path):
             x2_tmpl = cv2.imdecode(np.fromfile(path, dtype=np.uint8), cv2.IMREAD_UNCHANGED)
             _template_cache["INGAME_MYSTERY_BOX_X2.png"] = x2_tmpl
+
     if x2_tmpl is not None:
+        # Edge-based Canny matching (invariant to stage backgrounds: autumn, jungle, dessert, etc.)
+        x2_gray = cv2.cvtColor(x2_tmpl, cv2.COLOR_BGR2GRAY)
         roi_gray = cv2.cvtColor(x2_roi, cv2.COLOR_BGR2GRAY)
-        tmpl_gray = _get_template_gray("INGAME_MYSTERY_BOX_X2.png")
-        if tmpl_gray is None:
-            tmpl_gray = cv2.cvtColor(x2_tmpl, cv2.COLOR_BGR2GRAY)
-        res_x2 = cv2.matchTemplate(roi_gray, tmpl_gray, cv2.TM_CCOEFF_NORMED)
-        _, x2_score, _, _ = cv2.minMaxLoc(res_x2)
-        if x2_score >= 0.70:
+        tmpl_edges = cv2.Canny(x2_gray, 100, 200)
+        roi_edges = cv2.Canny(roi_gray, 100, 200)
+
+        # Multi-scale edge match
+        best_edge_score = 0.0
+        for s in [0.95, 1.0, 1.05]:
+            scaled_edges = tmpl_edges if s == 1.0 else cv2.resize(tmpl_edges, (0, 0), fx=s, fy=s)
+            if scaled_edges.shape[0] <= roi_edges.shape[0] and scaled_edges.shape[1] <= roi_edges.shape[1]:
+                res_edge = cv2.matchTemplate(roi_edges, scaled_edges, cv2.TM_CCOEFF_NORMED)
+                _, score, _, _ = cv2.minMaxLoc(res_edge)
+                if score > best_edge_score:
+                    best_edge_score = float(score)
+
+        if best_edge_score >= 0.50:
             return 2
+
+        # Standard gray match fallback
+        if x2_gray.shape[0] <= roi_gray.shape[0] and x2_gray.shape[1] <= roi_gray.shape[1]:
+            res_gray = cv2.matchTemplate(roi_gray, x2_gray, cv2.TM_CCOEFF_NORMED)
+            _, max_gray, _, _ = cv2.minMaxLoc(res_gray)
+            if max_gray >= 0.72:
+                return 2
 
     return 1
 

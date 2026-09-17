@@ -1,6 +1,6 @@
 {
-  "version": "2.1.2",
+  "version": "2.1.3",
   "download_url": "https://github.com/Jakprim-2004/cookie-run-classic-auto-Bot/releases/latest",
-  "changelog": "Fix Scrcpy 60 FPS live stream jar version mismatch (v3.3.4), enhance friend cleaner with robust stop/recovery, and add new detection templates.",
-  "release_date": "2026-09-16"
+  "changelog": "Fix Nuitka C compilation build issue, bundle Scrcpy v3.3.4 jar, and support high-speed live stream.",
+  "release_date": "2026-09-17"
 }

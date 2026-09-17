@@ -72,8 +72,6 @@ def main():
         "--include-package=pydantic",
         "--include-package=pydantic_core",
         "--include-package=websockets",
-        "--include-package=scrcpy",
-        "--include-package=av",
         f"--output-filename=CookieRunBot.exe",
         f"--output-dir={output_dir}",
     ]
@@ -149,6 +147,20 @@ def main():
         shutil.copytree(scrcpy_pkg_src, dist_scrcpy_dir, dirs_exist_ok=True)
     except Exception as e:
         print("Note on scrcpy copy:", e)
+
+    # Ensure av package and av.libs are in dist if available
+    try:
+        import av
+        av_pkg_src = os.path.dirname(av.__file__)
+        dist_av_dir = os.path.join(final_dist, "av")
+        shutil.copytree(av_pkg_src, dist_av_dir, dirs_exist_ok=True)
+        av_parent = os.path.dirname(av_pkg_src)
+        av_libs_src = os.path.join(av_parent, "av.libs")
+        if os.path.isdir(av_libs_src):
+            dist_av_libs = os.path.join(final_dist, "av.libs")
+            shutil.copytree(av_libs_src, dist_av_libs, dirs_exist_ok=True)
+    except Exception as e:
+        print("Note on av copy:", e)
 
     # Ensure customtkinter and darkdetect are in dist
     try:

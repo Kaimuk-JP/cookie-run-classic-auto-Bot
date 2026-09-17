@@ -15,6 +15,7 @@ import {
   Sparkles,
   Clock,
   Bell,
+  Package,
 } from 'lucide-react';
 import { BotSettings } from '../../types/bot';
 import { botApi } from '../../api/botApi';
@@ -541,14 +542,60 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
           </div>
 
+          {/* Mystery Box Early Exit Farming */}
+          <div className="space-y-3 p-3.5 bg-gradient-to-br from-amber-50/80 via-white to-yellow-50/50 rounded-2xl border border-amber-300 shadow-2xs">
+            <div className="flex items-center justify-between">
+              <h4 className="font-bold text-[#452311] text-xs flex items-center gap-1.5">
+                <Package className="w-4 h-4 text-amber-600" />
+                <span>ฟาร์มกล่องปริศนา: ออกจากห้องเมื่อได้กล่องครบ</span>
+              </h4>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-bold border border-amber-200">
+                Fast Farm
+              </span>
+            </div>
+
+            <div className="p-2.5 rounded-xl bg-white/90 border border-amber-200 space-y-2.5">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={settings.early_exit_boxes_enabled ?? true}
+                  onChange={(e) => setSettings({ ...settings, early_exit_boxes_enabled: e.target.checked })}
+                  className="rounded text-amber-600 focus:ring-0"
+                />
+                <div>
+                  <span className="font-bold text-xs text-[#452311] block">กด Pause ออกจากห้องทันทีเมื่อเก็บกล่องครบ</span>
+                  <span className="text-[10px] text-[#8C6D58]">
+                    เมื่อเก็บกล่องในรอบวิ่งครบ บอทจะกด Pause แล้วกดออกจากห้องทันทีเพื่อเริ่มรอบใหม่ (ไม่ต้องรอวิ่งจนหมดแรง)
+                  </span>
+                </div>
+              </label>
+
+              {(settings.early_exit_boxes_enabled ?? true) && (
+                <div className="flex items-center justify-between pt-2 border-t border-amber-100">
+                  <span className="text-[11px] text-[#6B4226] font-medium">จำนวนกล่องที่ต้องการก่อนกดออก:</span>
+                  <div className="flex items-center gap-1.5">
+                    <select
+                      value={settings.early_exit_boxes_target ?? 2}
+                      onChange={(e) => setSettings({ ...settings, early_exit_boxes_target: parseInt(e.target.value) || 2 })}
+                      className="px-2.5 py-1 rounded-lg bg-[#FFFDF6] border border-amber-300 font-mono font-bold text-xs text-[#452311] focus:bg-white focus:ring-2 focus:ring-amber-400 outline-none"
+                    >
+                      <option value={1}>1 กล่อง</option>
+                      <option value={2}>2 กล่อง (แนะนำ - สูงสุดต่อรอบ)</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Auto-Stop Goals */}
           <div className="space-y-3 p-3.5 bg-gradient-to-br from-amber-50/60 via-white to-orange-50/40 rounded-2xl border border-amber-200 shadow-2xs">
             <h4 className="font-bold text-[#452311] text-xs flex items-center gap-1.5">
               <Clock className="w-4 h-4 text-amber-600" />
-              <span>หยุดบอทอัตโนมัติ</span>
+              <span>หยุดบอทอัตโนมัติ (Auto-Stop Goals)</span>
             </h4>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="p-2.5 rounded-xl bg-white/90 border border-amber-100 space-y-2">
                 <label className="flex items-center gap-2 cursor-pointer select-none">
                   <input
@@ -572,33 +619,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       className="w-16 px-2 py-1 rounded-lg bg-[#FFFDF6] border border-amber-200 text-center font-mono font-bold text-xs text-[#452311] focus:bg-white focus:ring-2 focus:ring-amber-400 outline-none"
                     />
                     <span className="text-[10px] text-[#8C6D58]">รอบ</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-2.5 rounded-xl bg-white/90 border border-amber-100 space-y-2">
-                <label className="flex items-center gap-2 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={settings.stop_goal_boxes_enabled ?? false}
-                    onChange={(e) => setSettings({ ...settings, stop_goal_boxes_enabled: e.target.checked })}
-                    className="rounded text-amber-600 focus:ring-0"
-                  />
-                  <div>
-                    <span className="font-bold text-xs text-[#452311] block">หยุดตามกล่อง</span>
-                    <span className="text-[10px] text-[#8C6D58]">เมื่อได้กล่องครบกี่กล่อง</span>
-                  </div>
-                </label>
-                <div className="flex items-center justify-between pt-1 border-t border-amber-50">
-                  <span className="text-[11px] text-[#6B4226] font-medium">เป้าหมาย:</span>
-                  <div className="flex items-center gap-1">
-                    <input
-                      type="number"
-                      value={settings.stop_goal_boxes_target ?? 30}
-                      onChange={(e) => setSettings({ ...settings, stop_goal_boxes_target: parseInt(e.target.value) || 30 })}
-                      className="w-16 px-2 py-1 rounded-lg bg-[#FFFDF6] border border-amber-200 text-center font-mono font-bold text-xs text-[#452311] focus:bg-white focus:ring-2 focus:ring-amber-400 outline-none"
-                    />
-                    <span className="text-[10px] text-[#8C6D58]">กล่อง</span>
                   </div>
                 </div>
               </div>

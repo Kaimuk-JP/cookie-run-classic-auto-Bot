@@ -1,6 +1,6 @@
 {
-  "version": "2.1.5",
+  "version": "2.1.6",
   "download_url": "https://github.com/Jakprim-2004/cookie-run-classic-auto-Bot/releases/latest",
-  "changelog": "Show carried-over stats when idle, show current active round when running, add per-screen loot & rounds breakdown panel, add stop goal by mystery boxes target, and remove Discord button from Navbar.",
+  "changelog": "Add in-game fast box farming early exit: auto pause and exit room when 2 mystery boxes (or target) collected to start new round without stopping the bot.",
   "release_date": "2026-09-17"
 }

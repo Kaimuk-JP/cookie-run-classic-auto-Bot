@@ -661,3 +661,31 @@ def perform_auto_slide(duration_ms: int = 250):
     """Execute slide/crouch during in-game run."""
     safe_device_hold(*get_device_context(), config.SLIDE_BUTTON[0], config.SLIDE_BUTTON[1], duration=duration_ms)
 
+
+def exit_in_game_run(target_ip: Optional[str] = None, target_port: Optional[int] = None, log_fn=None):
+    """
+    Taps Pause -> Quit -> Confirm Quit to early exit the active run when target box count is reached.
+    """
+    ctx_ip, ctx_port = get_device_context()
+    ip = target_ip or ctx_ip
+    port = target_port or ctx_port
+
+    def _log(m):
+        if log_fn:
+            log_fn(m, "info")
+        else:
+            print(m)
+
+    _log("⏸️ [Early Exit] กำลังแตะปุ่ม Pause...")
+    safe_device_tap(ip, port, config.PAUSE_BUTTON[0], config.PAUSE_BUTTON[1])
+    time.sleep(random.uniform(0.6, 0.8))
+
+    _log("🚪 [Early Exit] กำลังแตะปุ่ม Quit (ออกจากห้อง)...")
+    safe_device_tap(ip, port, config.PAUSE_MENU_QUIT_BUTTON[0], config.PAUSE_MENU_QUIT_BUTTON[1])
+    time.sleep(random.uniform(0.6, 0.8))
+
+    _log("🚪 [Early Exit] กำลังแตะปุ่มยืนยันออกจากการวิ่ง...")
+    safe_device_tap(ip, port, config.CONFIRM_QUIT_BUTTON[0], config.CONFIRM_QUIT_BUTTON[1])
+    time.sleep(random.uniform(0.8, 1.2))
+
+

@@ -32,6 +32,7 @@ from actions import (
     close_announcement_dialog,
     complete_finish,
     configure_top_row_items,
+    exit_in_game_run,
     handle_anti_bot,
     handle_inactive,
     handle_quick_receive_and_send_lives,
@@ -74,6 +75,7 @@ from config import (
     SESSION_RESET_INTERVAL,
 )
 from detection import (
+    detect_ingame_box_count,
     detect_result_screen_mystery_box,
     detect_mystery_box_grades,
     detect_stage,
@@ -313,8 +315,10 @@ class BotEngine:
         self.send_friend_lives = True
         self.stop_goal_rounds_enabled: bool = False
         self.stop_goal_rounds_target: int = 50
-        self.stop_goal_boxes_enabled: bool = False
-        self.stop_goal_boxes_target: int = 30
+        self.early_exit_boxes_enabled: bool = True
+        self.early_exit_boxes_target: int = 2
+        self.early_exit_triggered: bool = False
+        self._last_box_check_time: float = 0.0
         self.stop_goal_time_enabled: bool = False
         self.stop_goal_time_hours: float = 2.0
         self.auto_action_enabled: bool = False
@@ -353,8 +357,8 @@ class BotEngine:
                 self.send_friend_lives = bool(init_cfg.get("send_friend_lives", True))
                 self.stop_goal_rounds_enabled = bool(init_cfg.get("stop_goal_rounds_enabled", False))
                 self.stop_goal_rounds_target = int(init_cfg.get("stop_goal_rounds_target", 50))
-                self.stop_goal_boxes_enabled = bool(init_cfg.get("stop_goal_boxes_enabled", False))
-                self.stop_goal_boxes_target = int(init_cfg.get("stop_goal_boxes_target", 30))
+                self.early_exit_boxes_enabled = bool(init_cfg.get("early_exit_boxes_enabled", True))
+                self.early_exit_boxes_target = int(init_cfg.get("early_exit_boxes_target", 2))
                 self.stop_goal_time_enabled = bool(init_cfg.get("stop_goal_time_enabled", False))
                 self.stop_goal_time_hours = float(init_cfg.get("stop_goal_time_hours", 2.0))
                 self.auto_action_enabled = bool(init_cfg.get("auto_action_enabled", False))
@@ -552,8 +556,9 @@ class BotEngine:
             self.send_friend_lives = bool(user_config.get("send_friend_lives", True))
             self.stop_goal_rounds_enabled = bool(user_config.get("stop_goal_rounds_enabled", False))
             self.stop_goal_rounds_target = int(user_config.get("stop_goal_rounds_target", 50))
-            self.stop_goal_boxes_enabled = bool(user_config.get("stop_goal_boxes_enabled", False))
-            self.stop_goal_boxes_target = int(user_config.get("stop_goal_boxes_target", 30))
+            self.early_exit_boxes_enabled = bool(user_config.get("early_exit_boxes_enabled", True))
+            self.early_exit_boxes_target = int(user_config.get("early_exit_boxes_target", 2))
+            self.early_exit_triggered = False
             self.stop_goal_time_enabled = bool(user_config.get("stop_goal_time_enabled", False))
             self.stop_goal_time_hours = float(user_config.get("stop_goal_time_hours", 2.0))
             self.macro_enabled = bool(user_config.get("macro_enabled", getattr(self, "macro_enabled", False)))
@@ -745,8 +750,8 @@ class BotEngine:
             "send_friend_lives": self.send_friend_lives,
             "stop_goal_rounds_enabled": self.stop_goal_rounds_enabled,
             "stop_goal_rounds_target": self.stop_goal_rounds_target,
-            "stop_goal_boxes_enabled": self.stop_goal_boxes_enabled,
-            "stop_goal_boxes_target": self.stop_goal_boxes_target,
+            "early_exit_boxes_enabled": self.early_exit_boxes_enabled,
+            "early_exit_boxes_target": self.early_exit_boxes_target,
             "stop_goal_time_enabled": self.stop_goal_time_enabled,
             "stop_goal_time_hours": self.stop_goal_time_hours,
             "adb_path": get_adb_path(),
@@ -813,8 +818,8 @@ class BotEngine:
             ("send_friend_lives", "ส่งหัวใจให้เพื่อน", bool, lambda v: "เปิด" if v else "ปิด"),
             ("stop_goal_rounds_enabled", "หยุดเมื่อครบจำนวนรอบ", bool, lambda v: "เปิด" if v else "ปิด"),
             ("stop_goal_rounds_target", "เป้าหมายจำนวนรอบ", int, lambda v: f"{v} รอบ"),
-            ("stop_goal_boxes_enabled", "หยุดเมื่อได้กล่องครบ", bool, lambda v: "เปิด" if v else "ปิด"),
-            ("stop_goal_boxes_target", "เป้าหมายจำนวนกล่อง", int, lambda v: f"{v} กล่อง"),
+            ("early_exit_boxes_enabled", "ออกจากห้องเมื่อได้กล่องครบ", bool, lambda v: "เปิด" if v else "ปิด"),
+            ("early_exit_boxes_target", "เป้าหมายกล่องก่อนออก", int, lambda v: f"{v} กล่อง"),
             ("stop_goal_time_enabled", "หยุดเมื่อครบเวลา", bool, lambda v: "เปิด" if v else "ปิด"),
             ("stop_goal_time_hours", "เป้าหมายเวลา", float, lambda v: f"{v} ชม."),
             ("auto_action_enabled", "วิ่ง+กระโดด/สไลด์ อัตโนมัติ", bool, lambda v: "เปิด" if v else "ปิด"),
@@ -943,6 +948,26 @@ class BotEngine:
                 elif self.current_stage not in ("STARTING", "STOPPING"):
                     self.current_stage = f"{detection_group} (Searching...)"
 
+                # 📦 Early Exit on Mystery Box Goal during active in-game running
+                if detection_group == "IN_GAME" and self.early_exit_boxes_enabled and not self.early_exit_triggered and device_screen is not None:
+                    now = time.time()
+                    if now - self._last_box_check_time >= 0.35:
+                        self._last_box_check_time = now
+                        box_count = detect_ingame_box_count(device_screen)
+                        if box_count >= self.early_exit_boxes_target:
+                            self.early_exit_triggered = True
+                            self.log(
+                                f"📦 [Box Farming] เก็บกล่องในรอบนี้ได้ {box_count} กล่อง (ครบเป้าหมาย {self.early_exit_boxes_target} กล่องแล้ว)! กำลังกด Pause เพื่อออกจากห้องและเริ่มรอบใหม่...",
+                                "success",
+                            )
+                            if hasattr(self, "macro_player") and self.macro_player.is_running:
+                                self.macro_player.stop()
+                            exit_in_game_run(target, self.device_port, log_fn=self.log)
+                            detection_group = "POST_GAME"
+                            last_stage = None
+                            last_detected_time = time.time()
+                            continue
+
                 # 🏃 Auto Jump / Slide or Macro playback during active in-game running
                 if detection_group == "IN_GAME" and stage is None:
                     if self.macro_enabled and hasattr(self, "macro_player") and self.macro_player.is_running:
@@ -1044,22 +1069,6 @@ class BotEngine:
                         )
                         break
 
-                    if self.stop_goal_boxes_enabled and self.session_box_counts.get("total", 0) >= self.stop_goal_boxes_target:
-                        goal_msg = f"เก็บกล่องครบตามเป้าหมายเซสชัน {self.stop_goal_boxes_target} กล่อง (ได้ {self.session_box_counts.get('total', 0)} กล่อง)"
-                        self.log(f"🎯 บรรลุเป้าหมาย: {goal_msg}! กำลังหยุดการทำงานบอทอัตโนมัติ...", "success")
-                        uptime_sec = int(time.time() - self.start_time) if self.start_time else 0
-                        hours, remainder = divmod(uptime_sec, 3600)
-                        minutes, seconds = divmod(remainder, 60)
-                        uptime_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
-                        discord_notifier.send_goal_reached(
-                            goal_description=goal_msg,
-                            uptime=uptime_str,
-                            rounds_played=self.rounds_played,
-                            total_boxes=self.mystery_boxes,
-                            coins_earned=self.session_coins_earned,
-                            session_xp=self.session_xp_earned,
-                        )
-                        break
 
                     elapsed_hours = (time.time() - self.start_time) / 3600 if self.start_time else 0
                     if self.stop_goal_time_enabled and elapsed_hours >= self.stop_goal_time_hours:
@@ -1135,6 +1144,8 @@ class BotEngine:
                     self.current_round_boxes = []
                     self.current_round_mystery_box_handled = False
                     self.current_round_screen = None
+                    self.early_exit_triggered = False
+                    self._last_box_check_time = 0.0
                     self.log(f"🏁 Round {self.rounds_played} started!", "success")
                     if self.interruptible_sleep(0.2):
                         break

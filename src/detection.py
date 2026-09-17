@@ -519,3 +519,68 @@ def detect_result_screen_mystery_box(screen) -> list:
     if max_val >= 0.70:
         return ["wood"]  # Result screen shows mystery box badge
     return []
+
+
+def detect_ingame_box_count(screen) -> int:
+    """
+    Detects how many mystery boxes have been collected in the active run.
+    Returns:
+      0: No box icon in HUD
+      1: 1 box collected
+      2: 2 boxes collected ('x 2')
+    """
+    screen_bgr = _normalize(screen)
+    if screen_bgr is None:
+        return 0
+
+    h, w = screen_bgr.shape[:2]
+    if (w, h) != (1280, 720):
+        screen_bgr = cv2.resize(screen_bgr, (1280, 720))
+
+    box_tmpl = _get_template("INGAME_MYSTERY_BOX.png")
+    if box_tmpl is None:
+        path = os.path.join(TEMPLATE_DIR, "INGAME_MYSTERY_BOX.png")
+        if os.path.exists(path):
+            box_tmpl = cv2.imdecode(np.fromfile(path, dtype=np.uint8), cv2.IMREAD_UNCHANGED)
+            _template_cache["INGAME_MYSTERY_BOX.png"] = box_tmpl
+    if box_tmpl is None:
+        return 0
+
+    # Search region for in-game mystery box in HUD (top left below items)
+    box_roi = screen_bgr[200:330, 50:180]
+    res = cv2.matchTemplate(box_roi, box_tmpl, cv2.TM_CCOEFF_NORMED)
+    _, max_v, _, _ = cv2.minMaxLoc(res)
+    if max_v < 0.65:
+        return 0
+
+    # Box icon found -> At least 1 box collected
+    # Check for 'x 2' in the region to the right of the box
+    x2_roi = screen_bgr[210:320, 140:260]
+
+    # Check A: White pixel contours of the number 2
+    white_mask = (x2_roi[:, :, 0] > 180) & (x2_roi[:, :, 1] > 180) & (x2_roi[:, :, 2] > 180)
+    cnts, _ = cv2.findContours((white_mask * 255).astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    for c in cnts:
+        bx, by, bw, bh = cv2.boundingRect(c)
+        if 18 <= bh <= 35 and 10 <= bw <= 28:
+            return 2
+
+    # Check B: Template match of x2
+    x2_tmpl = _get_template("INGAME_MYSTERY_BOX_X2.png")
+    if x2_tmpl is None:
+        path = os.path.join(TEMPLATE_DIR, "INGAME_MYSTERY_BOX_X2.png")
+        if os.path.exists(path):
+            x2_tmpl = cv2.imdecode(np.fromfile(path, dtype=np.uint8), cv2.IMREAD_UNCHANGED)
+            _template_cache["INGAME_MYSTERY_BOX_X2.png"] = x2_tmpl
+    if x2_tmpl is not None:
+        roi_gray = cv2.cvtColor(x2_roi, cv2.COLOR_BGR2GRAY)
+        tmpl_gray = _get_template_gray("INGAME_MYSTERY_BOX_X2.png")
+        if tmpl_gray is None:
+            tmpl_gray = cv2.cvtColor(x2_tmpl, cv2.COLOR_BGR2GRAY)
+        res_x2 = cv2.matchTemplate(roi_gray, tmpl_gray, cv2.TM_CCOEFF_NORMED)
+        _, x2_score, _, _ = cv2.minMaxLoc(res_x2)
+        if x2_score >= 0.70:
+            return 2
+
+    return 1
+

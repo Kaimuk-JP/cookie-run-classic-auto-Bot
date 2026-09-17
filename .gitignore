@@ -35,6 +35,7 @@ ENV/
 /dist_installer/
 *.build/
 *.dist/
+release_body.txt
 
 # ==========================================
 # Device-Specific & Sensitive Credentials

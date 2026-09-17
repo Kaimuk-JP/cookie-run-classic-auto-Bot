@@ -58,6 +58,8 @@ src/screenshots/
 **/src/screenshots/
 logs_error/
 **/logs_error/
+logs/
+**/logs/
 debug_screens/
 **/debug_screens/
 scratch/

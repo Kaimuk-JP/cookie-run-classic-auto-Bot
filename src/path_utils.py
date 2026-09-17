@@ -50,3 +50,8 @@ def get_history_dir() -> str:
     history_dir = os.path.join(get_project_root(), "history")
     os.makedirs(history_dir, exist_ok=True)
     return history_dir
+
+def get_logs_dir() -> str:
+    logs_dir = os.path.join(get_project_root(), "logs")
+    os.makedirs(logs_dir, exist_ok=True)
+    return logs_dir

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Terminal, Trash2 } from 'lucide-react';
+import { Terminal, Trash2, Download } from 'lucide-react';
 import { LogEntry } from '../../types/bot';
 import { botApi } from '../../api/botApi';
 import { FormattedTextWithIcons } from '../../utils/iconMap';
@@ -127,6 +127,42 @@ export const LogsConsole: React.FC<LogsConsoleProps> = ({ deviceSerial }) => {
     }
   }, [logs, autoScroll]);
 
+  const handleDownloadLogs = () => {
+    if (logs.length === 0) return;
+    const now = new Date();
+    const dateStr = now.toISOString().slice(0, 10);
+    const timeStr = now.toTimeString().slice(0, 8).replace(/:/g, '');
+    const filename = `cookierun_bot_logs_${dateStr}_${timeStr}.txt`;
+
+    const lines = logs.map((l) => {
+      const ts = l.timestamp || '';
+      const lvl = (l.level || 'info').toUpperCase();
+      const dev = l.target ? ` [${l.target}]` : '';
+      const msg = l.message || '';
+      return `[${ts}] [${lvl}]${dev} ${msg}`;
+    });
+
+    const header = [
+      '==================================================',
+      ' CookieRun Classic Bot - Activity Logs',
+      ` Export Date : ${now.toLocaleString('th-TH')}`,
+      ` Target Scope: ${deviceSerial && deviceSerial !== 'all' ? deviceSerial : 'All Devices'}`,
+      ` Total Rows  : ${logs.length}`,
+      '==================================================\r\n',
+    ].join('\r\n');
+
+    const fullText = header + lines.join('\r\n');
+    const blob = new Blob([fullText], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="biscuit-panel rounded-3xl p-5 shadow-md flex-1 flex flex-col min-h-[350px]">
       {/* Header Bar */}
@@ -158,6 +194,14 @@ export const LogsConsole: React.FC<LogsConsoleProps> = ({ deviceSerial }) => {
             />
             <span>เลื่อนอัตโนมัติ</span>
           </label>
+          <button
+            onClick={handleDownloadLogs}
+            className="candy-btn-soft text-xs text-[#8A3B04] px-2 py-1.5 rounded-xl transition cursor-pointer flex items-center space-x-1 hover:bg-[#FDE68A]/40"
+            title="บันทึกบันทึกการทำงานเป็นไฟล์ .txt"
+          >
+            <Download className="w-3.5 h-3.5 text-[#D97706]" />
+            <span className="text-[11px] font-bold text-[#8A3B04] hidden sm:inline">บันทึก .txt</span>
+          </button>
           <button
             onClick={() => setLogs([])}
             className="candy-btn-soft text-xs text-[#8A3B04] p-1.5 rounded-xl transition cursor-pointer"

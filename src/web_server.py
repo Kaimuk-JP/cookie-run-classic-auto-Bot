@@ -1820,6 +1820,39 @@ def get_logs(device: Optional[str] = None):
     return combined
 
 
+@app.get("/api/logs/export")
+def export_logs(device: Optional[str] = None):
+    """Export and download current logs as a formatted UTF-8 .txt file."""
+    logs_data = get_logs(device=device)
+    date_now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    header = [
+        "=" * 60,
+        "  CookieRun Classic Bot - Activity Logs Export",
+        f"  Export Time : {date_now}",
+        f"  Device Scope: {device if device else 'All Devices'}",
+        f"  Total Rows  : {len(logs_data)}",
+        "=" * 60,
+        "",
+    ]
+    lines = list(header)
+    for item in logs_data:
+        ts = item.get("timestamp") or item.get("time") or ""
+        lvl = str(item.get("level") or "INFO").upper()
+        target = item.get("target") or item.get("device") or ""
+        dev_str = f" [{target}]" if target else ""
+        msg = str(item.get("message") or "").strip()
+        lines.append(f"[{ts}] [{lvl}]{dev_str} {msg}")
+
+    text_content = "\r\n".join(lines)
+    ts_file = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"cookierun_bot_logs_{ts_file}.txt"
+    return Response(
+        content=text_content,
+        media_type="text/plain; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+    )
+
+
 @app.websocket("/ws/logs")
 async def websocket_logs(websocket: WebSocket, device: Optional[str] = None):
     await websocket.accept()

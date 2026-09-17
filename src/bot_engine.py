@@ -1589,6 +1589,27 @@ class BotEngine:
             self.log("⏹️ Bot execution ended", "info")
 
 
+_log_file_lock = threading.Lock()
+
+def write_log_to_file(log_entry: dict):
+    try:
+        from path_utils import get_logs_dir
+        logs_dir = get_logs_dir()
+        date_str = datetime.now().strftime("%Y-%m-%d")
+        filepath = os.path.join(logs_dir, f"bot_log_{date_str}.txt")
+        ts = log_entry.get("timestamp") or log_entry.get("time") or datetime.now().strftime("%H:%M:%S")
+        lvl = str(log_entry.get("level") or "INFO").upper()
+        target = log_entry.get("target") or log_entry.get("device") or ""
+        dev_tag = f" [{target}]" if target else ""
+        msg = str(log_entry.get("message") or "").strip()
+        line = f"[{date_str} {ts}] [{lvl}]{dev_tag} {msg}\n"
+        with _log_file_lock:
+            with open(filepath, "a", encoding="utf-8") as f:
+                f.write(line)
+    except Exception:
+        pass
+
+
 class EngineManager:
     """Manages multiple BotEngine instances mapped to different devices/emulators."""
     def __init__(self):
@@ -1601,6 +1622,7 @@ class EngineManager:
     def record_and_broadcast_log(self, log_entry: dict):
         with self.lock:
             self.global_logs.append(log_entry)
+        write_log_to_file(log_entry)
         if self.loop and self.global_ws_subscribers:
             for q in list(self.global_ws_subscribers):
                 try:

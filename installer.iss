@@ -40,7 +40,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: checkedonce
 
 [Files]
-Source: "dist\CookieRun_Bot\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "*.log,*.tmp,screenshots\*,src\screenshots\*,settings\*.json,history\*.json,logs_error\*"
+Source: "dist\CookieRun_Bot\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "*.log,*.tmp,screenshots\*,src\screenshots\*,logs\*,src\logs\*,settings\*.json,history\*.json,logs_error\*"
 
 [Icons]
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\{#MyAppExeName}"

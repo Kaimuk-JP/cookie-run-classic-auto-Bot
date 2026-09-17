@@ -1,6 +1,11 @@
 {
   "version": "2.1.6",
   "download_url": "https://github.com/Jakprim-2004/cookie-run-classic-auto-Bot/releases/latest",
-  "changelog": "Add in-game fast box farming early exit: auto pause and exit room when 2 mystery boxes (or target) collected to start new round without stopping the bot.",
+  "changelog": [
+    "ระบบฟาร์มกล่องปริศนาด่วน: ออกจากห้องอัตโนมัติเมื่อเก็บกล่องครบตามเป้าหมาย (ค่าเริ่มต้น 2 กล่อง) เพื่อเริ่มรอบใหม่ทันทีโดยไม่หยุดบอท",
+    "แสดงยอดยกมา (เหรียญ/กล่องปริศนา/รอบวิ่ง) เมื่อบอทหยุดทำงาน และแสดงรอบปัจจุบันเมื่อกำลังวิ่ง",
+    "แผงสถิติแยกรายจอ (Per-Screen Breakdown) ดูเหรียญและกล่องของแต่ละจอ พร้อมปุ่มเริ่ม/หยุดเฉพาะจอ",
+    "ปรับปรุงระบบคอมไพล์ Native EXE (Nuitka) ให้ทำงานได้อย่างสมบูรณ์"
+  ],
   "release_date": "2026-09-17"
 }

@@ -53,6 +53,9 @@ def clean_release_notes(raw_notes: str, ver: str = "") -> str:
     if not raw_notes:
         return default_notes
 
+    if isinstance(raw_notes, list):
+        raw_notes = "\n".join(str(item) for item in raw_notes)
+
     import re
     cleaned_lines = []
     for line in raw_notes.strip().splitlines():
@@ -158,7 +161,7 @@ def check_for_updates(timeout: int = 5) -> Dict[str, Any]:
                 result["has_update"] = True
                 result["latest_version"] = raw_ver
                 result["release_name"] = f"CookieRun Bot v{raw_ver}"
-                result["release_notes"] = raw_data.get("changelog", "")
+                result["release_notes"] = clean_release_notes(raw_data.get("changelog", ""), raw_ver)
                 result["download_url"] = raw_data.get("download_url", "")
                 result["asset_name"] = f"CookieRunBot_Setup_v{raw_ver}.exe"
                 return result

@@ -87,6 +87,29 @@ jobs:
           Write-Host "Resolved Release Tag: $tag"
           echo "RELEASE_TAG=$tag" >> $env:GITHUB_ENV
 
+          # Generate dynamic release body from version.json
+          python -c @"
+import json
+try:
+    with open('version.json', 'r', encoding='utf-8') as f:
+        d = json.load(f)
+    cl = d.get('changelog', '')
+    if isinstance(cl, list):
+        text = '\n'.join('• ' + s.lstrip('• ') for s in cl)
+    elif cl:
+        text = cl
+    else:
+        text = '• อัปเดต CookieRun Bot เวอร์ชัน $tag\n• ปรับปรุงประสิทธิภาพและความเสถียรของระบบ'
+    with open('release_body.txt', 'w', encoding='utf-8') as out:
+        out.write(text.strip())
+    print('Generated release_body.txt successfully:')
+    print(text)
+except Exception as e:
+    with open('release_body.txt', 'w', encoding='utf-8') as out:
+        out.write('• อัปเดต CookieRun Bot เวอร์ชัน $tag')
+    print('Fallback release body written:', e)
+"@
+
       - name: 🔨 Build Native Executable & Windows Installer
         shell: pwsh
         run: |
@@ -98,11 +121,7 @@ jobs:
           tag_name: ${{ env.RELEASE_TAG }}
           name: CookieRun Bot Pro ${{ env.RELEASE_TAG }}
           files: dist_installer/*.exe
-          body: |
-            • อัปเดต CookieRun Bot เวอร์ชัน ${{ env.RELEASE_TAG }}
-            • ปรับปรุงความเสถียรของระบบและ Web Dashboard
-            • ปรับปรุงระบบตรวจสอบสถานะเซิร์ฟเวอร์อัตโนมัติ (Socket Health Check)
-            • รองรับการทำงานต่ออัตโนมัติบนทุกจอเดิมทันที (Auto-Resume)
+          body_path: release_body.txt
           generate_release_notes: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

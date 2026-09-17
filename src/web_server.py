@@ -217,6 +217,8 @@ class StartBotRequest(BaseModel):
     heart_farmer_invite: Optional[str] = None
     stop_goal_rounds_enabled: Optional[bool] = None
     stop_goal_rounds_target: Optional[int] = None
+    stop_goal_boxes_enabled: Optional[bool] = None
+    stop_goal_boxes_target: Optional[int] = None
     stop_goal_time_enabled: Optional[bool] = None
     stop_goal_time_hours: Optional[float] = None
     auto_action_enabled: Optional[bool] = None

@@ -5,6 +5,7 @@ import { StreamPlayer } from './components/dashboard/StreamPlayer';
 import { QuickActions } from './components/dashboard/QuickActions';
 import { RoundHistory } from './components/dashboard/RoundHistory';
 import { LogsConsole } from './components/dashboard/LogsConsole';
+import { DeviceBreakdown } from './components/dashboard/DeviceBreakdown';
 
 // Modals
 import { StatsModal } from './components/modals/StatsModal';
@@ -162,14 +163,14 @@ export function App() {
     }
   };
 
-  const handleStartCurrent = async () => {
-    if (!activeDevice) return toast.warning('กรุณาเลือกจอก่อน');
+  const handleStartDevice = async (serial: string) => {
+    if (!serial) return toast.warning('กรุณาระบุจอที่ต้องการเริ่ม');
     try {
-      const res = await botApi.startBot(activeDevice.serial);
+      const res = await botApi.startBot(serial);
       if (!res.success) {
         toast.error(res.message);
       } else {
-        toast.success(res.message || `เริ่มบอทจอ ${activeDevice.serial} แล้ว`);
+        toast.success(res.message || `เริ่มบอทจอ ${serial} แล้ว`);
       }
       fetchDevices();
     } catch (e: any) {
@@ -177,11 +178,11 @@ export function App() {
     }
   };
 
-  const handleStopCurrent = async () => {
-    if (!activeDevice) return toast.warning('กรุณาเลือกจอก่อน');
+  const handleStopDevice = async (serial: string) => {
+    if (!serial) return toast.warning('กรุณาระบุจอที่ต้องการหยุด');
     setDevices((prev) =>
       prev.map((d) =>
-        d.serial === activeDevice.serial
+        d.serial === serial
           ? {
             ...d,
             is_running: false,
@@ -193,13 +194,23 @@ export function App() {
       )
     );
     try {
-      const res = await botApi.stopBot(activeDevice.serial);
-      toast.success(res.message || `หยุดจอ ${activeDevice.serial} แล้ว`);
+      const res = await botApi.stopBot(serial);
+      toast.success(res.message || `หยุดจอ ${serial} แล้ว`);
     } catch {
-      toast.success(`หยุดจอ ${activeDevice.serial} แล้ว`);
+      toast.success(`หยุดจอ ${serial} แล้ว`);
     } finally {
       fetchDevices();
     }
+  };
+
+  const handleStartCurrent = () => {
+    if (!activeDevice) return toast.warning('กรุณาเลือกจอก่อน');
+    handleStartDevice(activeDevice.serial);
+  };
+
+  const handleStopCurrent = () => {
+    if (!activeDevice) return toast.warning('กรุณาเลือกจอก่อน');
+    handleStopDevice(activeDevice.serial);
   };
 
   return (
@@ -238,6 +249,15 @@ export function App() {
             deviceSerial={activeDevice?.serial || ''}
             stageName={activeDevice?.current_stage || ''}
             isRunning={activeDevice?.is_running || false}
+          />
+
+          {/* Multi-Device Loot & Status Breakdown (จอไหนได้อะไรเท่าไหร่) */}
+          <DeviceBreakdown
+            devices={devices}
+            selectedSerial={activeDevice?.serial || ''}
+            onSelectDevice={(s) => setSelectedSerial(s)}
+            onStartDevice={handleStartDevice}
+            onStopDevice={handleStopDevice}
           />
 
           {/* Round History & Efficiency Chart */}

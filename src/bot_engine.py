@@ -313,6 +313,8 @@ class BotEngine:
         self.send_friend_lives = True
         self.stop_goal_rounds_enabled: bool = False
         self.stop_goal_rounds_target: int = 50
+        self.stop_goal_boxes_enabled: bool = False
+        self.stop_goal_boxes_target: int = 30
         self.stop_goal_time_enabled: bool = False
         self.stop_goal_time_hours: float = 2.0
         self.auto_action_enabled: bool = False
@@ -351,6 +353,8 @@ class BotEngine:
                 self.send_friend_lives = bool(init_cfg.get("send_friend_lives", True))
                 self.stop_goal_rounds_enabled = bool(init_cfg.get("stop_goal_rounds_enabled", False))
                 self.stop_goal_rounds_target = int(init_cfg.get("stop_goal_rounds_target", 50))
+                self.stop_goal_boxes_enabled = bool(init_cfg.get("stop_goal_boxes_enabled", False))
+                self.stop_goal_boxes_target = int(init_cfg.get("stop_goal_boxes_target", 30))
                 self.stop_goal_time_enabled = bool(init_cfg.get("stop_goal_time_enabled", False))
                 self.stop_goal_time_hours = float(init_cfg.get("stop_goal_time_hours", 2.0))
                 self.auto_action_enabled = bool(init_cfg.get("auto_action_enabled", False))
@@ -548,6 +552,8 @@ class BotEngine:
             self.send_friend_lives = bool(user_config.get("send_friend_lives", True))
             self.stop_goal_rounds_enabled = bool(user_config.get("stop_goal_rounds_enabled", False))
             self.stop_goal_rounds_target = int(user_config.get("stop_goal_rounds_target", 50))
+            self.stop_goal_boxes_enabled = bool(user_config.get("stop_goal_boxes_enabled", False))
+            self.stop_goal_boxes_target = int(user_config.get("stop_goal_boxes_target", 30))
             self.stop_goal_time_enabled = bool(user_config.get("stop_goal_time_enabled", False))
             self.stop_goal_time_hours = float(user_config.get("stop_goal_time_hours", 2.0))
             self.macro_enabled = bool(user_config.get("macro_enabled", getattr(self, "macro_enabled", False)))
@@ -739,6 +745,8 @@ class BotEngine:
             "send_friend_lives": self.send_friend_lives,
             "stop_goal_rounds_enabled": self.stop_goal_rounds_enabled,
             "stop_goal_rounds_target": self.stop_goal_rounds_target,
+            "stop_goal_boxes_enabled": self.stop_goal_boxes_enabled,
+            "stop_goal_boxes_target": self.stop_goal_boxes_target,
             "stop_goal_time_enabled": self.stop_goal_time_enabled,
             "stop_goal_time_hours": self.stop_goal_time_hours,
             "adb_path": get_adb_path(),
@@ -805,6 +813,8 @@ class BotEngine:
             ("send_friend_lives", "ส่งหัวใจให้เพื่อน", bool, lambda v: "เปิด" if v else "ปิด"),
             ("stop_goal_rounds_enabled", "หยุดเมื่อครบจำนวนรอบ", bool, lambda v: "เปิด" if v else "ปิด"),
             ("stop_goal_rounds_target", "เป้าหมายจำนวนรอบ", int, lambda v: f"{v} รอบ"),
+            ("stop_goal_boxes_enabled", "หยุดเมื่อได้กล่องครบ", bool, lambda v: "เปิด" if v else "ปิด"),
+            ("stop_goal_boxes_target", "เป้าหมายจำนวนกล่อง", int, lambda v: f"{v} กล่อง"),
             ("stop_goal_time_enabled", "หยุดเมื่อครบเวลา", bool, lambda v: "เปิด" if v else "ปิด"),
             ("stop_goal_time_hours", "เป้าหมายเวลา", float, lambda v: f"{v} ชม."),
             ("auto_action_enabled", "วิ่ง+กระโดด/สไลด์ อัตโนมัติ", bool, lambda v: "เปิด" if v else "ปิด"),
@@ -1019,6 +1029,23 @@ class BotEngine:
                     # Check Auto-Stop Goals before starting next round
                     if self.stop_goal_rounds_enabled and self.session_rounds_played >= self.stop_goal_rounds_target:
                         goal_msg = f"วิ่งครบตามเป้าหมายเซสชัน {self.stop_goal_rounds_target} รอบ"
+                        self.log(f"🎯 บรรลุเป้าหมาย: {goal_msg}! กำลังหยุดการทำงานบอทอัตโนมัติ...", "success")
+                        uptime_sec = int(time.time() - self.start_time) if self.start_time else 0
+                        hours, remainder = divmod(uptime_sec, 3600)
+                        minutes, seconds = divmod(remainder, 60)
+                        uptime_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+                        discord_notifier.send_goal_reached(
+                            goal_description=goal_msg,
+                            uptime=uptime_str,
+                            rounds_played=self.rounds_played,
+                            total_boxes=self.mystery_boxes,
+                            coins_earned=self.session_coins_earned,
+                            session_xp=self.session_xp_earned,
+                        )
+                        break
+
+                    if self.stop_goal_boxes_enabled and self.session_box_counts.get("total", 0) >= self.stop_goal_boxes_target:
+                        goal_msg = f"เก็บกล่องครบตามเป้าหมายเซสชัน {self.stop_goal_boxes_target} กล่อง (ได้ {self.session_box_counts.get('total', 0)} กล่อง)"
                         self.log(f"🎯 บรรลุเป้าหมาย: {goal_msg}! กำลังหยุดการทำงานบอทอัตโนมัติ...", "success")
                         uptime_sec = int(time.time() - self.start_time) if self.start_time else 0
                         hours, remainder = divmod(uptime_sec, 3600)

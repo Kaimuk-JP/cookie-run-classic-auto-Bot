@@ -1,7 +1,7 @@
 """
 Build Orchestrator for CookieRun Bot
 Compiles the application into a secure Native Windows Executable (.exe)
-using Nuitka + Zig C-Compiler to prevent reverse engineering and decompilation.
+using Nuitka (Native C/C++ Compiler) to prevent reverse engineering and decompilation.
 """
 
 import os
@@ -25,7 +25,7 @@ def main():
     frontend_dist = os.path.join(root_dir, "frontend", "dist", "index.html")
 
     print("=" * 70)
-    print(" CookieRun Bot - Native EXE Compiler (Nuitka + Zig C-Compiler)")
+    print(" CookieRun Bot - Native EXE Compiler (Nuitka C/C++)")
     print("=" * 70)
 
     # 1. Verify frontend dist
@@ -54,7 +54,6 @@ def main():
         "-m",
         "nuitka",
         "--standalone",
-        "--zig",
         "--assume-yes-for-downloads",
         "--windows-console-mode=disable",
         "--enable-plugin=tk-inter",

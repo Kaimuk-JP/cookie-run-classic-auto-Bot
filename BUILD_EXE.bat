@@ -4,7 +4,7 @@ cd /d "%~dp0"
 
 echo ========================================================
 echo   CookieRun Bot - Building Protected Native EXE
-echo   Using Nuitka + Zig C-Compiler
+echo   Using Nuitka (Native C/C++ Compiler)
 echo ========================================================
 echo.
 

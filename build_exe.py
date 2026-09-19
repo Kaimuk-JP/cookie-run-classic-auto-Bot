@@ -89,6 +89,9 @@ def main():
     if os.path.isdir(os.path.join(root_dir, "macros")):
         nuitka_cmd.append(f"--include-data-dir={os.path.join(root_dir, 'macros')}=macros")
 
+    # Add main entry point to nuitka command
+    nuitka_cmd.append(entry_point)
+
     use_fast = "--fast" in sys.argv or "--pyinstaller" in sys.argv
     src_dir = os.path.join(root_dir, "src")
     env = os.environ.copy()

@@ -10,8 +10,8 @@ on:
         description: 'Version Tag (e.g. v2.1.8) - Leave empty to use version from src/version.py'
         required: false
         default: ''
-      fast_build:
-        description: '⚡ Use Fast Build (PyInstaller ~3 mins) instead of Nuitka (~15 mins)'
+      use_nuitka:
+        description: '🛡️ Use Nuitka C++ Compiler (Slow ~15m) instead of Fast PyInstaller (~2m)'
         type: boolean
         required: false
         default: false
@@ -104,12 +104,14 @@ jobs:
           # Generate dynamic release body from version.json
           python src/generate_release_notes.py "$tag"
 
-      - name: 🔨 Build Native Executable & Windows Installer
+      - name: 🔨 Build Executable & Windows Installer
         shell: pwsh
         run: |
           $flags = "--force-rebuild"
-          if ("${{ github.event.inputs.fast_build }}" -eq "true") {
-            Write-Host "⚡ Fast Build mode enabled (PyInstaller)!"
+          if ("${{ github.event.inputs.use_nuitka }}" -eq "true") {
+            Write-Host "🛡️ Nuitka C++ compilation mode requested."
+          } else {
+            Write-Host "⚡ Fast Build mode (PyInstaller - 2 mins) enabled by default!"
             $flags += " --fast"
           }
           python build_installer.py $flags

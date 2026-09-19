@@ -89,27 +89,55 @@ def main():
     if os.path.isdir(os.path.join(root_dir, "macros")):
         nuitka_cmd.append(f"--include-data-dir={os.path.join(root_dir, 'macros')}=macros")
 
-    # Add source path to pythonpath
+    use_fast = "--fast" in sys.argv or "--pyinstaller" in sys.argv
     src_dir = os.path.join(root_dir, "src")
-    nuitka_cmd.append(entry_point)
-
-    print("🚀 Starting compilation (this converts Python -> C++ -> Native Machine Code)...")
-    print("⏳ This usually takes 3-7 minutes depending on CPU. Please wait...\n")
-    print("Command:", " ".join(nuitka_cmd[:7]), "...")
-
     env = os.environ.copy()
     env["PYTHONPATH"] = f"{src_dir};{root_dir};" + env.get("PYTHONPATH", "")
 
-    proc = subprocess.run(nuitka_cmd, cwd=root_dir, env=env)
-    if proc.returncode != 0:
-        print("\n❌ Nuitka compilation failed with exit code:", proc.returncode)
-        sys.exit(proc.returncode)
+    if use_fast:
+        print("\n⚙️  [2/3] Building with PyInstaller (Fast Mode: ~2-3 minutes)...")
+        pyinst_cmd = [
+            sys.executable,
+            "-m", "PyInstaller",
+            "--noconfirm",
+            "--onedir",
+            "--windowed",
+            "--name=CookieRunBot",
+            f"--distpath={output_dir}",
+            "--collect-all=customtkinter",
+            "--collect-all=darkdetect",
+            "--collect-all=uvicorn",
+            "--collect-all=fastapi",
+            "--collect-all=starlette",
+            "--collect-all=pydantic",
+            "--collect-all=pydantic_core",
+            "--collect-all=websockets",
+        ]
+        if os.path.isfile(icon_path):
+            pyinst_cmd.append(f"--icon={icon_path}")
+        pyinst_cmd.append(entry_point)
+
+        print("Command:", " ".join(pyinst_cmd[:6]), "...")
+        proc = subprocess.run(pyinst_cmd, cwd=root_dir, env=env)
+        if proc.returncode != 0:
+            print("\n❌ PyInstaller compilation failed with exit code:", proc.returncode)
+            sys.exit(proc.returncode)
+        raw_dist = os.path.join(output_dir, "CookieRunBot")
+    else:
+        print("🚀 Starting Nuitka compilation (this converts Python -> C++ -> Native Machine Code)...")
+        print("⏳ This usually takes 3-7 minutes depending on CPU. Please wait...\n")
+        print("Command:", " ".join(nuitka_cmd[:7]), "...")
+
+        proc = subprocess.run(nuitka_cmd, cwd=root_dir, env=env)
+        if proc.returncode != 0:
+            print("\n❌ Nuitka compilation failed with exit code:", proc.returncode)
+            sys.exit(proc.returncode)
+        raw_dist = os.path.join(output_dir, "gui_launcher.dist")
+        if not os.path.isdir(raw_dist):
+            raw_dist = os.path.join(output_dir, "run_web.dist")
 
     # 3. Post-build structure organization
     print("\n📦 [3/3] Organizing distribution folder...")
-    raw_dist = os.path.join(output_dir, "gui_launcher.dist")
-    if not os.path.isdir(raw_dist):
-        raw_dist = os.path.join(output_dir, "run_web.dist")
     final_dist = os.path.join(root_dir, "dist", "CookieRun_Bot")
 
     if os.path.isdir(raw_dist):

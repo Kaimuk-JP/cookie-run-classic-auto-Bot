@@ -60,7 +60,12 @@ def main():
     force_rebuild = "--force-rebuild" in sys.argv or "-f" in sys.argv
     if force_rebuild or not os.path.isfile(dist_exe):
         print("\n📦 [2/3] Building native executable with build_exe.py...")
-        res = subprocess.run([sys.executable, "build_exe.py"], cwd=root_dir)
+        build_cmd = [sys.executable, "build_exe.py"]
+        if "--fast" in sys.argv:
+            build_cmd.append("--fast")
+        if "--pyinstaller" in sys.argv:
+            build_cmd.append("--pyinstaller")
+        res = subprocess.run(build_cmd, cwd=root_dir)
         if res.returncode != 0:
             print("❌ Failed to compile executable with build_exe.py!")
             sys.exit(1)

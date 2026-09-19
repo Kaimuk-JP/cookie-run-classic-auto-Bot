@@ -107,14 +107,14 @@ jobs:
       - name: 🔨 Build Executable & Windows Installer
         shell: pwsh
         run: |
-          $flags = "--force-rebuild"
+          $flags = @("--force-rebuild")
           if ("${{ github.event.inputs.use_nuitka }}" -eq "true") {
             Write-Host "🛡️ Nuitka C++ compilation mode requested."
           } else {
             Write-Host "⚡ Fast Build mode (PyInstaller - 2 mins) enabled by default!"
-            $flags += " --fast"
+            $flags += "--fast"
           }
-          python build_installer.py $flags
+          python build_installer.py @flags
 
       - name: 🚀 Publish GitHub Release & Upload Installer
         uses: softprops/action-gh-release@v2

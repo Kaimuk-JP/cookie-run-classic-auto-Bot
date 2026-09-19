@@ -92,7 +92,8 @@ def main():
     # Add main entry point to nuitka command
     nuitka_cmd.append(entry_point)
 
-    use_fast = "--fast" in sys.argv or "--pyinstaller" in sys.argv
+    argv_str = " ".join(sys.argv)
+    use_fast = "--fast" in argv_str or "--pyinstaller" in argv_str
     src_dir = os.path.join(root_dir, "src")
     env = os.environ.copy()
     env["PYTHONPATH"] = f"{src_dir};{root_dir};" + env.get("PYTHONPATH", "")

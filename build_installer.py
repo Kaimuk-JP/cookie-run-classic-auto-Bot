@@ -57,13 +57,14 @@ def main():
     print(f"\n[1/3] Found Inno Setup Compiler: {iscc}")
 
     # 2. Check distribution folder
-    force_rebuild = "--force-rebuild" in sys.argv or "-f" in sys.argv
+    argv_str = " ".join(sys.argv)
+    force_rebuild = "--force-rebuild" in argv_str or "-f" in sys.argv
     if force_rebuild or not os.path.isfile(dist_exe):
         print("\n📦 [2/3] Building native executable with build_exe.py...")
         build_cmd = [sys.executable, "build_exe.py"]
-        if "--fast" in sys.argv:
+        if "--fast" in argv_str:
             build_cmd.append("--fast")
-        if "--pyinstaller" in sys.argv:
+        if "--pyinstaller" in argv_str:
             build_cmd.append("--pyinstaller")
         res = subprocess.run(build_cmd, cwd=root_dir)
         if res.returncode != 0:

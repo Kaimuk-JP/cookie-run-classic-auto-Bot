@@ -404,6 +404,7 @@ class BotEngine:
         self.current_round_boxes: List[str] = []
         self.current_round_mystery_box_handled: bool = False
         self.current_round_screen: Optional[np.ndarray] = None
+        self.pending_round_summary: Optional[Dict[str, Any]] = None
         self.captcha_stats: Dict[str, Any] = load_device_captcha_stats(self.device_serial)
 
         # Accumulated Coins, EXP & Play Time Tracking
@@ -522,6 +523,25 @@ class BotEngine:
             except Exception:
                 pass
 
+    def _flush_pending_round_summary(self):
+        """ส่งข้อความสรุปผลรอบ Discord ที่รอตรวจสอบหน้า MYSTERY_BOX ไว้ (หากยังไม่ได้ส่ง)"""
+        if self.pending_round_summary:
+            p = self.pending_round_summary
+            self.pending_round_summary = None
+            try:
+                discord_notifier.send_round_summary(
+                    round_num=p["round_num"],
+                    duration_str=p["duration_str"],
+                    coins_earned=p["coins_earned"],
+                    session_coins=p["session_coins"],
+                    xp_earned=p["xp_earned"],
+                    session_xp=p["session_xp"],
+                    boxes=p.get("boxes") or [],
+                    screen_img=p.get("screen_img"),
+                )
+            except Exception as e:
+                self.log(f"⚠️ ไม่สามารถส่งสรุปผลรอบ Discord: {e}", "warning")
+
     def start(self, user_config: Dict[str, Any]):
         with self.lock:
             if self.is_running:
@@ -610,6 +630,8 @@ class BotEngine:
         if hasattr(self, "macro_player") and self.macro_player:
             self.macro_player.stop()
 
+        self._flush_pending_round_summary()
+
         with self.lock:
             self.is_running = False
             self.current_stage = "IDLE"
@@ -665,6 +687,7 @@ class BotEngine:
         self.box_history.clear()
         self.current_round_boxes = []
         self.current_round_mystery_box_handled = False
+        self.pending_round_summary = None
         self.captcha_stats = {
             "total_attempts": 0,
             "success_count": 0,
@@ -951,8 +974,15 @@ class BotEngine:
 
                 if stage:
                     self.current_stage = stage
+                    # หากผ่านช่วงจบเกมมายังหน้าอื่นโดยไม่เจอหน้าเปิดกล่อง ให้ส่งสรุปรอบที่รอดำเนินการอยู่ทันที
+                    if self.pending_round_summary and stage not in ("MYSTERY_BOX", "GAME_COMPLETE", "OVERTAKE_BREAK_SCORE"):
+                        self._flush_pending_round_summary()
                 elif self.current_stage not in ("STARTING", "STOPPING"):
                     self.current_stage = f"{detection_group} (Searching...)"
+
+                # Safety timeout: หากรอนานเกิน 15 วินาทีแล้วยังไม่เข้า MYSTERY_BOX ให้ส่งสรุปรอบ
+                if self.pending_round_summary and (time.time() - self.pending_round_summary.get("created_at", 0) > 15.0):
+                    self._flush_pending_round_summary()
 
                 # 📦 Early Exit on Mystery Box Goal during active in-game running
                 if detection_group == "IN_GAME" and self.early_exit_boxes_enabled and not self.early_exit_triggered and device_screen is not None:
@@ -1160,6 +1190,7 @@ class BotEngine:
                     detection_group = "IN_GAME"
                     self._last_auto_action_time = time.time() + 1.0
 
+                    self._flush_pending_round_summary()
                     self.rounds_played += 1
                     self.session_rounds_played += 1
                     self.current_round_start_time = time.time()
@@ -1167,6 +1198,7 @@ class BotEngine:
                     self.current_round_boxes = []
                     self.current_round_mystery_box_handled = False
                     self.current_round_screen = None
+                    self.pending_round_summary = None
                     self.early_exit_triggered = False
                     self._last_box_check_time = 0.0
                     self._box_target_consecutive_hits = 0
@@ -1357,16 +1389,20 @@ class BotEngine:
                         self.log(f"   📸 บันทึกรูปภาพผลลัพธ์: {saved_img_path}", "info")
                     self.log(f"   📁 บันทึกประวัติการเล่นลง: history/ (รอบที่ #{self.rounds_played})", "info")
 
-                    discord_notifier.send_round_summary(
-                        round_num=self.rounds_played,
-                        duration_str=dur_str,
-                        coins_earned=round_coins,
-                        session_coins=self.session_coins_earned,
-                        xp_earned=round_xp,
-                        session_xp=self.session_xp_earned,
-                        boxes=round_boxes,
-                        screen_img=device_screen,
-                    )
+                    # เตรียมข้อมูลสรุปรอบสำหรับ Discord ไว้ก่อน
+                    # หน่วงเวลาส่งเพื่อรอตรวจจับหน้าต่าง MYSTERY_BOX (หน้าเปิดกล่องปริศนา) ในขั้นตอนถัดไป
+                    # เพื่อให้ Discord ได้ข้อมูลเกรดกล่องจริงและรูปหน้าเปิดกล่องแบบเดียวกับหน้าเว็บ
+                    self.pending_round_summary = {
+                        "round_num": self.rounds_played,
+                        "duration_str": dur_str,
+                        "coins_earned": round_coins,
+                        "session_coins": self.session_coins_earned,
+                        "xp_earned": round_xp,
+                        "session_xp": self.session_xp_earned,
+                        "boxes": round_boxes,
+                        "screen_img": device_screen,
+                        "created_at": time.time(),
+                    }
 
                     # 6. หน่วงเวลาให้ผู้ใช้ได้ดูผลลัพธ์ทั้งหมด (Result Card) ให้ชัดเจนก่อนกด OK
                     self.log("⏳ บันทึกผลลัพธ์เรียบร้อย — กำลังแสดงหน้า Result ให้ดูทั้งหมดก่อนกด OK...", "info")
@@ -1483,16 +1519,24 @@ class BotEngine:
                         save_round_history_to_file(self.device_serial, list(self.round_history), new_entry=item)
 
                     self.log(f"🎁 ได้รับกล่องปริศนา: [{grade_str}] (รวมทั้งหมด: {self.mystery_boxes} กล่อง)", "success")
-                    discord_notifier.send_box_drop(
-                        self.rounds_played,
-                        detected_grades,
-                        self.box_counts,
-                        coins_earned=self.last_round_coins,
-                        session_coins=self.session_coins_earned,
-                        xp_earned=self.last_round_xp,
-                        session_xp=self.session_xp_earned,
-                        screen_img=device_screen
-                    )
+
+                    # ส่งการแจ้งเตือนสรุปผลรอบเข้า Discord โดยใช้เกรดกล่องจริงและภาพหน้าเปิดกล่อง Mystery Box
+                    if self.pending_round_summary:
+                        self.pending_round_summary["boxes"] = list(detected_grades)
+                        if device_screen is not None:
+                            self.pending_round_summary["screen_img"] = device_screen
+                        self._flush_pending_round_summary()
+                    elif discord_notifier.notify_boxes:
+                        discord_notifier.send_box_drop(
+                            self.rounds_played,
+                            detected_grades,
+                            self.box_counts,
+                            coins_earned=self.last_round_coins,
+                            session_coins=self.session_coins_earned,
+                            xp_earned=self.last_round_xp,
+                            session_xp=self.session_xp_earned,
+                            screen_img=device_screen
+                        )
 
                     accept_mystery_box()
                     if self.interruptible_sleep(2.0):

@@ -515,9 +515,9 @@ def handle_anti_bot(screen):
 
 
 def handle_connection_lost():
-    print("🔌 Handling Connection Lost...")
+    print("🔌 Handling Connection Lost (Tapping Reload)...")
     safe_device_tap(*get_device_context(), CONNECTION_LOST_RELOAD_BUTTON[0], CONNECTION_LOST_RELOAD_BUTTON[1])
-    time.sleep(random.uniform(10, 15))
+    time.sleep(random.uniform(3.0, 5.0))
 
 
 def handle_inactive():
@@ -610,6 +610,11 @@ def handle_quick_receive_and_send_lives():
 
 def close_announcement_dialog():
     print("🖱️ Closing announcement dialog...")
+    screen = device_capture_screen(*get_device_context())
+    if screen is not None and detect_stage(screen, ["MAINMENU", "PURCHASE_ITEM"]):
+        print("✅ Already in menu, no dialog to close.")
+        return
+
     for i in range(3):
         print(f"🖱️ Tapping close announcement dialog button {i+1}/3")
         safe_device_tap(*get_device_context(), CLOSE_ANNOUNCEMENT_DIALOG_BUTTON[0], CLOSE_ANNOUNCEMENT_DIALOG_BUTTON[1])

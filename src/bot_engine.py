@@ -34,6 +34,7 @@ from actions import (
     configure_top_row_items,
     exit_in_game_run,
     handle_anti_bot,
+    handle_connection_lost,
     handle_inactive,
     handle_quick_receive_and_send_lives,
     handle_send_friend_life,
@@ -911,6 +912,9 @@ class BotEngine:
                 else:
                     last_detected_time = time.time()
 
+                if stage is not None and stage != "CONNECTION_LOST":
+                    self._connection_lost_retries = 0
+
                 # 🚨 Auto-Recovery Watchdog: If game is stuck / unplayable / button not found (outside active run)
                 if detection_group != "IN_GAME" and stage is None:
                     stuck_sec = time.time() - last_detected_time
@@ -1098,9 +1102,21 @@ class BotEngine:
                     is_first_game = False
                     start_game()
                     detection_group = "PRE_GAME"
-                    # Keep last_stage = "MAINMENU" and wait 2.0s so transition animation does not cause duplicate click
+                    # Wait 2.0s for transition animation from MAINMENU to PURCHASE_ITEM
                     if self.interruptible_sleep(2.0):
                         break
+
+                    # Active verification: เช็คว่าหน้าจอเปลี่ยนหรือยัง ถ้ายังคงเป็น MAINMENU ให้แตะ Play ซ้ำทันที
+                    verify_screen = device_capture_screen(target, self.device_port)
+                    if verify_screen is not None:
+                        current_check = detect_stage(verify_screen, ["MAINMENU", "PURCHASE_ITEM"])
+                        if current_check == "MAINMENU":
+                            self.log("⚠️ หน้าจอยังไม่เปลี่ยนไปหน้าเตรียมตัว — กำลังกดปุ่ม Play ซ้ำ...", "warning")
+                            start_game()
+                            if self.interruptible_sleep(1.5):
+                                break
+
+                    last_stage = None
 
                 elif stage == "PURCHASE_ITEM":
                     self.log("🛒 Detected Stage: PURCHASE_ITEM", "stage")
@@ -1604,19 +1620,28 @@ class BotEngine:
                     last_stage = None
 
                 elif stage == "CONNECTION_LOST":
-                    self.log("🔌 Detected Stage: CONNECTION_LOST — resetting app...", "error")
-                    discord_notifier.send_connection_lost(self.device_ip, self.device_port)
-                    device_reset_app(target, self.device_port)
-                    if self.interruptible_sleep(2.0):
-                        break
-                    close_announcement_dialog()
-                    session_start_time = time.time()
-                    session_reset_interval = random.uniform(*SESSION_RESET_INTERVAL)
-                    last_lives_time = time.time()
-                    lives_interval = random.uniform(25 * 60, 35 * 60)
-                    detection_group = "PRE_GAME"
-                    last_stage = None
-                    is_first_game = True
+                    self._connection_lost_retries = getattr(self, "_connection_lost_retries", 0) + 1
+                    if self._connection_lost_retries <= 2:
+                        self.log(f"🔌 ตรวจพบหลุดการเชื่อมต่อ (CONNECTION_LOST) — กำลังกดลองใหม่ (Reconnect ครั้งที่ {self._connection_lost_retries}/2)...", "warning")
+                        handle_connection_lost()
+                        last_stage = None
+                        if self.interruptible_sleep(1.0):
+                            break
+                    else:
+                        self.log("🔌 หลุดการเชื่อมต่อซ้ำซ้อนเกิน 2 ครั้ง — กำลังรีสตาร์ทแอปเกม...", "error")
+                        discord_notifier.send_connection_lost(self.device_ip, self.device_port)
+                        device_reset_app(target, self.device_port)
+                        if self.interruptible_sleep(2.0):
+                            break
+                        close_announcement_dialog()
+                        session_start_time = time.time()
+                        session_reset_interval = random.uniform(*SESSION_RESET_INTERVAL)
+                        last_lives_time = time.time()
+                        lives_interval = random.uniform(25 * 60, 35 * 60)
+                        detection_group = "PRE_GAME"
+                        last_stage = None
+                        is_first_game = True
+                        self._connection_lost_retries = 0
 
                 elif stage == "INACTIVE":
                     self.log("💤 Detected Stage: INACTIVE — reconnecting...", "warning")

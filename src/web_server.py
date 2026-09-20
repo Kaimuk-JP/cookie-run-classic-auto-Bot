@@ -208,6 +208,8 @@ class StartBotRequest(BaseModel):
     heart_farmer_invite: Optional[str] = None
     stop_goal_rounds_enabled: Optional[bool] = None
     stop_goal_rounds_target: Optional[int] = None
+    stop_goal_boxes_enabled: Optional[bool] = None
+    stop_goal_boxes_target: Optional[int] = None
     early_exit_boxes_enabled: Optional[bool] = None
     early_exit_boxes_target: Optional[int] = None
     stop_goal_time_enabled: Optional[bool] = None
@@ -304,6 +306,8 @@ DEFAULT_BOT_SETTINGS = {
     "heart_farmer_invite": "ใส่ลิงก์เชิญเพื่อนของคุณ",
     "stop_goal_rounds_enabled": False,
     "stop_goal_rounds_target": 50,
+    "stop_goal_boxes_enabled": False,
+    "stop_goal_boxes_target": 20,
     "stop_goal_time_enabled": False,
     "stop_goal_time_hours": 2.0,
     "early_exit_boxes_enabled": True,

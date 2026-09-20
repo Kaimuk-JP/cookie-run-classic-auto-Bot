@@ -107,6 +107,8 @@ export interface BotSettings {
   heart_farmer_invite?: string;
   stop_goal_rounds_enabled: boolean;
   stop_goal_rounds_target: number;
+  stop_goal_boxes_enabled?: boolean;
+  stop_goal_boxes_target?: number;
   early_exit_boxes_enabled?: boolean;
   early_exit_boxes_target?: number;
   stop_goal_time_enabled: boolean;

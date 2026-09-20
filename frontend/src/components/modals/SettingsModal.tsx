@@ -586,14 +586,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <div className="flex items-center justify-between pt-2.5 border-t border-amber-100">
                   <span className="text-[11px] text-[#6B4226] font-medium">จำนวนกล่องที่ต้องการก่อนกดออก:</span>
                   <div className="flex items-center gap-1.5">
-                    <select
+                    <input
+                      type="number"
+                      min={1}
+                      max={99}
                       value={settings.early_exit_boxes_target ?? 2}
-                      onChange={(e) => setSettings({ ...settings, early_exit_boxes_target: parseInt(e.target.value) || 2 })}
-                      className="px-2.5 py-1 rounded-lg bg-[#FFFDF6] border border-amber-300 font-mono font-bold text-xs text-[#452311] focus:bg-white focus:ring-2 focus:ring-amber-400 outline-none cursor-pointer"
-                    >
-                      <option value={1}>1 กล่อง</option>
-                      <option value={2}>2 กล่อง (แนะนำ - สูงสุดต่อรอบ)</option>
-                    </select>
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value);
+                        setSettings({
+                          ...settings,
+                          early_exit_boxes_target: isNaN(val) ? 1 : Math.max(1, val)
+                        });
+                      }}
+                      className="w-16 px-2.5 py-1 rounded-lg bg-[#FFFDF6] border border-amber-300 text-center font-mono font-bold text-xs text-[#452311] focus:bg-white focus:ring-2 focus:ring-amber-400 outline-none"
+                    />
+                    <span className="text-xs font-bold text-[#6B4226]">กล่อง</span>
                   </div>
                 </div>
               )}
@@ -607,7 +614,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <span>หยุดบอทอัตโนมัติ (Auto-Stop Goals)</span>
             </h4>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="p-2.5 rounded-xl bg-white/90 border border-amber-100 space-y-2">
                 <label className="flex items-center gap-2 cursor-pointer select-none">
                   <input
@@ -659,6 +666,34 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       className="w-16 px-2 py-1 rounded-lg bg-[#FFFDF6] border border-amber-200 text-center font-mono font-bold text-xs text-[#452311] focus:bg-white focus:ring-2 focus:ring-amber-400 outline-none"
                     />
                     <span className="text-[10px] text-[#8C6D58]">ชม.</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-white/90 border border-amber-100 space-y-2">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={settings.stop_goal_boxes_enabled ?? false}
+                    onChange={(e) => setSettings({ ...settings, stop_goal_boxes_enabled: e.target.checked })}
+                    className="rounded text-amber-600 focus:ring-0"
+                  />
+                  <div>
+                    <span className="font-bold text-xs text-[#452311] block">หยุดตามกล่อง</span>
+                    <span className="text-[10px] text-[#8C6D58]">เมื่อเก็บครบจำนวน</span>
+                  </div>
+                </label>
+                <div className="flex items-center justify-between pt-1 border-t border-amber-50">
+                  <span className="text-[11px] text-[#6B4226] font-medium">เป้าหมาย:</span>
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="number"
+                      min={1}
+                      value={settings.stop_goal_boxes_target ?? 20}
+                      onChange={(e) => setSettings({ ...settings, stop_goal_boxes_target: parseInt(e.target.value) || 20 })}
+                      className="w-16 px-2 py-1 rounded-lg bg-[#FFFDF6] border border-amber-200 text-center font-mono font-bold text-xs text-[#452311] focus:bg-white focus:ring-2 focus:ring-amber-400 outline-none"
+                    />
+                    <span className="text-[10px] text-[#8C6D58]">กล่อง</span>
                   </div>
                 </div>
               </div>

@@ -29,21 +29,21 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({
 
   const handleResetHistory = async () => {
     const ok = await confirmModal({
-      title: 'ลบประวัติการเล่น',
-      message: `ต้องการลบประวัติการเล่นทั้งหมดของจอ ${deviceSerial || 'ทั้งหมด'} ใช่หรือไม่?`,
-      confirmText: 'ลบประวัติ',
+      title: 'ล้างประวัติการเล่น',
+      message: `ต้องการล้างประวัติการเล่นทั้งหมดของจอ ${deviceSerial || 'ทั้งหมด'} ใช่หรือไม่?`,
+      confirmText: 'ล้างประวัติ',
       type: 'danger',
     });
     if (!ok) return;
 
     setIsResetting(true);
     try {
-      const res = await botApi.resetStats(deviceSerial);
-      toast.success(res.message || 'ลบประวัติเรียบร้อยแล้ว');
+      const res = await botApi.clearHistory(deviceSerial);
+      toast.success(res.message || 'ล้างประวัติเรียบร้อยแล้ว');
       if (onReset) onReset();
       onClose();
     } catch (e: any) {
-      toast.error('ลบไม่สำเร็จ: ' + e.message);
+      toast.error('ล้างประวัติไม่สำเร็จ: ' + e.message);
     } finally {
       setIsResetting(false);
     }
@@ -76,10 +76,10 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({
                 onClick={handleResetHistory}
                 disabled={isResetting}
                 className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-xs border border-rose-200 transition active:scale-95 cursor-pointer disabled:opacity-50"
-                title="ลบประวัติ"
+                title="ล้างประวัติการเล่น"
               >
                 <Trash2 className="w-3.5 h-3.5" />
-                <span className="text-[11px] sm:text-xs">{isResetting ? 'กำลังลบ...' : 'ลบประวัติ'}</span>
+                <span className="text-[11px] sm:text-xs">{isResetting ? 'กำลังล้าง...' : 'ล้างประวัติ'}</span>
               </button>
             )}
             <button

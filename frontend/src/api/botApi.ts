@@ -74,6 +74,14 @@ export const botApi = {
     return res.json();
   },
 
+  async clearHistory(device?: string): Promise<{ success: boolean; message: string }> {
+    const devQuery = device ? `?device=${encodeURIComponent(device)}` : '';
+    const res = await fetch(`/api/clear-history${devQuery}`, {
+      method: 'POST',
+    });
+    return res.json();
+  },
+
   async getSettings(serial?: string): Promise<BotSettings> {
     const devQuery = serial ? `?device=${encodeURIComponent(serial)}` : '';
     const res = await fetch(`/api/settings${devQuery}`);

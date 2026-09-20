@@ -265,6 +265,7 @@ export function App() {
             history={activeDevice?.round_history || []}
             device={activeDevice}
             onOpenHistoryModal={() => setIsHistoryOpen(true)}
+            onClearHistory={() => fetchDevices()}
           />
         </div>
 

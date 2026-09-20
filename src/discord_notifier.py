@@ -24,6 +24,12 @@ class DiscordNotifier:
         self.notify_antibot: bool = True
         self.notify_status: bool = True
         self.attach_screenshot: bool = True
+        self.custom_emojis: Dict[str, str] = {
+            "wood": "",
+            "silver": "",
+            "gold": "",
+            "rainbow": "",
+        }
         self.load_config()
 
     def load_config(self):
@@ -39,6 +45,12 @@ class DiscordNotifier:
                     self.notify_antibot = bool(data.get("notify_antibot", True))
                     self.notify_status = bool(data.get("notify_status", True))
                     self.attach_screenshot = bool(data.get("attach_screenshot", True))
+                    self.custom_emojis = data.get("custom_emojis") or {
+                        "wood": "",
+                        "silver": "",
+                        "gold": "",
+                        "rainbow": "",
+                    }
             except Exception as e:
                 print(f"[Discord] Error loading config: {e}")
 
@@ -53,6 +65,7 @@ class DiscordNotifier:
                     "notify_antibot": self.notify_antibot,
                     "notify_status": self.notify_status,
                     "attach_screenshot": self.attach_screenshot,
+                    "custom_emojis": self.custom_emojis,
                 }, f, indent=2, ensure_ascii=False)
         except Exception as e:
             print(f"[Discord] Error saving config: {e}")
@@ -72,13 +85,15 @@ class DiscordNotifier:
             self.notify_status = bool(settings["notify_status"])
         if "attach_screenshot" in settings:
             self.attach_screenshot = bool(settings["attach_screenshot"])
+        if "custom_emojis" in settings and isinstance(settings["custom_emojis"], dict):
+            self.custom_emojis = settings["custom_emojis"]
         self.save_config()
 
-    def _async_send(self, payload: dict, screen_img=None):
+    def _async_send(self, payload: dict, screen_img=None, box_thumb_img: Optional[str] = None):
         """Send webhook in a separate daemon thread so it never lags the bot loop."""
-        threading.Thread(target=self._send_payload, args=(payload, screen_img), daemon=True).start()
+        threading.Thread(target=self._send_payload, args=(payload, screen_img, box_thumb_img), daemon=True).start()
 
-    def _send_payload(self, payload: dict, screen_img=None):
+    def _send_payload(self, payload: dict, screen_img=None, box_thumb_img: Optional[str] = None):
         if not self.enabled or not self.webhook_url:
             return False
 
@@ -102,190 +117,289 @@ class DiscordNotifier:
             print(f"[Discord] Webhook send error: {e}")
             return False
 
+    def _format_duration_th(self, duration_sec: int = 0, duration_str: str = "") -> str:
+        try:
+            duration_sec = int(duration_sec or 0)
+        except Exception:
+            duration_sec = 0
+        if duration_sec <= 0 and duration_str:
+            import re
+            m = re.search(r"(\d+)m", str(duration_str))
+            s = re.search(r"(\d+)s", str(duration_str))
+            duration_sec = (int(m.group(1)) * 60 if m else 0) + (int(s.group(1)) if s else 0)
+        if duration_sec >= 60:
+            m = duration_sec // 60
+            s = duration_sec % 60
+            return f"{m} นาที {s} วิ" if s > 0 else f"{m} นาที"
+        elif duration_sec > 0:
+            return f"{duration_sec} วิ"
+        return str(duration_str) or "0 วิ"
+
+    def _get_box_icons(self) -> Dict[str, str]:
+        ce = self.custom_emojis or {}
+        return {
+            "wood": ce.get("wood") or "📦",
+            "silver": ce.get("silver") or "🥈",
+            "gold": ce.get("gold") or "🥇",
+            "rainbow": ce.get("rainbow") or "🌈",
+        }
+
+    def _build_round_summary_embed(
+        self,
+        round_num: int,
+        duration_str: str,
+        coins_earned: int,
+        session_coins: int,
+        xp_earned: int,
+        session_xp: int,
+        boxes: List[str] = None,
+        device_name: str = "",
+        duration_sec: int = 0,
+        session_rounds: int = 0,
+        session_boxes: Dict[str, int] = None,
+        minigame_count: int = 0,
+        session_minigame_count: int = 0,
+        is_test: bool = False,
+    ) -> dict:
+        boxes = boxes or []
+        session_boxes = session_boxes or {}
+        if session_rounds <= 0:
+            session_rounds = round_num
+
+        dur_text = self._format_duration_th(duration_sec, duration_str)
+        dev_label = device_name or "SM-G991B"
+        box_icons = self._get_box_icons()
+
+        from collections import Counter
+        b_counts = Counter(boxes)
+        box_grade_names = {
+            "wood": "กล่องไม้",
+            "silver": "กล่องเงิน",
+            "gold": "กล่องทอง",
+            "rainbow": "กล่องสายรุ้ง",
+        }
+
+        total_boxes_round = len(boxes)
+        if total_boxes_round > 0:
+            round_box_header = f"▎ **กล่องรอบนี้ · {total_boxes_round} ใบ**"
+            box_lines = []
+            for grade in ["wood", "silver", "gold", "rainbow"]:
+                if b_counts[grade] > 0:
+                    box_lines.append(f"{box_icons[grade]} {box_grade_names[grade]} `× {b_counts[grade]}`")
+            round_box_text = round_box_header + "\n" + "\n".join(box_lines)
+        else:
+            round_box_text = "▎ **กล่องรอบนี้ · 0 ใบ**\n*(ไม่ได้รับกล่อง)*"
+
+        wood_sess = session_boxes.get("wood", 0)
+        silver_sess = session_boxes.get("silver", 0)
+        gold_sess = session_boxes.get("gold", 0)
+        rainbow_sess = session_boxes.get("rainbow", 0)
+        total_sess_boxes = session_boxes.get("total", wood_sess + silver_sess + gold_sess + rainbow_sess)
+
+        # Dynamic left accent color matching reference
+        color = 0xEE5253  # Warm Coral / Reddish Pink
+        if "rainbow" in boxes:
+            color = 0xC084FC  # Radiant Violet
+        elif "gold" in boxes:
+            color = 0xF59E0B  # Vibrant Gold
+        elif "silver" in boxes:
+            color = 0x94A3B8  # Silver
+
+        ce = self.custom_emojis or {}
+        ico_coins = ce.get("coins") or "🪙"
+        ico_xp = ce.get("xp") or "⭐"
+        ico_minigame = ce.get("minigame") or "🎴"
+        ico_allbox = ce.get("allbox") or "🎁"
+        ico_time = ce.get("time") or "⏱️"
+        ico_bill = ce.get("bill") or "🧾"
+        ico_total = ce.get("total") or "📒"
+
+        description = (
+            f"{ico_time} {dur_text}\n"
+            f"----------------------------------------\n"
+            f"▎ **ได้รอบนี้**\n"
+            f"{ico_coins} เหรียญ `{coins_earned:,}`\n"
+            f"{ico_xp} XP `{xp_earned:,}`\n"
+            f"{ico_minigame} มินิเกม `{minigame_count}`\n"
+            f"----------------------------------------\n"
+            f"{round_box_text}\n\n"
+            f"{ico_total} **สะสมรอบการทำงานนี้ · {session_rounds} ตา**\n"
+            f"{box_icons['wood']} ไม้ `{wood_sess}` · {box_icons['silver']} เงิน `{silver_sess}`\n"
+            f"{box_icons['gold']} ทอง `{gold_sess}` · {box_icons['rainbow']} รุ้ง `{rainbow_sess}`\n"
+            f"{ico_allbox} รวมกล่อง `{total_sess_boxes}` ใบ\n"
+            f"{ico_coins} `{session_coins:,}` · {ico_xp} `{session_xp:,}` · {ico_minigame} `{session_minigame_count}`"
+        )
+
+        title = f"{ico_bill} {dev_label} · จบรอบที่ {round_num}{' (ทดสอบ)' if is_test else ''}"
+
+        embed = {
+            "title": title,
+            "description": description,
+            "color": color,
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+        }
+        return embed
+
+    def _get_box_thumbnail_path(self, boxes: List[str]) -> Optional[str]:
+        if not boxes:
+            return None
+        tmpl_dir = os.path.join(os.path.dirname(__file__), "templates")
+        if "rainbow" in boxes:
+            fn = "BOX_RAINBOW.png"
+        elif "gold" in boxes:
+            fn = "BOX_GOLD.png"
+        elif "silver" in boxes:
+            fn = "BOX_SILVER.png"
+        elif "wood" in boxes:
+            fn = "BOX_WOOD.png"
+        else:
+            return None
+        path = os.path.join(tmpl_dir, fn)
+        return path if os.path.isfile(path) else None
+
     def test_webhook(self, url: Optional[str] = None) -> tuple[bool, str]:
-        """Test the webhook URL with a friendly test embed."""
+        """Test the webhook URL with the real styled summary embed preview."""
         target_url = (url or self.webhook_url).strip()
         if not target_url:
             return False, "กรุณากรอก Discord Webhook URL"
 
-        embed = {
-            "title": "🍪 ทดสอบการแจ้งเตือน CookieRun Classic Bot",
-            "description": "✅ เชื่อมต่อระบบแจ้งเตือน Discord Webhook สำเร็จเรียบร้อยแล้ว!",
-            "color": 0x22C55E,  # Green
-            "fields": [
-                {
-                    "name": "💰 ตัวอย่างเหรียญ (Coins)",
-                    "value": "• **รอบนี้:** `+2,284` 🪙\n• **สะสมทั้งหมด:** `+14,506` 🪙",
-                    "inline": True,
-                },
-                {
-                    "name": "⭐ ตัวอย่าง EXP",
-                    "value": "• **รอบนี้:** `+1,256` EXP\n• **สะสมทั้งหมด:** `+8,200` EXP",
-                    "inline": True,
-                },
-                {"name": "⏰ เวลาทดสอบ", "value": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "inline": False},
-                {"name": "🤖 สถานะ", "value": "พร้อมรับการแจ้งเตือนทุกรอบ", "inline": True},
-            ],
-            "footer": {"text": "CookieRun Classic Bot - Web Dashboard"},
-            "timestamp": datetime.utcnow().isoformat() + "Z",
-        }
-
+        dev_name = "SM-g991b"
         try:
-            res = requests.post(target_url, json={"username": "CookieRun Bot", "embeds": [embed]}, timeout=10)
-            if res.status_code in [200, 204]:
+            from adb import scan_adb_devices
+            devs = scan_adb_devices()
+            if devs:
+                dev_name = devs[0].get("emu_name") or devs[0].get("name") or dev_name
+        except Exception:
+            pass
+
+        embed = self._build_round_summary_embed(
+            round_num=22,
+            duration_str="6m 17s",
+            duration_sec=377,
+            coins_earned=104768,
+            session_coins=2314558,
+            xp_earned=8655,
+            session_xp=190912,
+            boxes=["wood", "silver", "rainbow"],
+            device_name=dev_name,
+            session_rounds=22,
+            session_boxes={"wood": 16, "silver": 25, "gold": 15, "rainbow": 9, "total": 65},
+            is_test=True,
+        )
+
+        box_thumb = self._get_box_thumbnail_path(["rainbow"])
+        old_url = self.webhook_url
+        old_enabled = self.enabled
+        try:
+            self.webhook_url = target_url
+            self.enabled = True
+            ok = self._send_payload({"username": "CookieRun Bot", "embeds": [embed]}, box_thumb_img=box_thumb)
+            if ok:
                 return True, "ส่งข้อความทดสอบสำเร็จ! โปรดตรวจสอบในห้อง Discord ของคุณ"
-            return False, f"ส่งข้อความไม่สำเร็จ (HTTP {res.status_code}): {res.text[:100]}"
+            return False, "ส่งข้อความไม่สำเร็จ โปรดตรวจสอบ Webhook URL"
         except Exception as e:
             return False, f"ส่งข้อความไม่สำเร็จ: {str(e)}"
+        finally:
+            self.webhook_url = old_url
+            self.enabled = old_enabled
 
-    def send_bot_start(self, device_ip: str, device_port: int):
+    def send_bot_start(self, device_ip: str, device_port: int, device_name: str = ""):
         if not self.notify_status or not self.enabled or not self.webhook_url:
             return
 
+        dev_label = device_name or f"{device_ip}:{device_port}"
         embed = {
-            "title": "🟢 บอทเริ่มทำงาน (Bot Started)",
-            "description": "🚀 เริ่มต้นการทำงานของบอทฟาร์ม CookieRun Classic",
+            "title": f"🟢 เริ่มต้นการทำงาน · {dev_label}",
+            "description": (
+                "🚀 **บอทฟาร์ม CookieRun Classic พร้อมทำงานแล้ว**\n"
+                "----------------------------------------\n"
+                f"📱 **อุปกรณ์:** `{dev_label}`\n"
+                f"⏰ **เวลาเริ่ม:** `{datetime.now().strftime('%H:%M:%S')}`"
+            ),
             "color": 0x22C55E,  # Green
-            "fields": [
-                {"name": "อุปกรณ์", "value": f"`{device_ip}:{device_port}`", "inline": True},
-                {"name": "⏰ เวลาเริ่มต้น", "value": datetime.now().strftime("%H:%M:%S"), "inline": True},
-            ],
-            "footer": {"text": "CookieRun Classic Bot"},
             "timestamp": datetime.utcnow().isoformat() + "Z",
         }
         self._async_send({"username": "CookieRun Bot", "embeds": [embed]})
 
-    def send_bot_stop(self, uptime: str, rounds_played: int, total_boxes: int, coins_earned: int = 0, session_xp: int = 0):
+    def send_bot_stop(self, uptime: str, rounds_played: int, total_boxes: int, coins_earned: int = 0, session_xp: int = 0, device_name: str = ""):
         if not self.notify_status or not self.enabled or not self.webhook_url:
             return
 
+        dev_label = device_name or "CookieRun Bot"
         embed = {
-            "title": "🔴 บอทหยุดทำงาน (Bot Stopped)",
-            "description": "⏹️ บอทหยุดการทำงานเรียบร้อยแล้ว",
+            "title": f"🔴 หยุดการทำงาน · {dev_label}",
+            "description": (
+                "⏹️ **บอทได้หยุดการทำงานเรียบร้อยแล้ว**\n"
+                "----------------------------------------\n"
+                f"⏱️ **เวลาทำงานรวม:** `{uptime}`\n"
+                f"🔄 **จำนวนรอบ:** `{rounds_played:,}` รอบ\n"
+                f"🎁 **กล่องทั้งหมด:** `{total_boxes:,}` กล่อง\n"
+                f"🪙 **เหรียญสะสม:** `+{coins_earned:,}` 🪙\n"
+                f"⭐ **EXP สะสม:** `+{session_xp:,}` EXP\n"
+                f"⏰ **เวลาหยุด:** `{datetime.now().strftime('%H:%M:%S')}`"
+            ),
             "color": 0xEF4444,  # Red
-            "fields": [
-                {"name": "⏱️ เวลาทำงานรวม", "value": uptime, "inline": True},
-                {"name": "🔄 รอบที่เล่น", "value": f"{rounds_played} รอบ", "inline": True},
-                {"name": "🎁 กล่องปริศนา", "value": f"{total_boxes} กล่อง", "inline": True},
-                {"name": "💰 เหรียญสะสมทั้งหมด", "value": f"+{coins_earned:,} 🪙", "inline": True},
-                {"name": "⭐ EXPสะสมทั้งหมด", "value": f"+{session_xp:,} EXP", "inline": True},
-                {"name": "⏰ เวลาหยุด", "value": datetime.now().strftime("%H:%M:%S"), "inline": True},
-            ],
-            "footer": {"text": "CookieRun Classic Bot"},
             "timestamp": datetime.utcnow().isoformat() + "Z",
         }
         self._async_send({"username": "CookieRun Bot", "embeds": [embed]})
 
-    def send_box_drop(self, round_num: int, boxes: List[str], total_boxes: Dict[str, int], coins_earned: int = 0, session_coins: int = 0, xp_earned: int = 0, session_xp: int = 0, screen_img=None):
+    def send_box_drop(self, round_num: int, boxes: List[str], total_boxes: Dict[str, int], coins_earned: int = 0, session_coins: int = 0, xp_earned: int = 0, session_xp: int = 0, screen_img=None, device_name: str = "", duration_sec: int = 0, duration_str: str = "", session_rounds: int = 0):
         if not self.notify_boxes or not self.enabled or not self.webhook_url:
             return
 
-        box_icons = {
-            "wood": "🟤 กล่องไม้",
-            "silver": "⚪ กล่องเงิน",
-            "gold": "🟡 กล่องทอง",
-            "rainbow": "🌈 กล่องรุ้ง",
-        }
+        embed = self._build_round_summary_embed(
+            round_num=round_num,
+            duration_str=duration_str,
+            coins_earned=coins_earned,
+            session_coins=session_coins,
+            xp_earned=xp_earned,
+            session_xp=session_xp,
+            boxes=boxes,
+            device_name=device_name,
+            duration_sec=duration_sec,
+            session_rounds=session_rounds or round_num,
+            session_boxes=total_boxes,
+        )
+        box_thumb = self._get_box_thumbnail_path(boxes)
+        self._async_send({"username": "CookieRun Bot", "embeds": [embed]}, screen_img=screen_img, box_thumb_img=box_thumb)
 
-        boxes_str = " + ".join([box_icons.get(b, b) for b in boxes])
-
-        # Pick color based on rarest box
-        color = 0x854D0E  # Wood (Brown)
-        if "rainbow" in boxes:
-            color = 0xC084FC  # Purple/Pink for Rainbow
-        elif "gold" in boxes:
-            color = 0xEAB308  # Gold
-        elif "silver" in boxes:
-            color = 0x94A3B8  # Silver
-
-        fields = [
-            {
-                "name": "💰 เหรียญ (Coins)",
-                "value": f"• **รอบนี้:** `+{coins_earned:,}` 🪙\n• **สะสมทั้งหมด:** `+{session_coins:,}` 🪙",
-                "inline": True,
-            },
-            {
-                "name": "⭐ ค่าประสบการณ์ (EXP)",
-                "value": f"• **รอบนี้:** `+{xp_earned:,}` EXP\n• **สะสมทั้งหมด:** `+{session_xp:,}` EXP",
-                "inline": True,
-            },
-            {
-                "name": "📦 สถิติกล่องสะสม",
-                "value": (
-                    f"🟤 ไม้: **{total_boxes.get('wood', 0)}** | "
-                    f"⚪ เงิน: **{total_boxes.get('silver', 0)}**\n"
-                    f"🟡 ทอง: **{total_boxes.get('gold', 0)}** | "
-                    f"🌈 รุ้ง: **{total_boxes.get('rainbow', 0)}**"
-                ),
-                "inline": False,
-            },
-            {"name": "🏆 รวมกล่องทั้งหมด", "value": f"**{total_boxes.get('total', 0)}** กล่อง", "inline": True},
-            {"name": "⏰ เวลา", "value": datetime.now().strftime("%H:%M:%S"), "inline": True},
-        ]
-
-        embed = {
-            "title": f"🎁 ได้รับกล่องปริศนา! (รอบที่ #{round_num})",
-            "description": f"✨ **กล่องที่ได้รอบนี้:** {boxes_str}",
-            "color": color,
-            "fields": fields,
-            "footer": {"text": "CookieRun Classic Bot - Farm Tracker"},
-            "timestamp": datetime.utcnow().isoformat() + "Z",
-        }
-
-        self._async_send({"username": "CookieRun Farm Tracker", "embeds": [embed]}, screen_img=screen_img)
-
-    def send_round_summary(self, round_num: int, duration_str: str, coins_earned: int, session_coins: int, xp_earned: int, session_xp: int, boxes: List[str] = None, screen_img=None):
+    def send_round_summary(
+        self,
+        round_num: int,
+        duration_str: str,
+        coins_earned: int,
+        session_coins: int,
+        xp_earned: int,
+        session_xp: int,
+        boxes: List[str] = None,
+        screen_img=None,
+        device_name: str = "",
+        duration_sec: int = 0,
+        session_rounds: int = 0,
+        session_boxes: Dict[str, int] = None,
+        minigame_count: int = 0,
+        session_minigame_count: int = 0,
+    ):
         if not self.notify_rounds or not self.enabled or not self.webhook_url:
             return
 
-        # Always send round summary with complete coin, exp, and box summary
-
-        box_icons = {
-            "wood": "🟤 กล่องไม้",
-            "silver": "⚪ กล่องเงิน",
-            "gold": "🟡 กล่องทอง",
-            "rainbow": "🌈 กล่องรุ้ง",
-        }
-        boxes_str = " + ".join([box_icons.get(b, b) for b in boxes]) if boxes else "*(ไม่ได้รับกล่อง)*"
-
-        fields = [
-            {
-                "name": "💰 เหรียญ (Coins)",
-                "value": f"• **รอบนี้:** `+{coins_earned:,}` 🪙\n• **สะสมทั้งหมด:** `+{session_coins:,}` 🪙",
-                "inline": True,
-            },
-            {
-                "name": "⭐ ค่าประสบการณ์ (EXP)",
-                "value": f"• **รอบนี้:** `+{xp_earned:,}` EXP\n• **สะสมทั้งหมด:** `+{session_xp:,}` EXP",
-                "inline": True,
-            },
-            {
-                "name": "📦 กล่องปริศนา",
-                "value": boxes_str,
-                "inline": False,
-            },
-            {
-                "name": "⏱️ ระยะเวลา",
-                "value": f"`{duration_str}`",
-                "inline": True,
-            },
-            {
-                "name": "⏰ เวลาจบเกม",
-                "value": datetime.now().strftime("%H:%M:%S"),
-                "inline": True,
-            },
-        ]
-
-        embed = {
-            "title": f"🏁 สรุปผลลัพธ์รอบที่ #{round_num}",
-            "description": f"✨ เล่นจบรอบที่ #{round_num} เรียบร้อยแล้ว",
-            "color": 0x10B981,  # Emerald
-            "fields": fields,
-            "footer": {"text": "CookieRun Classic Bot - Round Summary"},
-            "timestamp": datetime.utcnow().isoformat() + "Z",
-        }
-
-        self._async_send({"username": "CookieRun Farm Tracker", "embeds": [embed]}, screen_img=screen_img)
+        embed = self._build_round_summary_embed(
+            round_num=round_num,
+            duration_str=duration_str,
+            coins_earned=coins_earned,
+            session_coins=session_coins,
+            xp_earned=xp_earned,
+            session_xp=session_xp,
+            boxes=boxes,
+            device_name=device_name,
+            duration_sec=duration_sec,
+            session_rounds=session_rounds,
+            session_boxes=session_boxes,
+            minigame_count=minigame_count,
+            session_minigame_count=session_minigame_count,
+        )
+        box_thumb = self._get_box_thumbnail_path(boxes)
+        self._async_send({"username": "CookieRun Bot", "embeds": [embed]}, screen_img=screen_img, box_thumb_img=box_thumb)
 
     def send_anti_bot_alert(self, stage: str, details: str = "", screen_img=None):
         if not self.notify_antibot or not self.enabled or not self.webhook_url:

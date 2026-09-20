@@ -1,11 +1,14 @@
-import React from 'react';
-import { ChevronRight, TrendingUp } from 'lucide-react';
+import React, { useState } from 'react';
+import { ChevronRight, TrendingUp, Trash2 } from 'lucide-react';
 import { Device, RoundHistoryItem } from '../../types/bot';
+import { botApi } from '../../api/botApi';
+import { toast, confirmModal } from '../../context/ToastContext';
 
 interface RoundHistoryProps {
   history: RoundHistoryItem[];
   onOpenHistoryModal: () => void;
   device?: Device;
+  onClearHistory?: () => void;
 }
 
 export const renderBoxBadge = (b: string, index?: number) => {
@@ -62,11 +65,26 @@ export const renderBoxBadge = (b: string, index?: number) => {
       <span
         key={index}
         title="กล่องไม้"
-        className="inline-flex items-center justify-center p-1 rounded-xl border border-amber-600/30 bg-amber-600/20 shadow-xs shrink-0"
+        className="inline-flex items-center justify-center p-1 rounded-xl border border-[#D97706]/30 bg-[#D97706]/20 shadow-xs shrink-0"
       >
         <img
           src="/templates/BOX_WOOD.png"
           alt="กล่องไม้"
+          className="w-5 h-5 object-contain drop-shadow"
+        />
+      </span>
+    );
+  }
+  if (type.includes('mystery') || type.includes('กล่อง')) {
+    return (
+      <span
+        key={index}
+        title="กล่องปริศนา"
+        className="inline-flex items-center justify-center p-1 rounded-xl border border-[#D97706]/30 bg-[#D97706]/20 shadow-xs shrink-0"
+      >
+        <img
+          src="/templates/MYSTERY_BOX_1.png"
+          alt="กล่องปริศนา"
           className="w-5 h-5 object-contain drop-shadow"
         />
       </span>
@@ -79,7 +97,32 @@ export const RoundHistory: React.FC<RoundHistoryProps> = ({
   history = [],
   onOpenHistoryModal,
   device,
+  onClearHistory,
 }) => {
+  const [isClearing, setIsClearing] = useState(false);
+
+  const handleClearHistory = async () => {
+    const devName = device?.name || device?.serial || 'จอนี้';
+    const ok = await confirmModal({
+      title: 'ล้างประวัติการเล่น',
+      message: `ต้องการล้างประวัติการเล่นทั้งหมดของ ${devName} ใช่หรือไม่?`,
+      confirmText: 'ล้างประวัติ',
+      type: 'danger',
+    });
+    if (!ok) return;
+
+    setIsClearing(true);
+    try {
+      const res = await botApi.clearHistory(device?.serial);
+      toast.success(res.message || 'ล้างประวัติการเล่นเรียบร้อยแล้ว');
+      if (onClearHistory) onClearHistory();
+    } catch (e: any) {
+      toast.error('ล้างประวัติไม่สำเร็จ: ' + (e.message || e));
+    } finally {
+      setIsClearing(false);
+    }
+  };
+
   const recentRounds = history.slice(0, 5);
 
   const barRounds = [...history].slice(0, 12).reverse();
@@ -124,13 +167,15 @@ export const RoundHistory: React.FC<RoundHistoryProps> = ({
     const latestCoins = history[0]?.coins || 0;
     const prevCoins = history[1]?.coins;
 
-    if (prevCoins !== undefined) {
-      if (prevCoins === 0) {
-        changeText = latestCoins > 0 ? `+${latestCoins.toLocaleString()} เหรียญ ⚡` : 'คงที่ ⚡';
+    if (prevCoins !== undefined && prevCoins !== null && prevCoins > 0) {
+      const diff = latestCoins - prevCoins;
+      const pct = Math.round((diff / prevCoins) * 100);
+      if (pct > 0) {
+        changeText = `+${pct}% เทียบกับรอบก่อน ⚡`;
+      } else if (pct < 0) {
+        changeText = `${pct}% เทียบกับรอบก่อน ⚡`;
       } else {
-        const diffPct = (((latestCoins - prevCoins) / prevCoins) * 100).toFixed(1);
-        const sign = Number(diffPct) >= 0 ? '+' : '';
-        changeText = `${sign}${diffPct}% จากรอบก่อน ⚡`;
+        changeText = 'คงที่เทียบกับรอบก่อน ⚡';
       }
     } else {
       changeText = `รอบ #${history[0]?.session_round || history[0]?.round || 1} (+${latestCoins.toLocaleString()} เหรียญ) ⚡`;
@@ -151,13 +196,26 @@ export const RoundHistory: React.FC<RoundHistoryProps> = ({
             ประวัติรอบวิ่ง
           </h3>
         </div>
-        <button
-          onClick={onOpenHistoryModal}
-          className="candy-btn-soft px-2.5 py-1 rounded-xl text-xs font-bold text-[#8A3B04] transition flex items-center space-x-1 cursor-pointer"
-        >
-          <span>ดูทั้งหมด</span>
-          <ChevronRight className="w-3.5 h-3.5" />
-        </button>
+        <div className="flex items-center space-x-1.5">
+          {history.length > 0 && (
+            <button
+              onClick={handleClearHistory}
+              disabled={isClearing}
+              title="ล้างประวัติการเล่น"
+              className="px-2.5 py-1 rounded-xl text-xs font-bold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 shadow-xs transition flex items-center space-x-1 cursor-pointer disabled:opacity-50 active:scale-95"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>{isClearing ? 'กำลังล้าง...' : 'ล้างประวัติ'}</span>
+            </button>
+          )}
+          <button
+            onClick={onOpenHistoryModal}
+            className="candy-btn-soft px-2.5 py-1 rounded-xl text-xs font-bold text-[#8A3B04] transition flex items-center space-x-1 cursor-pointer"
+          >
+            <span>ดูทั้งหมด</span>
+            <ChevronRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </div>
 
       {/* Mini Efficiency Graph Simulation (Bakery Oven / Candy Bars) */}

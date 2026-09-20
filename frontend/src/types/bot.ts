@@ -153,4 +153,17 @@ export interface DiscordSettings {
   notify_antibot: boolean;
   notify_status: boolean;
   attach_screenshot: boolean;
+  custom_emojis?: {
+    wood?: string;
+    silver?: string;
+    gold?: string;
+    rainbow?: string;
+    coins?: string;
+    xp?: string;
+    minigame?: string;
+    allbox?: string;
+    bill?: string;
+    time?: string;
+    total?: string;
+  };
 }

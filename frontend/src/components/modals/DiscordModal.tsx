@@ -125,6 +125,207 @@ export const DiscordModal: React.FC<DiscordModalProps> = ({ isOpen, onClose }) =
               <span className="font-semibold text-slate-800">แนบรูปภาพสกรีนช็อต</span>
             </label>
           </div>
+
+          <div className="pt-2 border-t border-slate-100 space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="font-bold text-slate-700 block">
+                ไอคอนกล่องปริศนา Discord (Custom Emojis)
+              </label>
+              <span className="text-[10px] text-slate-400">เว้นว่างไว้เพื่อใช้อิโมจิมาตรฐาน</span>
+            </div>
+            <p className="text-[11px] text-slate-500">
+              อัปโหลดไฟล์ภาพกล่อง 4 รูปนี้ใน <b>Server Settings &gt; Emojis</b> ของ Discord แล้วนำโค้ด <code>&lt;:ชื่อ:ID&gt;</code> มาวางที่นี่
+            </p>
+
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              <div className="flex items-center gap-2 p-1.5 rounded-xl bg-slate-50 border border-slate-200">
+                <img src="/templates/BOX_WOOD.png" alt="ไม้" className="w-6 h-6 object-contain rounded" />
+                <div className="flex-1">
+                  <div className="text-[10px] font-bold text-slate-600">กล่องไม้ (Wood)</div>
+                  <input
+                    type="text"
+                    placeholder="<:box_wood:ID>"
+                    value={settings.custom_emojis?.wood || ''}
+                    onChange={(e) => setSettings({
+                      ...settings,
+                      custom_emojis: { ...(settings.custom_emojis || {}), wood: e.target.value }
+                    })}
+                    className="w-full px-1.5 py-0.5 text-[11px] font-mono bg-white rounded border border-slate-200 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 p-1.5 rounded-xl bg-slate-50 border border-slate-200">
+                <img src="/templates/BOX_SILVER.png" alt="เงิน" className="w-6 h-6 object-contain rounded" />
+                <div className="flex-1">
+                  <div className="text-[10px] font-bold text-slate-600">กล่องเงิน (Silver)</div>
+                  <input
+                    type="text"
+                    placeholder="<:box_silver:ID>"
+                    value={settings.custom_emojis?.silver || ''}
+                    onChange={(e) => setSettings({
+                      ...settings,
+                      custom_emojis: { ...(settings.custom_emojis || {}), silver: e.target.value }
+                    })}
+                    className="w-full px-1.5 py-0.5 text-[11px] font-mono bg-white rounded border border-slate-200 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 p-1.5 rounded-xl bg-slate-50 border border-slate-200">
+                <img src="/templates/BOX_GOLD.png" alt="ทอง" className="w-6 h-6 object-contain rounded" />
+                <div className="flex-1">
+                  <div className="text-[10px] font-bold text-slate-600">กล่องทอง (Gold)</div>
+                  <input
+                    type="text"
+                    placeholder="<:box_gold:ID>"
+                    value={settings.custom_emojis?.gold || ''}
+                    onChange={(e) => setSettings({
+                      ...settings,
+                      custom_emojis: { ...(settings.custom_emojis || {}), gold: e.target.value }
+                    })}
+                    className="w-full px-1.5 py-0.5 text-[11px] font-mono bg-white rounded border border-slate-200 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 p-1.5 rounded-xl bg-slate-50 border border-slate-200">
+                <img src="/templates/BOX_RAINBOW.png" alt="สายรุ้ง" className="w-6 h-6 object-contain rounded" />
+                <div className="flex-1">
+                  <div className="text-[10px] font-bold text-slate-600">กล่องสายรุ้ง (Rainbow)</div>
+                  <input
+                    type="text"
+                    placeholder="<:BOX_RAINBOW:ID>"
+                    value={settings.custom_emojis?.rainbow || ''}
+                    onChange={(e) => setSettings({
+                      ...settings,
+                      custom_emojis: { ...(settings.custom_emojis || {}), rainbow: e.target.value }
+                    })}
+                    className="w-full px-1.5 py-0.5 text-[11px] font-mono bg-white rounded border border-slate-200 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 p-1.5 rounded-xl bg-slate-50 border border-slate-200">
+                <span className="text-base">🪙</span>
+                <div className="flex-1">
+                  <div className="text-[10px] font-bold text-slate-600">เหรียญ (:coins:)</div>
+                  <input
+                    type="text"
+                    placeholder="<:coins:ID>"
+                    value={settings.custom_emojis?.coins || ''}
+                    onChange={(e) => setSettings({
+                      ...settings,
+                      custom_emojis: { ...(settings.custom_emojis || {}), coins: e.target.value }
+                    })}
+                    className="w-full px-1.5 py-0.5 text-[11px] font-mono bg-white rounded border border-slate-200 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 p-1.5 rounded-xl bg-slate-50 border border-slate-200">
+                <span className="text-base">⭐</span>
+                <div className="flex-1">
+                  <div className="text-[10px] font-bold text-slate-600">EXP (:starz:)</div>
+                  <input
+                    type="text"
+                    placeholder="<:starz:ID>"
+                    value={settings.custom_emojis?.xp || ''}
+                    onChange={(e) => setSettings({
+                      ...settings,
+                      custom_emojis: { ...(settings.custom_emojis || {}), xp: e.target.value }
+                    })}
+                    className="w-full px-1.5 py-0.5 text-[11px] font-mono bg-white rounded border border-slate-200 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 p-1.5 rounded-xl bg-slate-50 border border-slate-200">
+                <span className="text-base">🎁</span>
+                <div className="flex-1">
+                  <div className="text-[10px] font-bold text-slate-600">รวมกล่อง (:allbox:)</div>
+                  <input
+                    type="text"
+                    placeholder="<:allbox:ID>"
+                    value={settings.custom_emojis?.allbox || ''}
+                    onChange={(e) => setSettings({
+                      ...settings,
+                      custom_emojis: { ...(settings.custom_emojis || {}), allbox: e.target.value }
+                    })}
+                    className="w-full px-1.5 py-0.5 text-[11px] font-mono bg-white rounded border border-slate-200 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 p-1.5 rounded-xl bg-slate-50 border border-slate-200">
+                <span className="text-base">🎴</span>
+                <div className="flex-1">
+                  <div className="text-[10px] font-bold text-slate-600">มินิเกม (:minigame:)</div>
+                  <input
+                    type="text"
+                    placeholder="<:minigame:ID>"
+                    value={settings.custom_emojis?.minigame || ''}
+                    onChange={(e) => setSettings({
+                      ...settings,
+                      custom_emojis: { ...(settings.custom_emojis || {}), minigame: e.target.value }
+                    })}
+                    className="w-full px-1.5 py-0.5 text-[11px] font-mono bg-white rounded border border-slate-200 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 p-1.5 rounded-xl bg-slate-50 border border-slate-200">
+                <span className="text-base">⏱️</span>
+                <div className="flex-1">
+                  <div className="text-[10px] font-bold text-slate-600">เวลา (:time:)</div>
+                  <input
+                    type="text"
+                    placeholder="<:time:ID>"
+                    value={settings.custom_emojis?.time || ''}
+                    onChange={(e) => setSettings({
+                      ...settings,
+                      custom_emojis: { ...(settings.custom_emojis || {}), time: e.target.value }
+                    })}
+                    className="w-full px-1.5 py-0.5 text-[11px] font-mono bg-white rounded border border-slate-200 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 p-1.5 rounded-xl bg-slate-50 border border-slate-200">
+                <span className="text-base">🧾</span>
+                <div className="flex-1">
+                  <div className="text-[10px] font-bold text-slate-600">บิลหัวข้อ (:bill:)</div>
+                  <input
+                    type="text"
+                    placeholder="<:bill:ID>"
+                    value={settings.custom_emojis?.bill || ''}
+                    onChange={(e) => setSettings({
+                      ...settings,
+                      custom_emojis: { ...(settings.custom_emojis || {}), bill: e.target.value }
+                    })}
+                    className="w-full px-1.5 py-0.5 text-[11px] font-mono bg-white rounded border border-slate-200 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 p-1.5 rounded-xl bg-slate-50 border border-slate-200">
+                <span className="text-base">📒</span>
+                <div className="flex-1">
+                  <div className="text-[10px] font-bold text-slate-600">หัวข้อสะสม (:Total:)</div>
+                  <input
+                    type="text"
+                    placeholder="<:Total:ID>"
+                    value={settings.custom_emojis?.total || ''}
+                    onChange={(e) => setSettings({
+                      ...settings,
+                      custom_emojis: { ...(settings.custom_emojis || {}), total: e.target.value }
+                    })}
+                    className="w-full px-1.5 py-0.5 text-[11px] font-mono bg-white rounded border border-slate-200 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="flex items-center justify-between pt-3 border-t border-purple-100">

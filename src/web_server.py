@@ -282,6 +282,7 @@ class DiscordSettingsRequest(BaseModel):
     notify_antibot: bool = True
     notify_status: bool = True
     attach_screenshot: bool = True
+    custom_emojis: Optional[Dict[str, str]] = None
 
 
 class DiscordTestRequest(BaseModel):
@@ -1239,6 +1240,19 @@ def reset_stats(device: Optional[str] = None):
     return {"success": True, "message": f"ลบสถิติของจอ {device} เรียบร้อยแล้ว"}
 
 
+@app.post("/api/clear-history")
+def clear_history_endpoint(device: Optional[str] = None):
+    if not device or device == "all":
+        for serial, eng in engine_manager.get_all_engines().items():
+            eng.clear_round_history()
+        bot_engine.clear_round_history()
+        return {"success": True, "message": "ล้างประวัติการเล่นของทุกจอเรียบร้อยแล้ว"}
+
+    eng = get_engine_for_device(device)
+    eng.clear_round_history()
+    return {"success": True, "message": f"ล้างประวัติการเล่นของจอ {device} เรียบร้อยแล้ว"}
+
+
 @app.post("/api/test-connection")
 def test_connection(req: ConnectionTestRequest):
     target = req.device_serial or req.device_ip
@@ -1298,6 +1312,7 @@ def get_discord_settings():
         "notify_antibot": discord_notifier.notify_antibot,
         "notify_status": discord_notifier.notify_status,
         "attach_screenshot": discord_notifier.attach_screenshot,
+        "custom_emojis": getattr(discord_notifier, "custom_emojis", {}),
     }
 
 

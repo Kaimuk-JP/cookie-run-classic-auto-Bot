@@ -380,13 +380,11 @@ class BotEngine:
         from macro_player import MacroPlayer
         self.macro_player = MacroPlayer(self.device_serial or self.device_ip)
 
-        # Runtime Stats
         self.start_time: Optional[float] = None
         self.current_stage: str = "IDLE"
         self.rounds_played: int = 0
         self.mystery_boxes: int = 0
 
-        # Detailed Box Grade Stats
         self.box_counts: Dict[str, int] = {
             "wood": 0,
             "silver": 0,
@@ -396,7 +394,6 @@ class BotEngine:
         }
         self.box_history: deque = deque(maxlen=100)
 
-        # 50-Round Detailed History & Screenshots (loaded from history/ directory)
         self.round_history: deque = deque(maxlen=50)
         self.round_screenshots: Dict[int, bytes] = {}
         self.current_round_start_time: float = 0
@@ -407,7 +404,6 @@ class BotEngine:
         self.pending_round_summary: Optional[Dict[str, Any]] = None
         self.captcha_stats: Dict[str, Any] = load_device_captcha_stats(self.device_serial)
 
-        # Accumulated Coins, EXP & Play Time Tracking
         self.lifetime_coins_earned: int = 0
         self.lifetime_xp_earned: int = 0
         self.session_coins_earned: int = 0
@@ -435,7 +431,6 @@ class BotEngine:
                 self.lifetime_coins_earned += int(h.get("coins", 0) or 0)
                 self.lifetime_xp_earned += int(h.get("xp", 0) or 0)
 
-                # Parse duration (e.g. '3m 3s' or '38s')
                 dur = str(h.get("duration", ""))
                 m = re.search(r"(\d+)m", dur)
                 s = re.search(r"(\d+)s", dur)
@@ -514,7 +509,6 @@ class BotEngine:
                 self.latest_frame_jpeg = buffer.tobytes()
                 self.last_frame_time = time.time()
 
-                # Extract top currency banner (Diamonds + Coins)
                 h, w = screen_bgr.shape[:2]
                 if h >= 100 and w >= 1200:
                     curr_crop = screen_bgr[10:72, 730:1220]
@@ -522,6 +516,29 @@ class BotEngine:
                     self.latest_currency_crop_jpeg = curr_buf.tobytes()
             except Exception:
                 pass
+
+    def get_device_model_label(self) -> str:
+        if getattr(self, "device_model", None):
+            return self.device_model
+        raw_target = self.device_serial or (f"{self.device_ip}:{self.device_port}" if self.device_ip else "")
+        try:
+            from adb import resolve_emulator_name, get_adb_path, _run_cmd, _format_target
+            emu_name = resolve_emulator_name(raw_target)
+            if emu_name:
+                self.device_model = emu_name
+                return emu_name
+
+            target = _format_target(self.device_serial or self.device_ip, self.device_port)
+            adb = get_adb_path()
+            res = _run_cmd([adb, "-s", target, "shell", "getprop", "ro.product.model"],
+                           stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=2)
+            model = res.stdout.strip()
+            if model:
+                self.device_model = model.replace("_", "-")
+                return self.device_model
+        except Exception:
+            pass
+        return raw_target or "CookieRun"
 
     def _flush_pending_round_summary(self):
         """ส่งข้อความสรุปผลรอบ Discord ที่รอตรวจสอบหน้า MYSTERY_BOX ไว้ (หากยังไม่ได้ส่ง)"""
@@ -538,6 +555,10 @@ class BotEngine:
                     session_xp=p["session_xp"],
                     boxes=p.get("boxes") or [],
                     screen_img=p.get("screen_img"),
+                    device_name=p.get("device_name") or self.get_device_model_label(),
+                    duration_sec=p.get("duration_sec", 0),
+                    session_rounds=p.get("session_rounds", self.session_rounds_played),
+                    session_boxes=p.get("session_boxes") or dict(self.session_box_counts),
                 )
             except Exception as e:
                 self.log(f"⚠️ ไม่สามารถส่งสรุปผลรอบ Discord: {e}", "warning")
@@ -611,7 +632,7 @@ class BotEngine:
             self.thread = threading.Thread(target=self._run_loop, daemon=True)
             self.thread.start()
             self.log(f"▶️ Bot started (Device: {self.device_ip}:{self.device_port})", "success")
-            discord_notifier.send_bot_start(self.device_ip, self.device_port)
+            discord_notifier.send_bot_start(self.device_ip, self.device_port, device_name=self.get_device_model_label())
 
         return {"success": True, "message": "Bot started successfully"}
 
@@ -649,6 +670,7 @@ class BotEngine:
                 total_boxes=self.mystery_boxes,
                 coins_earned=self.session_coins_earned,
                 session_xp=self.session_xp_earned,
+                device_name=self.get_device_model_label(),
             )
 
         return {"success": True, "message": "Bot stopped successfully"}
@@ -717,6 +739,30 @@ class BotEngine:
                 pass
 
         self.log("📊 ล้างข้อมูลสถิติ กล่องปริศนา เหรียญ EXP และการแก้แคปซ่าทั้งหมดเป็น 0 แล้ว", "info")
+
+    def clear_round_history(self):
+        """Clear round history in memory and delete history files from disk."""
+        with self.lock:
+            self.round_history.clear()
+            self.session_round_history.clear()
+            self.round_screenshots.clear()
+            self.pending_round_summary = None
+            self.rounds_played = 0
+            if "rounds_played" in self.stats:
+                self.stats["rounds_played"] = 0
+            path_json = get_device_history_path(self.device_serial)
+            if os.path.isfile(path_json):
+                try:
+                    os.remove(path_json)
+                except Exception:
+                    pass
+            path_csv = get_device_history_csv_path(self.device_serial)
+            if os.path.isfile(path_csv):
+                try:
+                    os.remove(path_csv)
+                except Exception:
+                    pass
+            self.log("🗑️ ล้างประวัติการเล่นเรียบร้อยแล้ว", "info")
 
     def get_status(self) -> Dict[str, Any]:
         session_sec = int(time.time() - self.start_time) if self.is_running and self.start_time else (self.session_uptime_seconds or 0)
@@ -1395,11 +1441,15 @@ class BotEngine:
                     self.pending_round_summary = {
                         "round_num": self.rounds_played,
                         "duration_str": dur_str,
+                        "duration_sec": dur_sec,
                         "coins_earned": round_coins,
                         "session_coins": self.session_coins_earned,
                         "xp_earned": round_xp,
                         "session_xp": self.session_xp_earned,
                         "boxes": round_boxes,
+                        "session_rounds": self.session_rounds_played,
+                        "session_boxes": dict(self.session_box_counts),
+                        "device_name": self.get_device_model_label(),
                         "screen_img": device_screen,
                         "created_at": time.time(),
                     }

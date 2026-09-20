@@ -330,6 +330,8 @@ class BotEngine:
         self.auto_action_interval: float = 1.5
         self._last_auto_action_time: float = 0.0
         self._auto_action_toggle: bool = False
+        self._mainmenu_play_fail_count: int = 0
+        self._purchase_item_fail_count: int = 0
 
         # Load device-specific settings if present (check settings/ first, then legacy src/)
         dev_file = get_device_settings_path(self.device_serial)
@@ -609,6 +611,8 @@ class BotEngine:
             self.early_exit_boxes_target = int(user_config.get("early_exit_boxes_target", 2))
             self.early_exit_triggered = False
             self._box_target_consecutive_hits = 0
+            self._mainmenu_play_fail_count = 0
+            self._purchase_item_fail_count = 0
             self.stop_goal_time_enabled = bool(user_config.get("stop_goal_time_enabled", False))
             self.stop_goal_time_hours = float(user_config.get("stop_goal_time_hours", 2.0))
             self.macro_enabled = bool(user_config.get("macro_enabled", getattr(self, "macro_enabled", False)))
@@ -1211,19 +1215,70 @@ class BotEngine:
                     if self.interruptible_sleep(2.0):
                         break
 
-                    # Active verification: เช็คว่าหน้าจอเปลี่ยนหรือยัง ถ้ายังคงเป็น MAINMENU ให้แตะ Play ซ้ำทันที
+                    # Active verification: เช็คว่าหน้าจอเปลี่ยนหรือยัง ถ้ายังคงเป็น MAINMENU ให้จัดการลองกดซ้ำหรือรีเซ็ตแอป
                     verify_screen = device_capture_screen(target, self.device_port)
                     if verify_screen is not None:
-                        current_check = detect_stage(verify_screen, ["MAINMENU", "PURCHASE_ITEM"])
+                        current_check = detect_stage(verify_screen, ["MAINMENU", "PURCHASE_ITEM", "GAME_START", "IN_GAME"])
                         if current_check == "MAINMENU":
-                            self.log("⚠️ หน้าจอยังไม่เปลี่ยนไปหน้าเตรียมตัว — กำลังกดปุ่ม Play ซ้ำ...", "warning")
+                            self._mainmenu_play_fail_count += 1
+                            self.log(
+                                f"⚠️ หน้าจอยังไม่เปลี่ยนไปหน้าเตรียมตัว (กด Play ไม่ผ่านครั้งที่ {self._mainmenu_play_fail_count}) — กำลังลองแตะปิดป๊อปอัปและกด Play ซ้ำ...",
+                                "warning",
+                            )
+                            try:
+                                from actions import safe_device_tap, get_device_context
+                                from config import CLOSE_ANNOUNCEMENT_DIALOG_BUTTON
+                                safe_device_tap(*get_device_context(), CLOSE_ANNOUNCEMENT_DIALOG_BUTTON[0], CLOSE_ANNOUNCEMENT_DIALOG_BUTTON[1])
+                            except Exception:
+                                pass
+                            time.sleep(0.5)
                             start_game()
                             if self.interruptible_sleep(1.5):
                                 break
 
+                            # Double-check after 2nd tap in this cycle
+                            verify_screen2 = device_capture_screen(target, self.device_port)
+                            if verify_screen2 is not None:
+                                current_check2 = detect_stage(verify_screen2, ["MAINMENU", "PURCHASE_ITEM", "GAME_START", "IN_GAME"])
+                                if current_check2 == "MAINMENU":
+                                    self._mainmenu_play_fail_count += 1
+                        else:
+                            self._mainmenu_play_fail_count = 0
+
+                    if self._mainmenu_play_fail_count >= 3:
+                        self.log(
+                            f"🚨 [Auto-Recovery] กดปุ่ม Play หน้าหลักไม่สำเร็จติดต่อกัน {self._mainmenu_play_fail_count} ครั้ง (เกมอาจค้างหรือปุ่มไม่ตอบสนอง) — กำลังบันทึกภาพและรีสตาร์ทแอปเปิดใหม่...",
+                            "error",
+                        )
+                        try:
+                            record_game_error(
+                                device_serial=target,
+                                reason="กดปุ่ม Play หน้าหลักหลายครั้งแล้วเกมไม่เริ่ม หรือหน้าจอค้าง",
+                                details=f"กดปุ่ม Play ที่หน้า MAINMENU ไม่สำเร็จติดต่อกัน {self._mainmenu_play_fail_count} ครั้ง",
+                                screen_img=verify_screen if verify_screen is not None else device_screen,
+                                action_taken="บังคับรีสตาร์ทแอปเกม CookieRun และเปิดใหม่",
+                            )
+                        except Exception as e:
+                            self.log(f"⚠️ บันทึก error log ไม่สำเร็จ: {e}", "warning")
+
+                        if hasattr(self, "macro_player") and self.macro_player.is_running:
+                            self.macro_player.stop()
+                        device_reset_app(target, self.device_port)
+                        self._mainmenu_play_fail_count = 0
+                        if self.interruptible_sleep(2.0):
+                            break
+                        close_announcement_dialog()
+                        last_detected_time = time.time()
+                        last_lives_time = time.time()
+                        detection_group = "PRE_GAME"
+                        last_stage = None
+                        is_first_game = True
+                        continue
+
                     last_stage = None
 
                 elif stage == "PURCHASE_ITEM":
+                    self._mainmenu_play_fail_count = 0
                     self.log("🛒 Detected Stage: PURCHASE_ITEM", "stage")
 
                     # ตรวจสอบการตั้งค่าใหม่ก่อนกดซื้อ/เลือกไอเทม
@@ -1283,6 +1338,8 @@ class BotEngine:
                     last_stage = None
 
                 elif stage == "GAME_START":
+                    self._mainmenu_play_fail_count = 0
+                    self._purchase_item_fail_count = 0
                     self.log("🏁 Detected Stage: GAME_START", "stage")
                     if self.use_fast_start:
                         using_fast_start()

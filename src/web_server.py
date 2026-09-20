@@ -137,18 +137,9 @@ def _stop_heart_farmer(device: str) -> dict:
     farmer = _farmer_instances.get(device)
     if farmer:
         farmer.stop()
-    # Force stop game app immediately on emulator so actions halt right now
-    try:
-        from adb import get_adb_path
-        import subprocess
-        for pkg in ["com.devsisters.crg", "com.linecorp.LGCOOKIE"]:
-            subprocess.run([adb_path, "-s", device, "shell", "am", "force-stop", pkg],
-                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
-    except Exception:
-        pass
-    bot_engine.log(f"[FARMER] สั่งหยุดระบบปั้มหัวใจบนจอ {device} และปิดเกมทันที", "farmer")
-    print(f"[WebServer] HeartFarmer stopped immediately on {device}", flush=True)
-    return {"success": True, "message": f"สั่งหยุดระบบปั้มหัวใจบนจอ {device} ทันทีเรียบร้อยแล้ว"}
+    bot_engine.log(f"[FARMER] สั่งหยุดระบบปั้มหัวใจบนจอ {device} เรียบร้อยแล้ว", "farmer")
+    print(f"[WebServer] HeartFarmer stopped on {device}", flush=True)
+    return {"success": True, "message": f"สั่งหยุดระบบปั้มหัวใจบนจอ {device} เรียบร้อยแล้ว"}
 
 app = FastAPI(title="CookieRun Classic Bot Web Dashboard", version="1.0.0")
 
@@ -1125,17 +1116,7 @@ def stop_bot(req: Optional[StopBotRequest] = None, device: Optional[str] = None)
     eng.log(f"[BOT] สั่งหยุดการทำงานบอทสำหรับจอ {dev}", "bot")
     res = eng.stop()
 
-    # 4. Force stop game app immediately via ADB
-    try:
-        from adb import get_adb_path
-        import subprocess
-        for pkg in ["com.devsisters.crg", "com.linecorp.LGCOOKIE"]:
-            subprocess.run([adb_path, "-s", dev, "shell", "am", "force-stop", pkg],
-                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
-    except Exception:
-        pass
-
-    return {"success": True, "message": f"สั่งหยุดการทำงานจอ {dev} ทันทีเรียบร้อยแล้ว"}
+    return {"success": True, "message": f"สั่งหยุดการทำงานจอ {dev} เรียบร้อยแล้ว"}
 
 
 @app.post("/api/start-all")
@@ -1190,22 +1171,7 @@ def api_stop_all():
     # 3. Stop cleaner
     _stop_cleaner_system()
 
-    # 4. Force-stop game on all scanned devices immediately
-    try:
-        from adb import get_adb_path
-        import subprocess
-        adb_path = get_adb_path()
-        devices = scan_adb_devices()
-        for d in devices:
-            serial = d.get("serial")
-            if serial:
-                for pkg in ["com.devsisters.crg", "com.linecorp.LGCOOKIE"]:
-                    subprocess.Popen([adb_path, "-s", serial, "shell", "am", "force-stop", pkg],
-                                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    except Exception:
-        pass
-
-    return {"success": True, "stopped": stopped, "message": f"สั่งหยุดบอทและปิดเกมทุกจอทันทีเรียบร้อยแล้ว ({len(stopped)} จอ)"}
+    return {"success": True, "stopped": stopped, "message": f"สั่งหยุดบอททุกจอเรียบร้อยแล้ว ({len(stopped)} จอ)"}
 
 
 @app.post("/api/clear-ram")

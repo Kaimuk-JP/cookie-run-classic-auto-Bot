@@ -14,6 +14,20 @@ os.makedirs(SETTINGS_DIR, exist_ok=True)
 CONFIG_FILE = os.path.join(SETTINGS_DIR, "discord_config.json")
 LEGACY_CONFIG_FILE = os.path.join(os.path.dirname(__file__), "discord_config.json")
 
+DEFAULT_CUSTOM_EMOJIS: Dict[str, str] = {
+    "wood": "<:BOX_WOOD:1551086213329457224>",
+    "silver": "<:BOX_SILVER:1551086179510915082>",
+    "gold": "<:BOX_GOLD:1551086058303914115>",
+    "rainbow": "<:BOX_RAINBOW:1551086131938852934>",
+    "coins": "<:coins:1551093855892279306>",
+    "xp": "<:starz:1551093812838006794>",
+    "minigame": "<:minigame:1551093835306635284>",
+    "allbox": "<:allboxs:1551095910719819816>",
+    "time": "<:time:1551096036964171837>",
+    "bill": "<:bill:1551096073886371971>",
+    "total": "<:Total:1551097511329145013>",
+}
+
 
 class DiscordNotifier:
     def __init__(self):
@@ -24,12 +38,7 @@ class DiscordNotifier:
         self.notify_antibot: bool = True
         self.notify_status: bool = True
         self.attach_screenshot: bool = True
-        self.custom_emojis: Dict[str, str] = {
-            "wood": "",
-            "silver": "",
-            "gold": "",
-            "rainbow": "",
-        }
+        self.custom_emojis: Dict[str, str] = dict(DEFAULT_CUSTOM_EMOJIS)
         self.load_config()
 
     def load_config(self):
@@ -45,12 +54,11 @@ class DiscordNotifier:
                     self.notify_antibot = bool(data.get("notify_antibot", True))
                     self.notify_status = bool(data.get("notify_status", True))
                     self.attach_screenshot = bool(data.get("attach_screenshot", True))
-                    self.custom_emojis = data.get("custom_emojis") or {
-                        "wood": "",
-                        "silver": "",
-                        "gold": "",
-                        "rainbow": "",
-                    }
+                    loaded_emojis = data.get("custom_emojis")
+                    if isinstance(loaded_emojis, dict):
+                        self.custom_emojis = {**DEFAULT_CUSTOM_EMOJIS, **{k: v for k, v in loaded_emojis.items() if v}}
+                    else:
+                        self.custom_emojis = dict(DEFAULT_CUSTOM_EMOJIS)
             except Exception as e:
                 print(f"[Discord] Error loading config: {e}")
 
@@ -138,10 +146,10 @@ class DiscordNotifier:
     def _get_box_icons(self) -> Dict[str, str]:
         ce = self.custom_emojis or {}
         return {
-            "wood": ce.get("wood") or "📦",
-            "silver": ce.get("silver") or "🥈",
-            "gold": ce.get("gold") or "🥇",
-            "rainbow": ce.get("rainbow") or "🌈",
+            "wood": ce.get("wood") or DEFAULT_CUSTOM_EMOJIS.get("wood", "📦"),
+            "silver": ce.get("silver") or DEFAULT_CUSTOM_EMOJIS.get("silver", "🥈"),
+            "gold": ce.get("gold") or DEFAULT_CUSTOM_EMOJIS.get("gold", "🥇"),
+            "rainbow": ce.get("rainbow") or DEFAULT_CUSTOM_EMOJIS.get("rainbow", "🌈"),
         }
 
     def _build_round_summary_embed(
@@ -206,13 +214,13 @@ class DiscordNotifier:
             color = 0x94A3B8  # Silver
 
         ce = self.custom_emojis or {}
-        ico_coins = ce.get("coins") or "🪙"
-        ico_xp = ce.get("xp") or "⭐"
-        ico_minigame = ce.get("minigame") or "🎴"
-        ico_allbox = ce.get("allbox") or "🎁"
-        ico_time = ce.get("time") or "⏱️"
-        ico_bill = ce.get("bill") or "🧾"
-        ico_total = ce.get("total") or "📒"
+        ico_coins = ce.get("coins") or DEFAULT_CUSTOM_EMOJIS.get("coins", "🪙")
+        ico_xp = ce.get("xp") or DEFAULT_CUSTOM_EMOJIS.get("xp", "⭐")
+        ico_minigame = ce.get("minigame") or DEFAULT_CUSTOM_EMOJIS.get("minigame", "🎴")
+        ico_allbox = ce.get("allbox") or DEFAULT_CUSTOM_EMOJIS.get("allbox", "🎁")
+        ico_time = ce.get("time") or DEFAULT_CUSTOM_EMOJIS.get("time", "⏱️")
+        ico_bill = ce.get("bill") or DEFAULT_CUSTOM_EMOJIS.get("bill", "🧾")
+        ico_total = ce.get("total") or DEFAULT_CUSTOM_EMOJIS.get("total", "📒")
 
         description = (
             f"{ico_time} {dur_text}\n"

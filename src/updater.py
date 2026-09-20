@@ -365,4 +365,4 @@ def launch_silent_installer_and_exit(installer_path: str):
 
     # Allow tiny delay for process detachment, then exit cleanly
     time.sleep(0.5)
-    sys.exit(0)
+    os._exit(0)

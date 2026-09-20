@@ -1046,13 +1046,14 @@ class BotEngine:
                     if now - self._last_box_check_time >= 0.35:
                         self._last_box_check_time = now
                         box_count = detect_ingame_box_count(device_screen)
-                        if box_count >= self.early_exit_boxes_target and box_count > 0:
+                        effective_target = min(2, max(1, self.early_exit_boxes_target))
+                        if box_count >= effective_target and box_count > 0:
                             self._box_target_consecutive_hits += 1
-                            if self._box_target_consecutive_hits >= 2:
+                            if self._box_target_consecutive_hits >= 2 or box_count >= 2:
                                 self.early_exit_triggered = True
                                 self._box_target_consecutive_hits = 0
                                 self.log(
-                                    f"📦 [Box Farming] เก็บกล่องในรอบนี้ได้ {box_count} กล่อง (ครบเป้าหมาย {self.early_exit_boxes_target} กล่องแล้ว)! กำลังกด Pause เพื่อออกจากห้องและเริ่มรอบใหม่...",
+                                    f"📦 [Box Farming] เก็บกล่องในรอบนี้ได้ {box_count} กล่อง (ครบเป้าหมาย {effective_target} กล่องแล้ว)! กำลังกด Pause เพื่อออกจากห้องและเริ่มรอบใหม่...",
                                     "success",
                                 )
                                 if hasattr(self, "macro_player") and self.macro_player.is_running:

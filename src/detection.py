@@ -546,23 +546,23 @@ def detect_ingame_box_count(screen) -> int:
     if box_tmpl is None:
         return 0
 
-    # Search region for in-game mystery box in HUD (top left below items)
-    box_roi = screen_bgr[200:330, 50:180]
+    # Search region for in-game mystery box in HUD (top left below HP bar & event icons)
+    box_roi = screen_bgr[140:400, 40:190]
     res = cv2.matchTemplate(box_roi, box_tmpl, cv2.TM_CCOEFF_NORMED)
     _, max_v, _, max_loc = cv2.minMaxLoc(res)
-    if max_v < 0.65:
+    if max_v < 0.58:
         return 0
 
     # Box icon found -> At least 1 box collected
-    box_x = 50 + max_loc[0]
-    box_y = 200 + max_loc[1]
+    box_x = 40 + max_loc[0]
+    box_y = 140 + max_loc[1]
 
     # Search region for 'x 2' strictly relative to the detected box position
     # The 'x 2' HUD element is anchored directly to the right side of the box
-    rx1 = max(0, box_x + 60)
-    rx2 = min(1280, box_x + 175)
-    ry1 = max(0, box_y - 12)
-    ry2 = min(720, box_y + 70)
+    rx1 = max(0, box_x + 55)
+    rx2 = min(1280, box_x + 185)
+    ry1 = max(0, box_y - 15)
+    ry2 = min(720, box_y + 75)
     x2_roi = screen_bgr[ry1:ry2, rx1:rx2]
     if x2_roi.size == 0:
         return 1

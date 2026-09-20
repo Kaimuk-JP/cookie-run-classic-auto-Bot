@@ -557,12 +557,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <div className="p-3 rounded-xl bg-white/90 border border-amber-200 space-y-3">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <span className="font-bold text-xs text-[#452311] block">
-                    กด Pause ออกจากห้องทันทีเมื่อเก็บกล่องครบ
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-xs text-[#452311]">
+                      กด Pause ออกจากห้องทันทีเมื่อเก็บกล่องครบ
+                    </span>
+                    <span className={`text-[10px] px-1.5 py-0.2 rounded font-bold ${
+                      (settings.early_exit_boxes_enabled ?? true)
+                        ? 'bg-emerald-100 text-emerald-700 border border-emerald-300'
+                        : 'bg-slate-100 text-slate-500 border border-slate-300'
+                    }`}>
+                      {(settings.early_exit_boxes_enabled ?? true) ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}
+                    </span>
+                  </div>
                   <span className="text-[10px] text-[#8C6D58] block mt-0.5">
                     {(settings.early_exit_boxes_enabled ?? true)
-                      ? 'เปิดใช้งาน: บอทจะกด Pause แล้วออกจากห้องทันทีเมื่อเก็บกล่องครบตามเป้า'
+                      ? 'เปิดใช้งาน: เมื่อเก็บกล่องในรอบนั้นครบตามเป้าหมาย บอทจะกด Pause ออกห้องเพื่อเริ่มรอบใหม่ทันที'
                       : 'ปิดใช้งาน: บอทจะไม่กดออกจากห้อง และวิ่งตามปกติจนหมดแรง'}
                   </span>
                 </div>
@@ -583,25 +592,30 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
 
               {(settings.early_exit_boxes_enabled ?? true) && (
-                <div className="flex items-center justify-between pt-2.5 border-t border-amber-100">
-                  <span className="text-[11px] text-[#6B4226] font-medium">จำนวนกล่องที่ต้องการก่อนกดออก:</span>
-                  <div className="flex items-center gap-1.5">
-                    <input
-                      type="number"
-                      min={1}
-                      max={99}
-                      value={settings.early_exit_boxes_target ?? 2}
-                      onChange={(e) => {
-                        const val = parseInt(e.target.value);
-                        setSettings({
-                          ...settings,
-                          early_exit_boxes_target: isNaN(val) ? 1 : Math.max(1, val)
-                        });
-                      }}
-                      className="w-16 px-2.5 py-1 rounded-lg bg-[#FFFDF6] border border-amber-300 text-center font-mono font-bold text-xs text-[#452311] focus:bg-white focus:ring-2 focus:ring-amber-400 outline-none"
-                    />
-                    <span className="text-xs font-bold text-[#6B4226]">กล่อง</span>
+                <div className="pt-2.5 border-t border-amber-100 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] text-[#6B4226] font-medium">จำนวนกล่องที่ต้องการต่อรอบก่อนกดออก:</span>
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="number"
+                        min={1}
+                        max={2}
+                        value={Math.min(2, Math.max(1, settings.early_exit_boxes_target ?? 2))}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value);
+                          setSettings({
+                            ...settings,
+                            early_exit_boxes_target: isNaN(val) ? 1 : Math.min(2, Math.max(1, val))
+                          });
+                        }}
+                        className="w-16 px-2.5 py-1 rounded-lg bg-[#FFFDF6] border border-amber-300 text-center font-mono font-bold text-xs text-[#452311] focus:bg-white focus:ring-2 focus:ring-amber-400 outline-none"
+                      />
+                      <span className="text-xs font-bold text-[#6B4226]">กล่อง</span>
+                    </div>
                   </div>
+                  <p className="text-[10px] text-amber-700 bg-amber-50/80 p-2 rounded-lg border border-amber-100/80">
+                    💡 <b>คำแนะนำ:</b> ใน 1 รอบเกม CookieRun มีกล่องดรอปสูงสุด <b>2 กล่อง</b> (ใส่ได้ 1 หรือ 2 กล่อง) หากต้องการให้บอทหยุดทำงานเมื่อเก็บกล่องสะสมครบหลายๆ กล่อง ให้ตั้งที่ <b>"หยุดตามกล่อง"</b> ในหัวข้อหยุดบอทอัตโนมัติด้านล่าง
+                  </p>
                 </div>
               )}
             </div>

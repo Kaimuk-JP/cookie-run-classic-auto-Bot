@@ -389,10 +389,6 @@ class HeartFarmer:
         self.stopped = True
         self.current_step = "หยุดการทำงานทันทีแล้ว"
         self._log("สั่งหยุดการทำงานทันที (Stopping requested...)")
-        try:
-            self.adb('shell', 'am', 'force-stop', PACKAGE, timeout=5)
-        except Exception:
-            pass
 
     def _log(self, msg: str):
         display_device = f"{self.emu_name} ({self.device})" if getattr(self, "emu_name", "") else self.device

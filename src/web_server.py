@@ -135,10 +135,10 @@ def _start_heart_farmer(device: str, invite_url: str) -> dict:
 
 def _stop_heart_farmer(device: str) -> dict:
     farmer = _farmer_instances.get(device)
-    if farmer:
+    if farmer and not getattr(farmer, "stopped", False):
         farmer.stop()
-    bot_engine.log(f"[FARMER] สั่งหยุดระบบปั้มหัวใจบนจอ {device} เรียบร้อยแล้ว", "farmer")
-    print(f"[WebServer] HeartFarmer stopped on {device}", flush=True)
+        bot_engine.log(f"[FARMER] สั่งหยุดระบบปั้มหัวใจบนจอ {device} เรียบร้อยแล้ว", "farmer")
+        print(f"[WebServer] HeartFarmer stopped on {device}", flush=True)
     return {"success": True, "message": f"สั่งหยุดระบบปั้มหัวใจบนจอ {device} เรียบร้อยแล้ว"}
 
 app = FastAPI(title="CookieRun Classic Bot Web Dashboard", version="1.0.0")
@@ -1110,7 +1110,10 @@ def stop_bot(req: Optional[StopBotRequest] = None, device: Optional[str] = None)
     dev = str(dev).strip()
 
     # 1. Stop Heart Farmer on this device if running
-    _stop_heart_farmer(dev)
+    farmer_thread = _farmer_threads.get(dev)
+    farmer_inst = _farmer_instances.get(dev)
+    if (farmer_thread and farmer_thread.is_alive()) or (farmer_inst and not getattr(farmer_inst, "stopped", False)):
+        _stop_heart_farmer(dev)
 
     # 2. Stop Friend Cleaner immediately
     _stop_cleaner_system()
@@ -1153,7 +1156,7 @@ def api_start_all():
 
 @app.post("/api/stop-all")
 def api_stop_all():
-    """Stop bot, heart farmer, and close game immediately on all devices."""
+    """Stop bot and heart farmer immediately on all devices without closing the game."""
     stopped = []
 
     # 1. Stop all bot engines
@@ -1166,11 +1169,13 @@ def api_stop_all():
         if "default" not in stopped:
             stopped.append("default")
 
-    # 2. Stop all heart farmers
-    for d in list(_farmer_instances.keys()):
-        _stop_heart_farmer(d)
-        if d not in stopped:
-            stopped.append(d)
+    # 2. Stop all active heart farmers
+    for d, t in list(_farmer_threads.items()):
+        inst = _farmer_instances.get(d)
+        if (t and t.is_alive()) or (inst and not getattr(inst, "stopped", False)):
+            _stop_heart_farmer(d)
+            if d not in stopped:
+                stopped.append(d)
 
     # 3. Stop cleaner
     _stop_cleaner_system()

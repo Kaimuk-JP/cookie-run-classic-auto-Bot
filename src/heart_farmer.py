@@ -385,10 +385,32 @@ class HeartFarmer:
         self.stopped = False
         self.heart_sent = False
 
-    def stop(self):
+    def stop(self, exit_and_wipe: bool = True):
         self.stopped = True
         self.current_step = "หยุดการทำงานทันทีแล้ว"
         self._log("สั่งหยุดการทำงานทันที (Stopping requested...)")
+        if exit_and_wipe:
+            try:
+                self.adb('shell', 'am', 'force-stop', PACKAGE, timeout=5)
+            except Exception:
+                pass
+            try:
+                from adb import ensure_adb_root
+                ensure_adb_root(self.device)
+            except Exception:
+                pass
+            rm_cmd = (f"rm -rf /data/data/{PACKAGE}/shared_prefs "
+                      f"/data/data/{PACKAGE}/databases "
+                      f"/data/data/{PACKAGE}/cache "
+                      f"/data/data/{PACKAGE}/code_cache "
+                      f"/data/data/{PACKAGE}/app_webview "
+                      f"/sdcard/Android/data/{PACKAGE}/cache")
+            try:
+                self.adb('shell', rm_cmd)
+                self.adb('shell', 'su', '-c', f"'{rm_cmd}'")
+                self._log("ปิดเกมและล้างข้อมูลการล็อกอิน (shared_prefs) สำเร็จเรียบร้อย")
+            except Exception:
+                pass
 
     def _log(self, msg: str):
         display_device = f"{self.emu_name} ({self.device})" if getattr(self, "emu_name", "") else self.device
@@ -401,11 +423,11 @@ class HeartFarmer:
             timestamp = time.strftime("%H:%M:%S")
             level = "farmer"
             msg_lower = msg.lower()
-            if any(x in msg for x in ("❌", "error", "fail", "ล้มเหลว", "ไม่สำเร็จ")):
+            if any(x in msg for x in ("error", "fail", "ล้มเหลว", "ไม่สำเร็จ")):
                 level = "error"
-            elif any(x in msg for x in ("⚠️", "warning", "warn", "เตือน")):
+            elif any(x in msg for x in ("warning", "warn", "เตือน", "timeout")):
                 level = "warning"
-            elif any(x in msg for x in ("✅", "success", "สำเร็จ", "🎉", "GREEN", "⚡")):
+            elif any(x in msg for x in ("success", "สำเร็จ", "green", "สมบูรณ์", "เรียบร้อย")):
                 level = "success"
 
             log_entry = {
@@ -460,10 +482,10 @@ class HeartFarmer:
                 res = condition_fn(img)
                 if res:
                     elapsed = time.time() - t0
-                    self._log(f"  ⚡ เจอ {desc} ใน {elapsed:.1f}s!")
+                    self._log(f"  เจอ {desc} ใน {elapsed:.1f}s!")
                     return res, img
             time.sleep(interval)
-        self._log(f"  ⚠️ Timeout รอ {desc}")
+        self._log(f"  Timeout รอ {desc}")
         return None, None
 
     def clear_all_lobby_popups(self, max_wait: int = 35, desc: str = "Lobby") -> bool:
@@ -480,13 +502,13 @@ class HeartFarmer:
 
             # 1. ตรวจสอบหน้าต่างข่าวสาร / แบนเนอร์ (X กลมสีเทา 1125, 72)
             if check_banner_or_news_popup(img):
-                self._log("  ⚡ พบหน้าต่างข่าวสาร/ประกาศ -> กดปิด X (1125, 72)...")
+                self._log("  พบหน้าต่างข่าวสาร/ประกาศ -> กดปิดประกาศ...")
                 self.tap(1125, 72, delay=1.2)
                 continue
 
             # 2. ตรวจสอบหน้าต่าง Select a Mode (X สีม่วง 1215, 95)
             if check_select_mode_popup(img):
-                self._log("  ⚡ พบหน้าต่าง Select a Mode -> กดปิด X (1215, 95)...")
+                self._log("  พบหน้าต่าง Select a Mode -> กดปิดหน้าต่าง...")
                 self.tap(1215, 95, delay=1.2)
                 continue
 
@@ -526,14 +548,14 @@ class HeartFarmer:
                             chk_c = True
                             break
                     if not chk_news and not chk_mode and not chk_c:
-                        self._log("  ⚡ ยืนยันหน้า Lobby เรียบร้อย สะอาด 100%!")
+                        self._log("  ยืนยันหน้า Lobby เรียบร้อย สะอาด 100%!")
                         return True
             time.sleep(1.0)
         return False
 
     def handle_step_failure(self, step_name: str, details: str = ""):
         self.current_step = f"ล้มเหลว ({step_name}: {details})"
-        self._log(f"❌ [ล้มเหลว] {step_name} ไม่สำเร็จ! รายละเอียด: {details}")
+        self._log(f"[ล้มเหลว] {step_name} ไม่สำเร็จ! รายละเอียด: {details}")
         try:
             img = self.screenshot()
             record_game_error(
@@ -559,7 +581,7 @@ class HeartFarmer:
         try:
             is_root = ensure_adb_root(self.device)
             if not is_root:
-                self._log("  ⚠️ [Root Check] ไม่สามารถขอสิทธิ์ ADB Root ได้ จะพยายามใช้คำสั่ง su แทน")
+                self._log("  [Root Check] ไม่สามารถขอสิทธิ์ ADB Root ได้ จะพยายามใช้คำสั่ง su แทน")
         except Exception as e:
             self._log(f"  [Root Check] ข้อผิดพลาด: {e}")
 
@@ -588,11 +610,11 @@ class HeartFarmer:
             self.adb('shell', 'su', '-c', f"'rm -rf /data/data/{PACKAGE}/shared_prefs/* /data/data/{PACKAGE}/databases/*'")
             recheck = self.adb('shell', f"ls /data/data/{PACKAGE}/shared_prefs 2>/dev/null")
             if recheck and recheck.stdout.strip():
-                self._log("  ⚠️ [ล้างข้อมูล] พบไฟล์ใน shared_prefs ตกค้าง (กรุณาเปิดสิทธิ์ Root ในโปรแกรมจำลอง)")
+                self._log("  [ล้างข้อมูล] พบไฟล์ใน shared_prefs ตกค้าง (กรุณาเปิดสิทธิ์ Root ในโปรแกรมจำลอง)")
             else:
-                self._log("  ✅ [ล้างข้อมูล] ล้างไฟล์ข้อมูลล็อกอินสำเร็จเรียบร้อย")
+                self._log("  [ล้างข้อมูล] ล้างไฟล์ข้อมูลล็อกอินสำเร็จเรียบร้อย")
         else:
-            self._log("  ✅ [ล้างข้อมูล] ล้างข้อมูลล็อกอินสำเร็จสมบูรณ์ (shared_prefs ถูกลบเรียบร้อย)")
+            self._log("  [ล้างข้อมูล] ล้างข้อมูลล็อกอินสำเร็จสมบูรณ์ (shared_prefs ถูกลบเรียบร้อย)")
 
         # 5. ซ่อน su binary (ถ้ามี) ไม่ให้เกมตรวจจับ
         try:
@@ -651,7 +673,7 @@ class HeartFarmer:
             img = self.screenshot()
             if check_email_input_page(img):
                 email_ready = True
-                self._log("  ⚡ เจอหน้าจอกรอก Email โหลดเสร็จสมบูรณ์!")
+                self._log("  เจอหน้าจอกรอก Email โหลดเสร็จสมบูรณ์!")
                 break
             retries += 1
             if retries % 6 == 0:
@@ -664,7 +686,7 @@ class HeartFarmer:
             time.sleep(0.5)
 
         if not email_ready:
-            self._log("❌ ไม่สามารถโหลดหน้ากรอกอีเมลได้ภายในเวลา!")
+            self._log("ไม่สามารถโหลดหน้ากรอกอีเมลได้ภายในเวลา!")
             return False
 
         time.sleep(0.5)
@@ -682,7 +704,7 @@ class HeartFarmer:
         self._log("[STEP 3] กรอก Password สุ่ม 2 ช่อง + ติ๊ก Agree")
         ok, _ = self.wait_until(check_password_input_page, timeout=12, desc="Password Input Page")
         if not ok and not check_password_input_page(self.screenshot()):
-            self._log("❌ หน้ากรอกรหัสผ่านไม่ปรากฏ!")
+            self._log("หน้ากรอกรหัสผ่านไม่ปรากฏ!")
             return False
 
         curr_pwd = password or _rnd_password()
@@ -705,7 +727,7 @@ class HeartFarmer:
             if self.stopped: return False
             img = self.screenshot()
             if img is not None and check_cloudflare_green(img):
-                self._log("  ⚡ Cloudflare = GREEN!")
+                self._log("  Cloudflare = GREEN!")
                 break
             taps += 1
             if taps % 4 == 0:
@@ -731,33 +753,33 @@ class HeartFarmer:
 
             # 1. หน้าต่าง Quit watching? (ปุ่มเขียว Confirm อยู่ที่ 793, 456)
             if check_quit_watching_popup(img):
-                self._log("  ⚡ เจอ Quit watching? -> กด Confirm (793, 456)...")
+                self._log("  เจอ Quit watching? -> กด Confirm...")
                 self.tap(793, 456, delay=1.2)
                 for _ in range(5):
                     time.sleep(1.2)
                     chk = self.screenshot()
                     if not check_quit_watching_popup(chk):
-                        self._log("  ⚡ ปิดหน้าต่าง Quit watching? สำเร็จจริง 100%!")
+                        self._log("  ปิดหน้าต่าง Quit watching? สำเร็จจริง 100%!")
                         break
                     self.tap(793, 456, delay=1.0)
                 continue
 
             # 2. หน้าต่าง 'Hi there! New to the game?' (ปุ่มเขียว Confirm อยู่ที่ 640, 464)
             if check_hi_there_popup(img):
-                self._log("  ⚡ เจอ Hi there! -> กด Confirm (640, 464)...")
+                self._log("  เจอ Hi there! -> กด Confirm...")
                 self.tap(640, 464, delay=1.5)
                 for _ in range(5):
                     time.sleep(1.2)
                     chk = self.screenshot()
                     if not check_hi_there_popup(chk):
-                        self._log("  ⚡ ปิดหน้าต่าง 'Hi there!' สำเร็จจริง 100%!")
+                        self._log("  ปิดหน้าต่าง 'Hi there!' สำเร็จจริง 100%!")
                         break
                     self.tap(640, 464, delay=1.0)
                 break
 
             # 3. ถึงห้อง Tutorial หรือเปิด Pause menu ขึ้นมาแล้ว
             if check_in_tutorial_room(img) or is_tutorial_pause_menu(img) or is_tutorial_confirm_quit_dialog(img):
-                self._log("  ⚡ ถึงห้อง Tutorial เรียบร้อย!")
+                self._log("  ถึงห้อง Tutorial เรียบร้อย!")
                 break
 
             # 4. หากยังอยู่ในวิดีโอ -> แตะกลางจอทุก 2.5วิ
@@ -782,43 +804,43 @@ class HeartFarmer:
                 continue
 
             if check_quit_watching_popup(img):
-                self._log("  ⚡ ตรวจพบ Quit watching? -> กด Confirm (793, 456)...")
+                self._log("  ตรวจพบ Quit watching? -> กด Confirm...")
                 self.tap(793, 456, delay=1.2)
                 continue
 
             if check_hi_there_popup(img):
-                self._log("  ⚡ ตรวจพบ Hi there! -> กด Confirm (640, 464)...")
+                self._log("  ตรวจพบ Hi there! -> กด Confirm...")
                 self.tap(640, 464, delay=1.2)
                 continue
 
             # 1. ถึงหน้าต่างตั้งชื่อเล่นแล้ว
             if check_set_nickname_popup(img):
-                self._log("  ⚡ ออกจากห้อง Tutorial สำเร็จ 100%! ถึงหน้าต่างตั้งชื่อเล่นแล้ว")
+                self._log("  ออกจากห้อง Tutorial สำเร็จ 100%! ถึงหน้าต่างตั้งชื่อเล่นแล้ว")
                 exited_tutorial = True
                 break
 
             # 2. Confirm Quit Dialog
             if is_tutorial_confirm_quit_dialog(img):
-                self._log("  ⚡ ตรวจพบ Confirm Quit Dialog -> แตะปุ่ม Quit (631, 378)...")
+                self._log("  ตรวจพบ Confirm Quit Dialog -> แตะปุ่ม Quit...")
                 self.tap(631, 378, delay=0.8)
                 for _ in range(5):
                     time.sleep(1.0)
                     chk = self.screenshot()
                     if not is_tutorial_confirm_quit_dialog(chk):
-                        self._log("  ⚡ ออกจาก Tutorial สำเร็จจริง!")
+                        self._log("  ออกจาก Tutorial สำเร็จจริง!")
                         break
                     self.tap(631, 378, delay=0.8)
                 continue
 
             # 3. Pause Menu
             if is_tutorial_pause_menu(img):
-                self._log("  ⚡ ตรวจพบ Pause Menu -> แตะปุ่ม Quit (631, 423)...")
+                self._log("  ตรวจพบ Pause Menu -> แตะปุ่ม Quit...")
                 self.tap(631, 423, delay=0.8)
                 for _ in range(5):
                     time.sleep(1.0)
                     chk = self.screenshot()
                     if is_tutorial_confirm_quit_dialog(chk) or check_set_nickname_popup(chk):
-                        self._log("  ⚡ เปิดหน้าต่าง Confirm Quit สำเร็จจริง!")
+                        self._log("  เปิดหน้าต่าง Confirm Quit สำเร็จจริง!")
                         break
                     self.tap(631, 423, delay=0.8)
                 continue
@@ -833,7 +855,7 @@ class HeartFarmer:
             time.sleep(1.2)
 
         if not exited_tutorial:
-            self._log("  ❌ ออกจากห้อง Tutorial ไม่สำเร็จ!")
+            self._log("  ออกจากห้อง Tutorial ไม่สำเร็จ!")
             return False
         return True
 
@@ -850,13 +872,13 @@ class HeartFarmer:
         self.keyevent(66, delay=0.3)
         self.keyevent(111, delay=0.5)
         time.sleep(1.0)
-        self._log("  -> แตะปุ่ม Confirm (639, 487) ตั้งชื่อ...")
+        self._log("  -> แตะปุ่ม Confirm ตั้งชื่อ...")
         self.tap(639, 487, delay=1.2)
         for _ in range(6):
             time.sleep(1.0)
             chk = self.screenshot()
             if not check_set_nickname_popup(chk):
-                self._log("  ⚡ ตั้งชื่อเล่นสำเร็จ หน้าต่างปิดเรียบร้อย 100%!")
+                self._log("  ตั้งชื่อเล่นสำเร็จ หน้าต่างปิดเรียบร้อย 100%!")
                 break
             self.tap(639, 487, delay=0.8)
 
@@ -879,16 +901,16 @@ class HeartFarmer:
         self._log("[STEP 8] ยืนยันเพิ่มเพื่อน + เคลียร์ Welcome Rewards + เช็ค Friends ซิงก์ข้อมูล")
         ok, _ = self.wait_until(check_inviting_player_popup, timeout=8, desc="Inviting Player Popup")
         if ok:
-            self._log("  ⚡ พบหน้าต่าง Inviting Player -> กด Confirm (639, 537)")
+            self._log("  พบหน้าต่าง Inviting Player -> กด Confirm")
             self.tap(639, 537, delay=1.2)
         else:
-            self._log("  ⚠️ ไม่พบหน้าต่าง Inviting Player (อาจตอบรับออโต้แล้ว)")
+            self._log("  ไม่พบหน้าต่าง Inviting Player (อาจตอบรับออโต้แล้ว)")
 
         # เคลียร์ Popup Welcome Rewards ทั้งหมดที่เด้งตามมา
         self.clear_all_lobby_popups(max_wait=20, desc="Step 8 เคลียร์ Welcome Rewards หลังรับเพื่อน")
 
         # ดีเลย์ 1 วิ แล้วกดเช็คเพื่อนทันทีตามคำสั่ง
-        self._log("  -> ดีเลย์ 1 วิ แล้วแตะไอคอน Friends (800, 335) เพื่อเช็ค/ซิงก์เพื่อน...")
+        self._log("  -> แตะไอคอน Friends เพื่อเช็ค/ซิงก์เพื่อน...")
         time.sleep(1.0)
         self.tap(800, 335, delay=1.0)
 
@@ -900,14 +922,14 @@ class HeartFarmer:
             if img_f is not None:
                 roi_x = img_f[50:90, 990:1030]
                 if float(roi_x.mean()) > 100:
-                    self._log("  ⚡ หน้าต่าง Friends เปิดขึ้นมาเรียบร้อยแล้ว!")
+                    self._log("  หน้าต่าง Friends เปิดขึ้นมาเรียบร้อยแล้ว!")
                     break
             time.sleep(0.5)
 
         time.sleep(1.5)
 
         # ปิดหน้าต่าง Friends (1009, 69)
-        self._log("  -> กดปิดหน้าต่าง Friends (1009, 69)...")
+        self._log("  -> กดปิดหน้าต่าง Friends...")
         self.tap(1009, 69, delay=1.0)
 
         # รอหน้าต่าง Friends ปิดสนิทจริง
@@ -918,7 +940,7 @@ class HeartFarmer:
             if img_l is not None:
                 roi_x = img_l[50:90, 990:1030]
                 if float(roi_x.mean()) < 80:
-                    self._log("  ⚡ หน้าต่าง Friends ปิดเรียบร้อย กลับสู่หน้า Lobby จริง!")
+                    self._log("  หน้าต่าง Friends ปิดเรียบร้อย กลับสู่หน้า Lobby จริง!")
                     break
             time.sleep(0.5)
         time.sleep(1.0)
@@ -947,18 +969,18 @@ class HeartFarmer:
             mask_red = ((hsv_r1[:, :, 0] < 10) | (hsv_r1[:, :, 0] > 170)) & (hsv_r1[:, :, 1] > 150) & (hsv_r1[:, :, 2] > 150)
 
             if mask_green.sum() > 2000 and mask_red.sum() > 50:
-                self._log("  ⚡ ตรวจพบปุ่มส่งหัวใจ Rank 1 (Active) บนหน้า Lobby!")
+                self._log("  ตรวจพบปุ่มส่งหัวใจ Rank 1 (Active) บนหน้า Lobby!")
                 heart_ready = True
                 break
             elif mask_green.sum() > 2000 and mask_red.sum() <= 50:
-                self._log("  ✅ ตรวจพบเครื่องหมายถูกสีเขียวที่ Rank 1 (หัวใจถูกส่งแล้ว)!")
+                self._log("  ตรวจพบเครื่องหมายถูกสีเขียวที่ Rank 1 (หัวใจถูกส่งแล้ว)!")
                 heart_ready = "already_sent"
                 break
 
             time.sleep(0.8)
 
         if heart_ready is True:
-            self._log("  -> แตะปุ่มส่งหัวใจ Rank 1 (655, 320)...")
+            self._log("  -> แตะปุ่มส่งหัวใจ Rank 1...")
             self.tap(655, 320, delay=1.0)
 
             # รอหน้าต่าง 'Send free Life?'
@@ -970,7 +992,7 @@ class HeartFarmer:
                     hsv_cf = cv2.cvtColor(roi_cf, cv2.COLOR_BGR2HSV)
                     mask_cf = cv2.inRange(hsv_cf, (35, 100, 100), (85, 255, 255))
                     if mask_cf.sum() > 2000:
-                        self._log("  ⚡ พบหน้าต่าง 'Send free Life?' -> กด Confirm (793, 456)")
+                        self._log("  พบหน้าต่าง 'Send free Life?' -> กด Confirm")
                         self.tap(793, 456, delay=1.2)
                         break
                 time.sleep(0.4)
@@ -984,19 +1006,19 @@ class HeartFarmer:
                     hsv_msg = cv2.cvtColor(roi_msg, cv2.COLOR_BGR2HSV)
                     mask_msg = cv2.inRange(hsv_msg, (35, 100, 100), (85, 255, 255))
                     if mask_msg.sum() > 2000:
-                        self._log("  ⚡ พบหน้าต่าง 'Message sent!' -> กด Confirm (640, 456)")
+                        self._log("  พบหน้าต่าง 'Message sent!' -> กด Confirm")
                         self.tap(640, 456, delay=1.2)
                         break
                 time.sleep(0.4)
 
             time.sleep(1.0)
-            self._log("  🎉 ยืนยัน: ส่งหัวใจให้เพื่อนอันดับ 1 สำเร็จเสร็จสิ้น 100%!")
+            self._log("  ยืนยัน: ส่งหัวใจให้เพื่อนอันดับ 1 สำเร็จเสร็จสิ้น 100%!")
             self.heart_sent = True
         elif heart_ready == "already_sent":
-            self._log("  🎉 ยืนยัน: หัวใจอันดับ 1 อยู่ในสถานะส่งเรียบร้อยแล้ว (เครื่องหมายถูกสีเขียว)!")
+            self._log("  ยืนยัน: หัวใจอันดับ 1 อยู่ในสถานะส่งเรียบร้อยแล้ว (เครื่องหมายถูกสีเขียว)!")
             self.heart_sent = True
         else:
-            self._log("  ⚠️ ไม่พบบุ่มส่งหัวใจที่ Rank 1 ภายในเวลา")
+            self._log("  ไม่พบบุ่มส่งหัวใจที่ Rank 1 ภายในเวลา")
             return False
 
         self._log("Force-stop game จบรอบ...")
@@ -1064,7 +1086,7 @@ class HeartFarmer:
             return False
 
         if self.stopped: return False
-        self.current_step = "ส่งหัวใจให้เพื่อนอันดับ 1 ❤️"
+        self.current_step = "ส่งหัวใจให้เพื่อนอันดับ 1 "
         if not self.step9_send_heart_and_exit():
             self.handle_step_failure("STEP 9", "ส่งหัวใจไม่สำเร็จ")
             return False
@@ -1093,10 +1115,10 @@ class HeartFarmer:
                 if ok:
                     self.success_count += 1
                     self.current_step = f"ส่งหัวใจสำเร็จ #{self.success_count} ดวง! (รอบ #{self.rounds})"
-                    self._log(f"🎉 Round #{self.rounds} สำเร็จสมบูรณ์ 100% (DONE)!")
+                    self._log(f"Round #{self.rounds} สำเร็จสมบูรณ์ 100% (DONE)!")
                 else:
                     self.current_step = f"รอบ #{self.rounds} ล้มเหลว -> กำลังเริ่มรอบถัดไป..."
-                    self._log(f"⚠️ Round #{self.rounds} ล้มเหลว -> เตรียมเริ่มรอบถัดไป...")
+                    self._log(f"Round #{self.rounds} ล้มเหลว -> เตรียมเริ่มรอบถัดไป...")
                     time.sleep(2.0)
             except KeyboardInterrupt:
                 self._log("หยุดโดยผู้ใช้ (Ctrl+C)")

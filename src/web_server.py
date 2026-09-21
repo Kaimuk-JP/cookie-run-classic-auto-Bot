@@ -133,13 +133,13 @@ def _start_heart_farmer(device: str, invite_url: str) -> dict:
     return {"success": True, "message": f"เริ่มระบบปั้มหัวใจบนจอ {device} เรียบร้อยแล้ว"}
 
 
-def _stop_heart_farmer(device: str) -> dict:
+def _stop_heart_farmer(device: str, exit_and_wipe: bool = True) -> dict:
     farmer = _farmer_instances.get(device)
     if farmer and not getattr(farmer, "stopped", False):
-        farmer.stop()
-        bot_engine.log(f"[FARMER] สั่งหยุดระบบปั้มหัวใจบนจอ {device} เรียบร้อยแล้ว", "farmer")
-        print(f"[WebServer] HeartFarmer stopped on {device}", flush=True)
-    return {"success": True, "message": f"สั่งหยุดระบบปั้มหัวใจบนจอ {device} เรียบร้อยแล้ว"}
+        farmer.stop(exit_and_wipe=exit_and_wipe)
+        bot_engine.log(f"[FARMER] สั่งหยุดระบบปั้มหัวใจบนจอ {device} (ปิดเกมและล้างข้อมูลล็อกอินแล้ว)", "farmer")
+        print(f"[WebServer] HeartFarmer stopped on {device} (game closed & login wiped)", flush=True)
+    return {"success": True, "message": f"สั่งหยุดระบบปั้มหัวใจบนจอ {device} (ปิดเกมและล้างข้อมูลการล็อกอินเรียบร้อย)"}
 
 app = FastAPI(title="CookieRun Classic Bot Web Dashboard", version="1.0.0")
 

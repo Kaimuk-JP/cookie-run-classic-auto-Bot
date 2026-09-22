@@ -30,6 +30,8 @@ from actions import (
     accept_set_reward,
     accept_too_many_treasures,
     close_announcement_dialog,
+    close_game_settings,
+    close_party_run_mode,
     complete_finish,
     configure_top_row_items,
     exit_in_game_run,
@@ -567,7 +569,7 @@ class BotEngine:
                     session_boxes=p.get("session_boxes") or dict(self.session_box_counts),
                 )
             except Exception as e:
-                self.log(f"⚠️ ไม่สามารถส่งสรุปผลรอบ Discord: {e}", "warning")
+                self.log(f" ไม่สามารถส่งสรุปผลรอบ Discord: {e}", "warning")
 
     def start(self, user_config: Dict[str, Any]):
         with self.lock:
@@ -977,7 +979,7 @@ class BotEngine:
                     device_screen = device_capture_screen(target, self.device_port)
                     self.update_frame(device_screen)
                 except Exception as e:
-                    self.log(f"⚠️ Screen capture error: {e}", "error")
+                    self.log(f" Screen capture error: {e}", "error")
                     if self.interruptible_sleep(1.0):
                         break
                     continue
@@ -1003,7 +1005,7 @@ class BotEngine:
                     stuck_sec = time.time() - last_detected_time
                     # Soft Recovery: at 30 seconds, try closing any popup or news dialog (e.g. New Packages, Event, Announcement)
                     if stuck_sec >= 30.0 and stuck_sec < 35.0:
-                        self.log("⚠️ ไม่พบปุ่มนำทางเกิน 30 วินาที — กำลังลองกดปิดป๊อปอัปแจ้งเตือน...", "warning")
+                        self.log(" ไม่พบปุ่มนำทางเกิน 30 วินาที — กำลังลองกดปิดป๊อปอัปแจ้งเตือน...", "warning")
                         close_announcement_dialog()
                     # Hard Recovery: only if truly stuck with no buttons for > 90 seconds
                     elif stuck_sec >= 90.0:
@@ -1017,7 +1019,7 @@ class BotEngine:
                                 action_taken="บันทึกภาพหน้าจอลง logs_error/ และบังคับรีสตาร์ทแอปเกม CookieRun"
                             )
                         except Exception as err:
-                            self.log(f"⚠️ บันทึก error log ไม่สำเร็จ: {err}", "warning")
+                            self.log(f" บันทึก error log ไม่สำเร็จ: {err}", "warning")
 
                         if hasattr(self, "macro_player") and self.macro_player.is_running:
                             self.macro_player.stop()
@@ -1116,11 +1118,11 @@ class BotEngine:
                         try:
                             handle_quick_receive_and_send_lives()
                         except Exception as e:
-                            self.log(f"⚠️ รับส่งหัวใจกล่องจดหมาย: {e}", "warning")
+                            self.log(f" รับส่งหัวใจกล่องจดหมาย: {e}", "warning")
                         try:
                             handle_send_friend_life()
                         except Exception as e:
-                            self.log(f"⚠️ ส่งหัวใจรายชื่อเพื่อน: {e}", "warning")
+                            self.log(f" ส่งหัวใจรายชื่อเพื่อน: {e}", "warning")
                         self.log("✅ ดำเนินการส่งหัวใจเสร็จสิ้น", "success")
                         pending_send_friend_life = False
                         last_lives_time = time.time()
@@ -1222,7 +1224,7 @@ class BotEngine:
                         if current_check == "MAINMENU":
                             self._mainmenu_play_fail_count += 1
                             self.log(
-                                f"⚠️ หน้าจอยังไม่เปลี่ยนไปหน้าเตรียมตัว (กด Play ไม่ผ่านครั้งที่ {self._mainmenu_play_fail_count}) — กำลังลองแตะปิดป๊อปอัปและกด Play ซ้ำ...",
+                                f" หน้าจอยังไม่เปลี่ยนไปหน้าเตรียมตัว (กด Play ไม่ผ่านครั้งที่ {self._mainmenu_play_fail_count}) — กำลังลองแตะปิดป๊อปอัปและกด Play ซ้ำ...",
                                 "warning",
                             )
                             try:
@@ -1247,7 +1249,7 @@ class BotEngine:
 
                     if self._mainmenu_play_fail_count >= 3:
                         self.log(
-                            f"🚨 [Auto-Recovery] กดปุ่ม Play หน้าหลักไม่สำเร็จติดต่อกัน {self._mainmenu_play_fail_count} ครั้ง (เกมอาจค้างหรือปุ่มไม่ตอบสนอง) — กำลังบันทึกภาพและรีสตาร์ทแอปเปิดใหม่...",
+                            f" [Auto-Recovery] กดปุ่ม Play หน้าหลักไม่สำเร็จติดต่อกัน {self._mainmenu_play_fail_count} ครั้ง (เกมอาจค้างหรือปุ่มไม่ตอบสนอง) — กำลังบันทึกภาพและรีสตาร์ทแอปเปิดใหม่...",
                             "error",
                         )
                         try:
@@ -1259,7 +1261,7 @@ class BotEngine:
                                 action_taken="บังคับรีสตาร์ทแอปเกม CookieRun และเปิดใหม่",
                             )
                         except Exception as e:
-                            self.log(f"⚠️ บันทึก error log ไม่สำเร็จ: {e}", "warning")
+                            self.log(f" บันทึก error log ไม่สำเร็จ: {e}", "warning")
 
                         if hasattr(self, "macro_player") and self.macro_player.is_running:
                             self.macro_player.stop()
@@ -1279,7 +1281,7 @@ class BotEngine:
 
                 elif stage == "PURCHASE_ITEM":
                     self._mainmenu_play_fail_count = 0
-                    self.log("🛒 Detected Stage: PURCHASE_ITEM", "stage")
+                    self.log(" Detected Stage: PURCHASE_ITEM", "stage")
 
                     # ตรวจสอบการตั้งค่าใหม่ก่อนกดซื้อ/เลือกไอเทม
                     self.check_and_apply_settings_update()
@@ -1297,24 +1299,24 @@ class BotEngine:
                     if self.use_fast_start:
                         stock_fs = extract_item_stock(device_screen, "fast_start")
                         if stock_fs <= self.fast_start_min_stock:
-                            self.log(f"⚡ Fast Start ในคลัง ({stock_fs} ชิ้น <= เกณฑ์ {self.fast_start_min_stock}) -> กำลังซื้อเพิ่ม...", "info")
+                            self.log(f" Fast Start ในคลัง ({stock_fs} ชิ้น <= เกณฑ์ {self.fast_start_min_stock}) -> กำลังซื้อเพิ่ม...", "info")
                             purchase_fast_start()
                         else:
-                            self.log(f"⚡ Fast Start ในคลังมี {stock_fs} ชิ้น (มากกว่าเกณฑ์ {self.fast_start_min_stock}) -> ข้ามการซื้อเพื่อประหยัดเหรียญ", "info")
+                            self.log(f" Fast Start ในคลังมี {stock_fs} ชิ้น (มากกว่าเกณฑ์ {self.fast_start_min_stock}) -> ข้ามการซื้อเพื่อประหยัดเหรียญ", "info")
 
                     # Smart Cookie Relay check
                     if self.use_cookie_relay:
                         stock_cr = extract_item_stock(device_screen, "cookie_relay")
                         if stock_cr <= self.cookie_relay_min_stock:
-                            self.log(f"🍪 Cookie Relay ในคลัง ({stock_cr} ชิ้น <= เกณฑ์ {self.cookie_relay_min_stock}) -> กำลังซื้อเพิ่ม...", "info")
+                            self.log(f" Cookie Relay ในคลัง ({stock_cr} ชิ้น <= เกณฑ์ {self.cookie_relay_min_stock}) -> กำลังซื้อเพิ่ม...", "info")
                             purchase_cookie_relay()
                         else:
-                            self.log(f"🍪 Cookie Relay ในคลังมี {stock_cr} ชิ้น (มากกว่าเกณฑ์ {self.cookie_relay_min_stock}) -> ข้ามการซื้อเพื่อประหยัดเหรียญ", "info")
+                            self.log(f" Cookie Relay ในคลังมี {stock_cr} ชิ้น (มากกว่าเกณฑ์ {self.cookie_relay_min_stock}) -> ข้ามการซื้อเพื่อประหยัดเหรียญ", "info")
 
                     if self.use_desired_random_boost:
                         desired_boost_template, desired_boost_name = self.get_desired_boost_info()
                         if desired_boost_template:
-                            self.log(f"🎲 Rolling boost for: {desired_boost_name}...")
+                            self.log(f" Rolling boost for: {desired_boost_name}...")
                             purchase_desired_random_boost(desired_boost_template, desired_boost_name, self.desired_boost_id, log_fn=self.log)
                     play_game()
                     detection_group = "IN_GAME"
@@ -1332,7 +1334,7 @@ class BotEngine:
                     self.early_exit_triggered = False
                     self._last_box_check_time = 0.0
                     self._box_target_consecutive_hits = 0
-                    self.log(f"🏁 Round {self.rounds_played} started!", "success")
+                    self.log(f" Round {self.rounds_played} started!", "success")
                     if self.interruptible_sleep(0.2):
                         break
                     last_stage = None
@@ -1340,7 +1342,7 @@ class BotEngine:
                 elif stage == "GAME_START":
                     self._mainmenu_play_fail_count = 0
                     self._purchase_item_fail_count = 0
-                    self.log("🏁 Detected Stage: GAME_START", "stage")
+                    self.log(" Detected Stage: GAME_START", "stage")
                     if self.use_fast_start:
                         using_fast_start()
                     detection_group = "IN_GAME"
@@ -1351,7 +1353,7 @@ class BotEngine:
                         rec = macro_recorder_manager.get_recorder(target)
                         if rec.status == "ARMED":
                             if rec.trigger_in_game_start():
-                                self.log("🔴 [Macro Record] เข้าสู่หน้าเกมวิ่งแล้ว! เริ่มจับเวลาและบันทึกมาโคร (t=0.00s)...", "success")
+                                self.log(" [Macro Record] เข้าสู่หน้าเกมวิ่งแล้ว! เริ่มจับเวลาและบันทึกมาโคร (t=0.00s)...", "success")
                     except Exception:
                         pass
 
@@ -1361,13 +1363,13 @@ class BotEngine:
                             mdata = get_macro(self.selected_macro_id)
                             if mdata:
                                 time.sleep(1.0)  # Wait for START! banner to clear so cookie is running
-                                self.log(f"▶️ [Macro] เริ่มเล่นตามมาโคร: {mdata.get('name', self.selected_macro_id)}", "info")
+                                self.log(f"[Macro] เริ่มเล่นตามมาโคร: {mdata.get('name', self.selected_macro_id)}", "info")
                                 self.macro_player.start(mdata)
                         except Exception as e:
-                            self.log(f"⚠️ ไม่สามารถเริ่มมาโคร: {e}", "warning")
+                            self.log(f" ไม่สามารถเริ่มมาโคร: {e}", "warning")
 
                 elif stage == "GAME_RELAY":
-                    self.log("🔄 Detected Stage: GAME_RELAY (Cookie Relay Triggered)", "stage")
+                    self.log(" Detected Stage: GAME_RELAY (Cookie Relay Triggered)", "stage")
                     if self.use_cookie_relay:
                         using_cookie_relay()
                     detection_group = "IN_GAME"
@@ -1377,7 +1379,7 @@ class BotEngine:
                             from macro_manager import get_macro
                             mdata = get_macro(self.selected_macro_id)
                             if mdata:
-                                self.log(f"▶️ [Macro] ผลัดคุกกี้ - เล่นตามมาโครต่อ", "info")
+                                self.log(f" [Macro] ผลัดคุกกี้ - เล่นตามมาโครต่อ", "info")
                                 self.macro_player.start(mdata)
                         except Exception as e:
                             pass
@@ -1393,11 +1395,11 @@ class BotEngine:
                         if rec.status == "RECORDING":
                             saved = rec.stop_and_save()
                             if saved:
-                                self.log(f"💾 [Macro Record] จบเกมแล้ว! บันทึกมาโครลงไฟล์ JSON สำเร็จ: {saved.get('name')} ({len(saved.get('actions', []))} แอ็กชัน)", "success")
+                                self.log(f" [Macro Record] จบเกมแล้ว! บันทึกมาโครลงไฟล์ JSON สำเร็จ: {saved.get('name')} ({len(saved.get('actions', []))} แอ็กชัน)", "success")
                     except Exception:
                         pass
 
-                    self.log("📊 ตรวจพบหน้าจอสรุปผล (Result Screen) — กำลังรอตัวเลขคะแนนและเหรียญขึ้นครบ...", "stage")
+                    self.log(" ตรวจพบหน้าจอสรุปผล (Result Screen) — กำลังรอตัวเลขคะแนนและเหรียญขึ้นครบ...", "stage")
 
                     # ตรวจสอบการตั้งค่าใหม่เมื่อจบรอบ
                     self.check_and_apply_settings_update()
@@ -1446,7 +1448,7 @@ class BotEngine:
                                 oldest_key = min(self.round_screenshots.keys())
                                 del self.round_screenshots[oldest_key]
                         except Exception as err:
-                            self.log(f"⚠️ ไม่สามารถบันทึกภาพหน้าจอ: {err}", "warning")
+                            self.log(f" ไม่สามารถบันทึกภาพหน้าจอ: {err}", "warning")
 
                     # 5. [ขั้นตอนบันทึก - Record Stats] อัปเดตสถิติและประวัติการเล่น
                     if round_coins > 0:
@@ -1515,11 +1517,11 @@ class BotEngine:
 
                     score_log = f"คะแนน: {round_score:,} | " if round_score > 0 else ""
                     xp_log = f" | +{round_xp:,} EXP" if round_xp > 0 else ""
-                    box_log = f" | 📦 ได้รับ {len(round_boxes)} กล่อง" if round_boxes else ""
-                    self.log(f"💾 [บันทึกข้อมูลสำเร็จ] รอบที่ #{self.rounds_played}: {score_log}+{round_coins:,} 🪙{xp_log}{box_log}", "success")
+                    box_log = f" |  ได้รับ {len(round_boxes)} กล่อง" if round_boxes else ""
+                    self.log(f" [บันทึกข้อมูลสำเร็จ] รอบที่ #{self.rounds_played}: {score_log}+{round_coins:,} 🪙{xp_log}{box_log}", "success")
                     if saved_img_path:
-                        self.log(f"   📸 บันทึกรูปภาพผลลัพธ์: {saved_img_path}", "info")
-                    self.log(f"   📁 บันทึกประวัติการเล่นลง: history/ (รอบที่ #{self.rounds_played})", "info")
+                        self.log(f"    บันทึกรูปภาพผลลัพธ์: {saved_img_path}", "info")
+                    self.log(f"    บันทึกประวัติการเล่นลง: history/ (รอบที่ #{self.rounds_played})", "info")
 
                     # เตรียมข้อมูลสรุปรอบสำหรับ Discord ไว้ก่อน
                     # หน่วงเวลาส่งเพื่อรอตรวจจับหน้าต่าง MYSTERY_BOX (หน้าเปิดกล่องปริศนา) ในขั้นตอนถัดไป
@@ -1541,12 +1543,12 @@ class BotEngine:
                     }
 
                     # 6. หน่วงเวลาให้ผู้ใช้ได้ดูผลลัพธ์ทั้งหมด (Result Card) ให้ชัดเจนก่อนกด OK
-                    self.log("⏳ บันทึกผลลัพธ์เรียบร้อย — กำลังแสดงหน้า Result ให้ดูทั้งหมดก่อนกด OK...", "info")
+                    self.log(" บันทึกผลลัพธ์เรียบร้อย — กำลังแสดงหน้า Result ให้ดูทั้งหมดก่อนกด OK...", "info")
                     if self.interruptible_sleep(random.uniform(2.5, 3.5)):
                         break
 
                     # 7. กดปุ่ม OK เพื่อดำเนินการต่อ
-                    self.log("👉 กดปุ่ม OK เพื่อดำเนินการต่อ", "info")
+                    self.log(" กดปุ่ม OK เพื่อดำเนินการต่อ", "info")
                     complete_finish(device_screen)
                     detection_group = "POST_GAME"
                     last_stage = None
@@ -1577,10 +1579,10 @@ class BotEngine:
                         detected_grades = ["wood"]
 
                     box_names_th = {
-                        "wood": "🟤 ไม้",
-                        "silver": "⚪ เงิน",
-                        "gold": "🟡 ทอง",
-                        "rainbow": "🌈 รุ้ง",
+                        "wood": " ไม้",
+                        "silver": " เงิน",
+                        "gold": " ทอง",
+                        "rainbow": " รุ้ง",
                     }
                     grade_str = ", ".join([box_names_th.get(g, g) for g in detected_grades])
 
@@ -1654,7 +1656,7 @@ class BotEngine:
                         self.current_round_recorded = True
                         save_round_history_to_file(self.device_serial, list(self.round_history), new_entry=item)
 
-                    self.log(f"🎁 ได้รับกล่องปริศนา: [{grade_str}] (รวมทั้งหมด: {self.mystery_boxes} กล่อง)", "success")
+                    self.log(f" ได้รับกล่องปริศนา: [{grade_str}] (รวมทั้งหมด: {self.mystery_boxes} กล่อง)", "success")
 
                     # ส่งการแจ้งเตือนสรุปผลรอบเข้า Discord โดยใช้เกรดกล่องจริงและภาพหน้าเปิดกล่อง Mystery Box
                     if self.pending_round_summary:
@@ -1681,95 +1683,107 @@ class BotEngine:
                     last_stage = None
 
                 elif stage == "CONGRATULATIONS":
-                    self.log("🎉 Detected Stage: CONGRATULATIONS", "stage")
+                    self.log(" Detected Stage: CONGRATULATIONS", "stage")
                     accept_congratulations()
                     detection_group = "POST_GAME"
                     last_stage = None
 
                 elif stage == "SET_REWARD":
-                    self.log("🎁 Detected Stage: SET_REWARD (You received a set reward!) — กดยืนยันรับรางวัล...", "success")
+                    self.log(" Detected Stage: SET_REWARD (You received a set reward!) — กดยืนยันรับรางวัล...", "success")
                     accept_set_reward()
                     detection_group = "PRE_GAME"
                     last_stage = None
 
                 elif stage == "PREVIOUS_RESULTS":
-                    self.log("📋 Detected Stage: PREVIOUS_RESULTS (You have unreviewed game results) — กดยืนยันเพื่อไปหน้าสรุปคะแนน...", "info")
+                    self.log("Detected Stage: PREVIOUS_RESULTS (You have unreviewed game results) — กดยืนยันเพื่อไปหน้าสรุปคะแนน...", "info")
                     accept_previous_results()
                     detection_group = "POST_GAME"
                     last_stage = None
 
                 elif stage == "LEVEL_UP":
-                    self.log("⬆️ Detected Stage: LEVEL_UP (Confirming immediately)", "success")
+                    self.log("⬆ Detected Stage: LEVEL_UP (Confirming immediately)", "success")
                     accept_level_up()
                     detection_group = "POST_GAME"
                     last_stage = None
 
                 elif stage == "DAILY_CHECKIN":
-                    self.log("📅 Detected Stage: DAILY_CHECKIN", "stage")
+                    self.log(" Detected Stage: DAILY_CHECKIN", "stage")
                     accept_daily_checkin()
                     detection_group = "PRE_GAME"
                     last_stage = None
 
                 elif stage == "DAILY_CHECKIN_BOOST_SET":
-                    self.log("📅 Detected Stage: DAILY_CHECKIN_BOOST_SET", "stage")
+                    self.log(" Detected Stage: DAILY_CHECKIN_BOOST_SET", "stage")
                     accept_daily_checkin_boost_set()
                     detection_group = "PRE_GAME"
                     last_stage = None
 
                 elif stage == "DAILY_TREASURE":
-                    self.log("💎 Detected Stage: DAILY_TREASURE", "stage")
+                    self.log(" Detected Stage: DAILY_TREASURE", "stage")
                     accept_daily_treasure()
                     detection_group = "PRE_GAME"
                     last_stage = None
 
                 elif stage == "DAILY_NEW":
-                    self.log("📰 Detected Stage: DAILY_NEW", "stage")
+                    self.log(" Detected Stage: DAILY_NEW", "stage")
                     accept_daily_new()
                     detection_group = "PRE_GAME"
                     last_stage = None
 
                 elif stage == "ENTER_LEAGUE":
-                    self.log("🏆 Detected Stage: ENTER_LEAGUE", "stage")
+                    self.log(" Detected Stage: ENTER_LEAGUE", "stage")
                     accept_enter_league()
                     detection_group = "PRE_GAME"
                     last_stage = None
 
                 elif stage == "LEAGUE_RESULTS":
-                    self.log("🏆 Detected Stage: LEAGUE_RESULTS", "stage")
+                    self.log(" Detected Stage: LEAGUE_RESULTS", "stage")
                     accept_league_results()
                     detection_group = "PRE_GAME"
                     last_stage = None
 
                 elif stage == "PREVIOUS_RANK_RESULTS":
-                    self.log("🏆 Detected Stage: PREVIOUS_RANK_RESULTS", "stage")
+                    self.log(" Detected Stage: PREVIOUS_RANK_RESULTS", "stage")
                     accept_previous_rank_results()
                     detection_group = "PRE_GAME"
                     last_stage = None
 
                 elif stage == "OVERTAKE_BREAK_SCORE":
-                    self.log("🏆 Detected Stage: OVERTAKE_BREAK_SCORE", "stage")
+                    self.log(" Detected Stage: OVERTAKE_BREAK_SCORE", "stage")
                     accept_overtake_break_score()
                     detection_group = "POST_GAME"
                     last_stage = None
 
                 elif stage == "TOO_MANY_TREASURES":
-                    self.log("💎 Detected Stage: TOO_MANY_TREASURES", "warning")
+                    self.log(" Detected Stage: TOO_MANY_TREASURES", "warning")
                     accept_too_many_treasures()
                     detection_group = "PRE_GAME"
                     last_stage = None
 
                 elif stage == "RELIC_COMPLETE":
-                    self.log("🏺 Detected Stage: RELIC_COMPLETE", "stage")
+                    self.log(" Detected Stage: RELIC_COMPLETE", "stage")
                     open_relic_complete()
                     detection_group = "PRE_GAME"
 
                 elif stage == "RELIC_CLAIM":
-                    self.log("🏺 Detected Stage: RELIC_CLAIM", "stage")
+                    self.log(" Detected Stage: RELIC_CLAIM", "stage")
                     accept_relic_claim()
                     detection_group = "PRE_GAME"
 
+                elif stage == "GAME_SETTINGS":
+                    self.log(" Detected Stage: GAME_SETTINGS — closing settings...", "stage")
+                    close_game_settings()
+                    detection_group = "PRE_GAME"
+                    last_stage = None
+
+                elif stage == "PARTY_RUN":
+                    self.log(" Detected Stage: PARTY_RUN — closing party run mode...", "stage")
+                    close_party_run_mode()
+                    detection_group = "PRE_GAME"
+                    last_stage = None
+
                 elif stage == "ANTI_BOT":
-                    self.log("⚠️ ตรวจพบหน้าจอ ANTI_BOT (กันบอท) — กำลังวิเคราะห์และแก้แคปซ่าอัตโนมัติ...", "warning")
+                    self.log(" ตรวจพบหน้าจอ ANTI_BOT (กันบอท) — กำลังวิเคราะห์และแก้แคปซ่าอัตโนมัติ...", "warning")
                     discord_notifier.send_anti_bot_alert("ANTI_BOT", screen_img=device_screen)
                     handle_anti_bot(device_screen)
 
@@ -1789,12 +1803,12 @@ class BotEngine:
                         self.captcha_stats["success_count"] += 1
                         self.captcha_stats["last_result"] = "success"
                         rate = (self.captcha_stats["success_count"] / self.captcha_stats["total_attempts"]) * 100
-                        self.log(f"✅ แก้ไขแคปซ่ากันบอทสำเร็จ! (อัตราสำเร็จ: {rate:.1f}% | {self.captcha_stats['success_count']}/{self.captcha_stats['total_attempts']} ครั้ง)", "success")
+                        self.log(f" แก้ไขแคปซ่ากันบอทสำเร็จ! (อัตราสำเร็จ: {rate:.1f}% | {self.captcha_stats['success_count']}/{self.captcha_stats['total_attempts']} ครั้ง)", "success")
                     else:
                         self.captcha_stats["fail_count"] += 1
                         self.captcha_stats["last_result"] = "fail"
                         rate = (self.captcha_stats["success_count"] / self.captcha_stats["total_attempts"]) * 100
-                        self.log(f"❌ แก้ไขแคปซ่าไม่สำเร็จ (หน้าจอยังคงติดกันบอท) (อัตราสำเร็จ: {rate:.1f}% | {self.captcha_stats['success_count']}/{self.captcha_stats['total_attempts']} ครั้ง)", "error")
+                        self.log(f" แก้ไขแคปซ่าไม่สำเร็จ (หน้าจอยังคงติดกันบอท) (อัตราสำเร็จ: {rate:.1f}% | {self.captcha_stats['success_count']}/{self.captcha_stats['total_attempts']} ครั้ง)", "error")
 
                     save_device_captcha_stats(self.device_serial, self.captcha_stats)
                     last_stage = None
@@ -1802,13 +1816,13 @@ class BotEngine:
                 elif stage == "CONNECTION_LOST":
                     self._connection_lost_retries = getattr(self, "_connection_lost_retries", 0) + 1
                     if self._connection_lost_retries <= 2:
-                        self.log(f"🔌 ตรวจพบหลุดการเชื่อมต่อ (CONNECTION_LOST) — กำลังกดลองใหม่ (Reconnect ครั้งที่ {self._connection_lost_retries}/2)...", "warning")
+                        self.log(f" ตรวจพบหลุดการเชื่อมต่อ (CONNECTION_LOST) — กำลังกดลองใหม่ (Reconnect ครั้งที่ {self._connection_lost_retries}/2)...", "warning")
                         handle_connection_lost()
                         last_stage = None
                         if self.interruptible_sleep(1.0):
                             break
                     else:
-                        self.log("🔌 หลุดการเชื่อมต่อซ้ำซ้อนเกิน 2 ครั้ง — กำลังรีสตาร์ทแอปเกม...", "error")
+                        self.log(" หลุดการเชื่อมต่อซ้ำซ้อนเกิน 2 ครั้ง — กำลังรีสตาร์ทแอปเกม...", "error")
                         discord_notifier.send_connection_lost(self.device_ip, self.device_port)
                         device_reset_app(target, self.device_port)
                         if self.interruptible_sleep(2.0):
@@ -1832,12 +1846,12 @@ class BotEngine:
                     break
 
         except Exception as e:
-            self.log(f"❌ Bot runtime error: {e}", "error")
+            self.log(f" Bot runtime error: {e}", "error")
         finally:
             with self.lock:
                 self.is_running = False
                 self.current_stage = "IDLE"
-            self.log("⏹️ Bot execution ended", "info")
+            self.log(" Bot execution ended", "info")
 
 
 _log_file_lock = threading.Lock()

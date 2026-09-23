@@ -632,15 +632,23 @@ def close_announcement_dialog():
 
 
 def close_party_run_mode():
-    print("🖱️ Closing Party Run mode...")
-    safe_device_tap(*get_device_context(), EXIT_PARTY_RUN_MODE_BUTTON[0], EXIT_PARTY_RUN_MODE_BUTTON[1])
-    time.sleep(random.uniform(0.8, 1.4))
+    print(" Closing Party Run mode...")
+    for _ in range(2):
+        safe_device_tap(*get_device_context(), EXIT_PARTY_RUN_MODE_BUTTON[0], EXIT_PARTY_RUN_MODE_BUTTON[1])
+        time.sleep(random.uniform(0.6, 1.0))
+        screen = device_capture_screen(*get_device_context())
+        if screen is None or detect_stage(screen, ["PARTY_RUN"]) != "PARTY_RUN":
+            break
 
 
 def close_game_settings():
-    print("🖱️ Closing Game Settings...")
-    safe_device_tap(*get_device_context(), EXIT_GAME_SETTINGS_BUTTON[0], EXIT_GAME_SETTINGS_BUTTON[1])
-    time.sleep(random.uniform(0.8, 1.4))
+    print(" Closing Game Settings...")
+    for _ in range(2):
+        safe_device_tap(*get_device_context(), EXIT_GAME_SETTINGS_BUTTON[0], EXIT_GAME_SETTINGS_BUTTON[1])
+        time.sleep(random.uniform(0.6, 1.0))
+        screen = device_capture_screen(*get_device_context())
+        if screen is None or detect_stage(screen, ["GAME_SETTINGS"]) != "GAME_SETTINGS":
+            break
 
 
 def handle_clean_level1_friends(target_device: Optional[str] = None):

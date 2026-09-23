@@ -643,7 +643,7 @@ class BotEngine:
             self.current_stage = "INITIALIZING"
             self.thread = threading.Thread(target=self._run_loop, daemon=True)
             self.thread.start()
-            self.log(f"▶️ Bot started (Device: {self.device_ip}:{self.device_port})", "success")
+            self.log(f" Bot started (Device: {self.device_ip}:{self.device_port})", "success")
             discord_notifier.send_bot_start(self.device_ip, self.device_port, device_name=self.get_device_model_label())
 
         return {"success": True, "message": "Bot started successfully"}
@@ -655,7 +655,7 @@ class BotEngine:
 
             self.should_stop = True
             self.current_stage = "STOPPING"
-            self.log("🛑 Stopping bot...", "warning")
+            self.log(" Stopping bot...", "warning")
 
         if self.thread and self.thread.is_alive():
             self.thread.join(timeout=3.0)
@@ -668,7 +668,7 @@ class BotEngine:
         with self.lock:
             self.is_running = False
             self.current_stage = "IDLE"
-            self.log("⏹️ Bot stopped", "info")
+            self.log(" Bot stopped", "info")
             session_sec = int(time.time() - self.start_time) if self.start_time else 0
             self.session_uptime_seconds = session_sec
             self.accumulated_uptime_seconds += session_sec
@@ -750,7 +750,7 @@ class BotEngine:
             except Exception:
                 pass
 
-        self.log("📊 ล้างข้อมูลสถิติ กล่องปริศนา เหรียญ EXP และการแก้แคปซ่าทั้งหมดเป็น 0 แล้ว", "info")
+        self.log(" ล้างข้อมูลสถิติ กล่องปริศนา เหรียญ EXP และการแก้แคปซ่าทั้งหมดเป็น 0 แล้ว", "info")
 
     def clear_round_history(self):
         """Clear round history in memory and delete history files from disk."""
@@ -774,7 +774,7 @@ class BotEngine:
                     os.remove(path_csv)
                 except Exception:
                     pass
-            self.log("🗑️ ล้างประวัติการเล่นเรียบร้อยแล้ว", "info")
+            self.log(" ล้างประวัติการเล่นเรียบร้อยแล้ว", "info")
 
     def get_status(self) -> Dict[str, Any]:
         session_sec = int(time.time() - self.start_time) if self.is_running and self.start_time else (self.session_uptime_seconds or 0)
@@ -934,7 +934,7 @@ class BotEngine:
                         pass
 
         if changes and self.is_running:
-            self.log("⚙️ ตรวจพบการตั้งค่าใหม่ (Bot Settings Updated):", "info")
+            self.log(" ตรวจพบการตั้งค่าใหม่ (Bot Settings Updated):", "info")
             for ch in changes:
                 self.log(f"   • {ch}", "info")
 
@@ -947,15 +947,15 @@ class BotEngine:
         try:
             self.log(f"🔌 Connecting to device {target}...")
             device_connect(target, self.device_port)
-            self.log("✅ ADB Connection established", "success")
+            self.log(" ADB Connection established", "success")
 
-            self.log("🖼️ Pre-warming OpenCV templates...")
+            self.log(" Pre-warming OpenCV templates...")
             load_templates()
-            self.log("✅ Templates loaded", "success")
+            self.log(" Templates loaded", "success")
 
             if self.use_desired_random_boost:
                 _, initial_boost_name = self.get_desired_boost_info()
-                self.log(f"🎲 Desired Random Boost: {initial_boost_name}")
+                self.log(f" Desired Random Boost: {initial_boost_name}")
 
             last_stage = None
             is_first_game = True
@@ -1046,7 +1046,7 @@ class BotEngine:
                 if self.pending_round_summary and (time.time() - self.pending_round_summary.get("created_at", 0) > 15.0):
                     self._flush_pending_round_summary()
 
-                # 📦 Early Exit on Mystery Box Goal during active in-game running
+                #  Early Exit on Mystery Box Goal during active in-game running
                 if detection_group == "IN_GAME" and self.early_exit_boxes_enabled and not self.early_exit_triggered and device_screen is not None:
                     now = time.time()
                     if now - self._last_box_check_time >= 0.35:
@@ -1059,7 +1059,7 @@ class BotEngine:
                                 self.early_exit_triggered = True
                                 self._box_target_consecutive_hits = 0
                                 self.log(
-                                    f"📦 [Box Farming] เก็บกล่องในรอบนี้ได้ {box_count} กล่อง (ครบเป้าหมาย {effective_target} กล่องแล้ว)! กำลังกด Pause เพื่อออกจากห้องและเริ่มรอบใหม่...",
+                                    f" [Box Farming] เก็บกล่องในรอบนี้ได้ {box_count} กล่อง (ครบเป้าหมาย {effective_target} กล่องแล้ว)! กำลังกด Pause เพื่อออกจากห้องและเริ่มรอบใหม่...",
                                     "success",
                                 )
                                 if hasattr(self, "macro_player") and self.macro_player.is_running:
@@ -1072,7 +1072,7 @@ class BotEngine:
                         else:
                             self._box_target_consecutive_hits = 0
 
-                # 🏃 Auto Jump / Slide or Macro playback during active in-game running
+                #  Auto Jump / Slide or Macro playback during active in-game running
                 if detection_group == "IN_GAME" and stage is None:
                     if self.macro_enabled and hasattr(self, "macro_player") and self.macro_player.is_running:
                         # Macro player is actively executing timeline in its dedicated thread
@@ -1100,7 +1100,7 @@ class BotEngine:
                 last_stage = stage
 
                 if stage == "MAINMENU":
-                    self.log("🎮 Detected Stage: MAINMENU", "stage")
+                    self.log(" Detected Stage: MAINMENU", "stage")
 
                     # ตรวจสอบการตั้งค่าใหม่ก่อนเริ่มรอบ
                     self.check_and_apply_settings_update()
@@ -1114,7 +1114,7 @@ class BotEngine:
 
                     lives_elapsed = time.time() - last_lives_time
                     if self.send_friend_lives and (pending_send_friend_life or lives_elapsed >= lives_interval):
-                        self.log("💌 ตรวจสอบและส่งหัวใจให้เพื่อน...", "stage")
+                        self.log(" ตรวจสอบและส่งหัวใจให้เพื่อน...", "stage")
                         try:
                             handle_quick_receive_and_send_lives()
                         except Exception as e:
@@ -1123,7 +1123,7 @@ class BotEngine:
                             handle_send_friend_life()
                         except Exception as e:
                             self.log(f" ส่งหัวใจรายชื่อเพื่อน: {e}", "warning")
-                        self.log("✅ ดำเนินการส่งหัวใจเสร็จสิ้น", "success")
+                        self.log(" ดำเนินการส่งหัวใจเสร็จสิ้น", "success")
                         pending_send_friend_life = False
                         last_lives_time = time.time()
                         lives_interval = random.uniform(25 * 60, 35 * 60)
@@ -1132,7 +1132,7 @@ class BotEngine:
 
                     elapsed = time.time() - session_start_time
                     if elapsed >= session_reset_interval:
-                        self.log(f"🔄 Session reset triggered after {elapsed / 3600:.2f}h — restarting app...")
+                        self.log(f" Session reset triggered after {elapsed / 3600:.2f}h — restarting app...")
                         device_reset_app(target, self.device_port)
                         if self.interruptible_sleep(2.0):
                             break
@@ -1228,9 +1228,16 @@ class BotEngine:
                                 "warning",
                             )
                             try:
-                                from actions import safe_device_tap, get_device_context
+                                from actions import safe_device_tap, get_device_context, close_party_run_mode, close_game_settings
                                 from config import CLOSE_ANNOUNCEMENT_DIALOG_BUTTON
                                 safe_device_tap(*get_device_context(), CLOSE_ANNOUNCEMENT_DIALOG_BUTTON[0], CLOSE_ANNOUNCEMENT_DIALOG_BUTTON[1])
+                                time.sleep(0.4)
+                                chk_sc = device_capture_screen(target, self.device_port)
+                                if chk_sc is not None:
+                                    if detect_stage(chk_sc, ["PARTY_RUN"]) == "PARTY_RUN":
+                                        close_party_run_mode()
+                                    elif detect_stage(chk_sc, ["GAME_SETTINGS"]) == "GAME_SETTINGS":
+                                        close_game_settings()
                             except Exception:
                                 pass
                             time.sleep(0.5)

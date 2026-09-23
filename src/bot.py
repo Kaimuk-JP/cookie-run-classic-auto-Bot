@@ -29,6 +29,8 @@ from actions import (
     accept_relic_claim,
     accept_too_many_treasures,
     close_announcement_dialog,
+    close_party_run_mode,
+    close_game_settings,
     complete_finish,
     configure_top_row_items,
     handle_anti_bot,
@@ -393,6 +395,16 @@ def main():
                 print("🏺 Detected Stage: RELIC_CLAIM")
                 accept_relic_claim()
                 detection_group = "PRE_GAME"
+            elif stage == "GAME_SETTINGS":
+                print("⚙️ Detected Stage: GAME_SETTINGS")
+                close_game_settings()
+                detection_group = "PRE_GAME"
+                last_stage = None
+            elif stage == "PARTY_RUN":
+                print("🎮 Detected Stage: PARTY_RUN")
+                close_party_run_mode()
+                detection_group = "PRE_GAME"
+                last_stage = None
             elif stage == "ANTI_BOT":
                 print("⚠️ Detected Stage: ANTI_BOT")
                 handle_anti_bot(device_screen)

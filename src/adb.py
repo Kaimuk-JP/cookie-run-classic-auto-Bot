@@ -595,14 +595,15 @@ def device_reset_app(ip: str, port: int = 5555, package: str = "com.devsisters.c
 def clear_system_memory(
     ip_or_serial: Optional[str] = None,
     port: Optional[int | str] = None,
-    package: Optional[str] = "com.devsisters.crg",
-    log_func=None
+    package: Optional[str] = None,
+    log_func=None,
+    clean_device: bool = False,
 ):
     """
-    เคลียร์ RAM ทุกๆ รอบที่ทำเสร็จ:
+    เคลียร์ RAM:
     1. Python Garbage Collection (gc.collect())
     2. Windows Working Set Minimization (คืน RAM ของ Python Process ให้ OS ทันที)
-    3. Android / Emulator RAM Cache Clear (sync, drop_caches, am kill-all, am trim-memory)
+    3. Android / Emulator RAM Cache Clean (ทำเฉพาะเมื่อ clean_device=True เช่น ตอนปิดเกมแล้ว เพื่อไม่ให้ตัด socket การเชื่อมต่อขณะเล่น)
     """
     freed_parts = []
 
@@ -627,8 +628,8 @@ def clear_system_memory(
         except Exception:
             pass
 
-    # 3. Android / Emulator RAM Clean
-    if ip_or_serial:
+    # 3. Android / Emulator RAM Clean (เฉพาะเมื่อ clean_device=True เพื่อป้องกัน CONNECTION_LOST ขณะเกมกำลังรัน)
+    if clean_device and ip_or_serial:
         try:
             target = _format_target(ip_or_serial, port)
             adb = get_adb_path()

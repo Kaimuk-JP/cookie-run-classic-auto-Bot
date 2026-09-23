@@ -1130,7 +1130,7 @@ class HeartFarmer:
                 time.sleep(3)
             finally:
                 # เคลียร์แรม (RAM) ทุกๆ รอบที่ทำเสร็จ
-                clear_system_memory(self.device, package=PACKAGE, log_func=self._log)
+                clear_system_memory(self.device, package=PACKAGE, log_func=self._log, clean_device=True)
 
         self._log("=== HeartFarmer STOP ===")
 

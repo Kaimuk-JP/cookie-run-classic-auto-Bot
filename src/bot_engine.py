@@ -1822,14 +1822,14 @@ class BotEngine:
 
                 elif stage == "CONNECTION_LOST":
                     self._connection_lost_retries = getattr(self, "_connection_lost_retries", 0) + 1
-                    if self._connection_lost_retries <= 2:
-                        self.log(f" ตรวจพบหลุดการเชื่อมต่อ (CONNECTION_LOST) — กำลังกดลองใหม่ (Reconnect ครั้งที่ {self._connection_lost_retries}/2)...", "warning")
+                    if self._connection_lost_retries <= 3:
+                        self.log(f" ตรวจพบหลุดการเชื่อมต่อ (CONNECTION_LOST) — กำลังกดลองใหม่ (Reconnect ครั้งที่ {self._connection_lost_retries}/3)...", "warning")
                         handle_connection_lost()
                         last_stage = None
-                        if self.interruptible_sleep(1.0):
+                        if self.interruptible_sleep(2.0):
                             break
                     else:
-                        self.log(" หลุดการเชื่อมต่อซ้ำซ้อนเกิน 2 ครั้ง — กำลังรีสตาร์ทแอปเกม...", "error")
+                        self.log(" หลุดการเชื่อมต่อซ้ำซ้อนเกิน 3 ครั้ง — กำลังรีสตาร์ทแอปเกม...", "error")
                         discord_notifier.send_connection_lost(self.device_ip, self.device_port)
                         device_reset_app(target, self.device_port)
                         if self.interruptible_sleep(2.0):

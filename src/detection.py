@@ -605,52 +605,57 @@ def detect_ingame_box_count(screen) -> int:
     return 1
 
 
-_rapid_ocr_engine = None
+def _run_winocr(screen):
+    try:
+        import winocr
+        import asyncio
+        async def run_win():
+            return await winocr.recognize_cv2(screen, 'en-US')
+        wres = asyncio.run(run_win())
+        items = []
+        if wres and hasattr(wres, 'lines'):
+            for line in wres.lines:
+                if not line.words:
+                    continue
+                min_x = min(w.bounding_rect.x for w in line.words)
+                min_y = min(w.bounding_rect.y for w in line.words)
+                max_x = max(w.bounding_rect.x + w.bounding_rect.width for w in line.words)
+                max_y = max(w.bounding_rect.y + w.bounding_rect.height for w in line.words)
+                box = [[min_x, min_y], [max_x, min_y], [max_x, max_y], [min_x, max_y]]
+                items.append((box, line.text, 0.95))
+        return items
+    except Exception:
+        return []
 
 
-def get_ocr_engine():
-    global _rapid_ocr_engine
-    if _rapid_ocr_engine is None:
-        try:
-            from rapidocr_onnxruntime import RapidOCR
-            _rapid_ocr_engine = RapidOCR()
-        except Exception:
-            _rapid_ocr_engine = False
-    return _rapid_ocr_engine if _rapid_ocr_engine is not False else None
+def _run_rapidocr(screen):
+    try:
+        import importlib
+        mod = importlib.import_module("rapidocr_onnxruntime")
+        RapidOCR = getattr(mod, "RapidOCR", None)
+        if RapidOCR:
+            engine = RapidOCR()
+            res, _ = engine(screen)
+            if res:
+                return [(item[0], item[1], item[2]) for item in res]
+    except Exception:
+        pass
+    return []
 
 
 def detect_opened_box_items(screen) -> list:
     """
     Detects and extracts item names obtained from opened Mystery Boxes on screen.
-    Uses RapidOCR with fallback to Windows Media OCR (winocr).
+    Uses native Windows OCR (winocr) with dynamic RapidOCR fallback.
     Returns a list of cleaned item name strings, e.g.:
     ['Pastry Crumbs (Ingredient)', 'Giant Dragonfly Wing (Ingredient)']
     """
     if screen is None:
         return []
 
-    ocr_items = []
-    engine = get_ocr_engine()
-    if engine is not None:
-        try:
-            res, _ = engine(screen)
-            if res:
-                for item in res:
-                    ocr_items.append((item[0], item[1], item[2]))
-        except Exception:
-            pass
-
+    ocr_items = _run_winocr(screen)
     if not ocr_items:
-        try:
-            import winocr, asyncio
-            async def run_win():
-                return await winocr.recognize_cv2(screen, 'en-US')
-            wres = asyncio.run(run_win())
-            if wres and hasattr(wres, 'lines'):
-                for line in wres.lines:
-                    ocr_items.append(([[0, 300], [100, 300], [100, 340], [0, 340]], line.text, 0.9))
-        except Exception:
-            pass
+        ocr_items = _run_rapidocr(screen)
 
     if not ocr_items:
         return []

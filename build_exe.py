@@ -71,6 +71,8 @@ def main():
         "--include-package=pydantic",
         "--include-package=pydantic_core",
         "--include-package=websockets",
+        "--nofollow-import-to=rapidocr_onnxruntime",
+        "--nofollow-import-to=onnxruntime",
         f"--output-filename=CookieRunBot.exe",
         f"--output-dir={output_dir}",
     ]
@@ -116,6 +118,8 @@ def main():
             "--collect-all=pydantic",
             "--collect-all=pydantic_core",
             "--collect-all=websockets",
+            "--exclude-module=rapidocr_onnxruntime",
+            "--exclude-module=onnxruntime",
         ]
         if os.path.isfile(icon_path):
             pyinst_cmd.append(f"--icon={icon_path}")

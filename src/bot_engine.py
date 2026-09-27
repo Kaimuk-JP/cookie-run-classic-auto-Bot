@@ -556,6 +556,13 @@ class BotEngine:
             p = self.pending_round_summary
             self.pending_round_summary = None
             try:
+                sc = p.get("screen_img")
+                if sc is None:
+                    sc = getattr(self, "current_round_screen", None)
+                if sc is None and p.get("round_num") in getattr(self, "round_screenshots", {}):
+                    sc = self.round_screenshots[p["round_num"]]
+
+                opened_items = p.get("opened_items") or []
                 discord_notifier.send_round_summary(
                     round_num=p["round_num"],
                     duration_str=p["duration_str"],
@@ -564,12 +571,13 @@ class BotEngine:
                     xp_earned=p["xp_earned"],
                     session_xp=p["session_xp"],
                     boxes=p.get("boxes") or [],
-                    screen_img=p.get("screen_img"),
+                    screen_img=sc,
                     device_name=p.get("device_name") or self.get_device_model_label(),
                     duration_sec=p.get("duration_sec", 0),
                     session_rounds=p.get("session_rounds", self.session_rounds_played),
                     session_boxes=p.get("session_boxes") or dict(self.session_box_counts),
-                    opened_items=p.get("opened_items") or [],
+                    opened_items=opened_items,
+                    force_attach=bool(opened_items),
                 )
             except Exception as e:
                 self.log(f" ไม่สามารถส่งสรุปผลรอบ Discord: {e}", "warning")
@@ -1213,6 +1221,7 @@ class BotEngine:
                         )
                         break
 
+                    self._flush_pending_round_summary()
                     is_first_game = False
                     start_game()
                     detection_group = "PRE_GAME"

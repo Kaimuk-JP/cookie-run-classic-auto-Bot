@@ -97,28 +97,58 @@ class DiscordNotifier:
             self.custom_emojis = settings["custom_emojis"]
         self.save_config()
 
-    def _async_send(self, payload: dict, screen_img=None, box_thumb_img: Optional[str] = None):
+    def _async_send(self, payload: dict, screen_img=None, box_thumb_img: Optional[str] = None, force_attach: bool = False):
         """Send webhook in a separate daemon thread so it never lags the bot loop."""
-        threading.Thread(target=self._send_payload, args=(payload, screen_img, box_thumb_img), daemon=True).start()
+        threading.Thread(target=self._send_payload, args=(payload, screen_img, box_thumb_img, force_attach), daemon=True).start()
 
-    def _send_payload(self, payload: dict, screen_img=None, box_thumb_img: Optional[str] = None):
+    def _send_payload(self, payload: dict, screen_img=None, box_thumb_img: Optional[str] = None, force_attach: bool = False):
         if not self.enabled or not self.webhook_url:
             return False
 
         try:
             files = {}
-            if screen_img is not None and self.attach_screenshot:
-                success, encoded_img = cv2.imencode(".jpg", screen_img, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
-                if success:
-                    files["file"] = ("screen.jpg", io.BytesIO(encoded_img), "image/jpeg")
+            file_idx = 0
+
+            # 1. Attach box thumbnail icon if present
+            if box_thumb_img and os.path.isfile(box_thumb_img):
+                try:
+                    with open(box_thumb_img, "rb") as bf:
+                        thumb_bytes = bf.read()
+                    files[f"files[{file_idx}]"] = ("thumb.png", io.BytesIO(thumb_bytes), "image/png")
+                    file_idx += 1
+                    if "embeds" in payload and payload["embeds"]:
+                        payload["embeds"][0]["thumbnail"] = {"url": "attachment://thumb.png"}
+                except Exception as e:
+                    print(f"[Discord] Error attaching thumb: {e}")
+
+            # 2. Attach screenshot image
+            should_attach = (self.attach_screenshot or force_attach) and screen_img is not None
+            if should_attach:
+                encoded_bytes = None
+                if isinstance(screen_img, bytes):
+                    encoded_bytes = screen_img
+                elif isinstance(screen_img, str) and os.path.isfile(screen_img):
+                    try:
+                        with open(screen_img, "rb") as f:
+                            encoded_bytes = f.read()
+                    except Exception:
+                        pass
+                elif hasattr(screen_img, "shape"):  # numpy ndarray
+                    success, encoded_img = cv2.imencode(".jpg", screen_img, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
+                    if success:
+                        encoded_bytes = encoded_img.tobytes()
+
+                if encoded_bytes:
+                    files[f"files[{file_idx}]"] = ("screen.jpg", io.BytesIO(encoded_bytes), "image/jpeg")
+                    file_idx += 1
                     if "embeds" in payload and payload["embeds"]:
                         payload["embeds"][0]["image"] = {"url": "attachment://screen.jpg"}
 
             if files:
                 data = {"payload_json": json.dumps(payload)}
-                res = requests.post(self.webhook_url, data=data, files=files, timeout=10)
+                res = requests.post(self.webhook_url, data=data, files=files, timeout=15)
             else:
-                res = requests.post(self.webhook_url, json=payload, timeout=10)
+                res = requests.post(self.webhook_url, json=payload, timeout=15)
 
             return res.status_code in [200, 204]
         except Exception as e:
@@ -274,19 +304,63 @@ class DiscordNotifier:
         return path if os.path.isfile(path) else None
 
     def test_webhook(self, url: Optional[str] = None) -> tuple[bool, str]:
-        """Test the webhook URL with the real styled summary embed preview."""
+        """Test the webhook URL with the real styled summary embed preview and sample screenshot."""
         target_url = (url or self.webhook_url).strip()
         if not target_url:
             return False, "กรุณากรอก Discord Webhook URL"
 
         dev_name = "SM-g991b"
+        screen_img = None
         try:
-            from adb import scan_adb_devices
+            from adb import scan_adb_devices, device_capture_screen
             devs = scan_adb_devices()
             if devs:
                 dev_name = devs[0].get("emu_name") or devs[0].get("name") or dev_name
+                target = devs[0].get("serial") or devs[0].get("name")
+                if target:
+                    screen_img = device_capture_screen(target, 5555)
         except Exception:
             pass
+
+        # If no active device capture available, look for recent screenshot or generate a preview canvas
+        if screen_img is None:
+            try:
+                sc_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "screenshots"))
+                if os.path.isdir(sc_dir):
+                    sc_files = [os.path.join(sc_dir, f) for f in os.listdir(sc_dir) if f.endswith(('.png', '.jpg'))]
+                    if sc_files:
+                        latest_sc = max(sc_files, key=os.path.getmtime)
+                        screen_img = cv2.imread(latest_sc)
+            except Exception:
+                pass
+
+        if screen_img is None:
+            try:
+                import numpy as np
+                preview = np.zeros((720, 1280, 3), dtype=np.uint8)
+                preview[:] = (32, 28, 28)
+                cv2.rectangle(preview, (30, 30), (1250, 690), (60, 50, 50), 2)
+                cv2.putText(preview, "CookieRun Bot - Discord Preview", (60, 110), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (255, 255, 255), 2)
+                cv2.putText(preview, "Screenshot attachment is active and working!", (60, 175), cv2.FONT_HERSHEY_SIMPLEX, 0.85, (120, 220, 120), 2)
+                cv2.putText(preview, f"Device: {dev_name} | {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", (60, 235), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (180, 180, 180), 1)
+
+                box_path = os.path.join(os.path.dirname(__file__), "templates", "BOX_RAINBOW.png")
+                if os.path.isfile(box_path):
+                    box_im = cv2.imread(box_path, cv2.IMREAD_UNCHANGED)
+                    if box_im is not None:
+                        h, w = box_im.shape[:2]
+                        y_off, x_off = 300, 560
+                        if len(box_im.shape) == 3 and box_im.shape[2] == 4:
+                            alpha = box_im[:, :, 3] / 255.0
+                            for c in range(3):
+                                preview[y_off:y_off+h, x_off:x_off+w, c] = (
+                                    alpha * box_im[:, :, c] + (1.0 - alpha) * preview[y_off:y_off+h, x_off:x_off+w, c]
+                                )
+                        else:
+                            preview[y_off:y_off+h, x_off:x_off+w] = box_im[:h, :w, :3]
+                screen_img = preview
+            except Exception:
+                screen_img = None
 
         embed = self._build_round_summary_embed(
             round_num=22,
@@ -310,7 +384,12 @@ class DiscordNotifier:
         try:
             self.webhook_url = target_url
             self.enabled = True
-            ok = self._send_payload({"username": "CookieRun Bot", "embeds": [embed]}, box_thumb_img=box_thumb)
+            ok = self._send_payload(
+                {"username": "CookieRun Bot", "embeds": [embed]},
+                screen_img=screen_img,
+                box_thumb_img=box_thumb,
+                force_attach=True,
+            )
             if ok:
                 return True, "ส่งข้อความทดสอบสำเร็จ! โปรดตรวจสอบในห้อง Discord ของคุณ"
             return False, "ส่งข้อความไม่สำเร็จ โปรดตรวจสอบ Webhook URL"
@@ -375,6 +454,7 @@ class DiscordNotifier:
         duration_str: str = "",
         session_rounds: int = 0,
         opened_items: List[str] = None,
+        force_attach: bool = False,
     ):
         if not self.notify_boxes or not self.enabled or not self.webhook_url:
             return
@@ -394,7 +474,14 @@ class DiscordNotifier:
             opened_items=opened_items,
         )
         box_thumb = self._get_box_thumbnail_path(boxes)
-        self._async_send({"username": "CookieRun Bot", "embeds": [embed]}, screen_img=screen_img, box_thumb_img=box_thumb)
+        if opened_items:
+            force_attach = True
+        self._async_send(
+            {"username": "CookieRun Bot", "embeds": [embed]},
+            screen_img=screen_img,
+            box_thumb_img=box_thumb,
+            force_attach=force_attach,
+        )
 
     def send_round_summary(
         self,
@@ -413,6 +500,7 @@ class DiscordNotifier:
         minigame_count: int = 0,
         session_minigame_count: int = 0,
         opened_items: List[str] = None,
+        force_attach: bool = False,
     ):
         if not self.notify_rounds or not self.enabled or not self.webhook_url:
             return
@@ -434,7 +522,14 @@ class DiscordNotifier:
             opened_items=opened_items,
         )
         box_thumb = self._get_box_thumbnail_path(boxes)
-        self._async_send({"username": "CookieRun Bot", "embeds": [embed]}, screen_img=screen_img, box_thumb_img=box_thumb)
+        if opened_items:
+            force_attach = True
+        self._async_send(
+            {"username": "CookieRun Bot", "embeds": [embed]},
+            screen_img=screen_img,
+            box_thumb_img=box_thumb,
+            force_attach=force_attach,
+        )
 
     def send_anti_bot_alert(self, stage: str, details: str = "", screen_img=None):
         if not self.notify_antibot or not self.enabled or not self.webhook_url:
@@ -450,7 +545,7 @@ class DiscordNotifier:
             "footer": {"text": "CookieRun Classic Bot - Security Alert"},
             "timestamp": datetime.utcnow().isoformat() + "Z",
         }
-        self._async_send({"username": "CookieRun Bot Alert", "embeds": [embed]}, screen_img=screen_img)
+        self._async_send({"username": "CookieRun Bot Alert", "embeds": [embed]}, screen_img=screen_img, force_attach=True)
 
     def send_connection_lost(self, device_ip: str, device_port: int):
         if not self.notify_status or not self.enabled or not self.webhook_url:

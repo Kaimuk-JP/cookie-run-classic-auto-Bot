@@ -167,10 +167,12 @@ class DiscordNotifier:
         session_boxes: Dict[str, int] = None,
         minigame_count: int = 0,
         session_minigame_count: int = 0,
+        opened_items: List[str] = None,
         is_test: bool = False,
     ) -> dict:
         boxes = boxes or []
         session_boxes = session_boxes or {}
+        opened_items = opened_items or []
         if session_rounds <= 0:
             session_rounds = round_num
 
@@ -195,6 +197,12 @@ class DiscordNotifier:
                 if b_counts[grade] > 0:
                     box_lines.append(f"{box_icons[grade]} {box_grade_names[grade]} `× {b_counts[grade]}`")
             round_box_text = round_box_header + "\n" + "\n".join(box_lines)
+            if opened_items:
+                items_fmt = "\n".join([f"  • {it}" for it in opened_items])
+                round_box_text += f"\n\n▎ **ของที่ได้รับจากกล่อง ({len(opened_items)} ชิ้น)**\n{items_fmt}"
+        elif opened_items:
+            items_fmt = "\n".join([f"  • {it}" for it in opened_items])
+            round_box_text = f"▎ **ของที่ได้รับจากกล่อง ({len(opened_items)} ชิ้น)**\n{items_fmt}"
         else:
             round_box_text = "▎ **กล่องรอบนี้ · 0 ใบ**\n*(ไม่ได้รับกล่อง)*"
 
@@ -292,6 +300,7 @@ class DiscordNotifier:
             device_name=dev_name,
             session_rounds=22,
             session_boxes={"wood": 16, "silver": 25, "gold": 15, "rainbow": 9, "total": 65},
+            opened_items=["Pastry Crumbs (Ingredient)", "Giant Dragonfly Wing (Ingredient)"],
             is_test=True,
         )
 
@@ -351,7 +360,22 @@ class DiscordNotifier:
         }
         self._async_send({"username": "CookieRun Bot", "embeds": [embed]})
 
-    def send_box_drop(self, round_num: int, boxes: List[str], total_boxes: Dict[str, int], coins_earned: int = 0, session_coins: int = 0, xp_earned: int = 0, session_xp: int = 0, screen_img=None, device_name: str = "", duration_sec: int = 0, duration_str: str = "", session_rounds: int = 0):
+    def send_box_drop(
+        self,
+        round_num: int,
+        boxes: List[str],
+        total_boxes: Dict[str, int],
+        coins_earned: int = 0,
+        session_coins: int = 0,
+        xp_earned: int = 0,
+        session_xp: int = 0,
+        screen_img=None,
+        device_name: str = "",
+        duration_sec: int = 0,
+        duration_str: str = "",
+        session_rounds: int = 0,
+        opened_items: List[str] = None,
+    ):
         if not self.notify_boxes or not self.enabled or not self.webhook_url:
             return
 
@@ -367,6 +391,7 @@ class DiscordNotifier:
             duration_sec=duration_sec,
             session_rounds=session_rounds or round_num,
             session_boxes=total_boxes,
+            opened_items=opened_items,
         )
         box_thumb = self._get_box_thumbnail_path(boxes)
         self._async_send({"username": "CookieRun Bot", "embeds": [embed]}, screen_img=screen_img, box_thumb_img=box_thumb)
@@ -387,6 +412,7 @@ class DiscordNotifier:
         session_boxes: Dict[str, int] = None,
         minigame_count: int = 0,
         session_minigame_count: int = 0,
+        opened_items: List[str] = None,
     ):
         if not self.notify_rounds or not self.enabled or not self.webhook_url:
             return
@@ -405,6 +431,7 @@ class DiscordNotifier:
             session_boxes=session_boxes,
             minigame_count=minigame_count,
             session_minigame_count=session_minigame_count,
+            opened_items=opened_items,
         )
         box_thumb = self._get_box_thumbnail_path(boxes)
         self._async_send({"username": "CookieRun Bot", "embeds": [embed]}, screen_img=screen_img, box_thumb_img=box_thumb)

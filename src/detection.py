@@ -1,4 +1,5 @@
 import os
+import re
 from typing import Optional, List, Dict, Any, Tuple
 
 import cv2
@@ -602,4 +603,115 @@ def detect_ingame_box_count(screen) -> int:
                 return 2
 
     return 1
+
+
+_rapid_ocr_engine = None
+
+
+def get_ocr_engine():
+    global _rapid_ocr_engine
+    if _rapid_ocr_engine is None:
+        try:
+            from rapidocr_onnxruntime import RapidOCR
+            _rapid_ocr_engine = RapidOCR()
+        except Exception:
+            _rapid_ocr_engine = False
+    return _rapid_ocr_engine if _rapid_ocr_engine is not False else None
+
+
+def detect_opened_box_items(screen) -> list:
+    """
+    Detects and extracts item names obtained from opened Mystery Boxes on screen.
+    Uses RapidOCR with fallback to Windows Media OCR (winocr).
+    Returns a list of cleaned item name strings, e.g.:
+    ['Pastry Crumbs (Ingredient)', 'Giant Dragonfly Wing (Ingredient)']
+    """
+    if screen is None:
+        return []
+
+    ocr_items = []
+    engine = get_ocr_engine()
+    if engine is not None:
+        try:
+            res, _ = engine(screen)
+            if res:
+                for item in res:
+                    ocr_items.append((item[0], item[1], item[2]))
+        except Exception:
+            pass
+
+    if not ocr_items:
+        try:
+            import winocr, asyncio
+            async def run_win():
+                return await winocr.recognize_cv2(screen, 'en-US')
+            wres = asyncio.run(run_win())
+            if wres and hasattr(wres, 'lines'):
+                for line in wres.lines:
+                    ocr_items.append(([[0, 300], [100, 300], [100, 340], [0, 340]], line.text, 0.9))
+        except Exception:
+            pass
+
+    if not ocr_items:
+        return []
+
+    IGNORE_KEYWORDS = {
+        'mystery', 'box', 'confirm', 'ok', 'tap', 'close', 'touch', 'continue', 'to', 'the',
+        'you', 'got', 'received', 'reward', 'rewards', 'ตกลง', 'ยืนยัน', 'ปิด', 'เปิด'
+    }
+
+    h, w = screen.shape[:2]
+    valid_items = []
+    for box, text, score in ocr_items:
+        text_clean = str(text).strip()
+        words = set(re.findall(r'[a-zA-Z0-9ก-๙]+', text_clean.lower()))
+        if words.issubset(IGNORE_KEYWORDS) or text_clean.lower() in IGNORE_KEYWORDS:
+            continue
+        if len(text_clean) < 2:
+            continue
+
+        xs = [pt[0] for pt in box]
+        ys = [pt[1] for pt in box]
+        cx = sum(xs) / len(xs)
+        cy = sum(ys) / len(ys)
+
+        # Ignore text located in top 15% (header "Mystery Box") and bottom 15% (button "Confirm")
+        if cy < h * 0.15 or cy > h * 0.85:
+            continue
+
+        valid_items.append({'text': text_clean, 'cx': cx, 'cy': cy, 'score': score})
+
+    if not valid_items:
+        return []
+
+    # Cluster horizontally by X coordinates to group items that belong to the same column
+    valid_items.sort(key=lambda it: it['cx'])
+    clusters = []
+    for it in valid_items:
+        placed = False
+        for c in clusters:
+            avg_x = sum(i['cx'] for i in c) / len(c)
+            if abs(it['cx'] - avg_x) < 140:
+                c.append(it)
+                placed = True
+                break
+        if not placed:
+            clusters.append([it])
+
+    results = []
+    for c in clusters:
+        c.sort(key=lambda it: it['cy'])
+        texts = [it['text'] for it in c]
+        if len(texts) == 1:
+            results.append(texts[0])
+        elif len(texts) >= 2:
+            category = texts[0]
+            name = ' '.join(texts[1:])
+            cat_lower = category.lower()
+            if any(k in cat_lower for k in ['ingre', 'วัตถุดิบ', 'ส่วนผสม', 'treas', 'สมบัติ', 'relic', 'โบราณ', 'coin', 'เหรียญ', 'powder', 'ผง']):
+                results.append(f"{name} ({category})")
+            else:
+                results.append(' '.join(texts))
+    return results
+
 

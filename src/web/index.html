@@ -2033,11 +2033,17 @@
         let boxHtml = '<span class="text-slate-400 font-normal">-</span>';
         if (Array.isArray(r.boxes) && r.boxes.length > 0) {
           boxHtml = `<div class="flex flex-wrap items-center gap-1.5">` + r.boxes.map(b => getBoxBadgeHtml(b)).join('') + `</div>`;
+          if (Array.isArray(r.opened_items) && r.opened_items.length > 0) {
+            boxHtml += `<div class="text-[10px] text-purple-700 font-medium truncate max-w-[200px] mt-0.5" title="${r.opened_items.join(', ')}">🎁 ${r.opened_items.join(', ')}</div>`;
+          }
         } else if (r.box_count > 0 || (typeof r.boxes === 'number' && r.boxes > 0)) {
           boxHtml = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-xl border border-purple-200 bg-purple-50 text-purple-700 text-[11px] font-bold shadow-xs">
             <img src="/templates/MYSTERY_BOX_1.png" alt="กล่องปริศนา" class="w-5 h-5 object-contain inline-block drop-shadow-xs">
             <span>${r.box_count || r.boxes} กล่อง</span>
           </span>`;
+          if (Array.isArray(r.opened_items) && r.opened_items.length > 0) {
+            boxHtml += `<div class="text-[10px] text-purple-700 font-medium truncate max-w-[200px] mt-0.5" title="${r.opened_items.join(', ')}">🎁 ${r.opened_items.join(', ')}</div>`;
+          }
         }
 
         return `
@@ -2596,11 +2602,17 @@
         let boxesHtml = '<span class="text-slate-400 text-[11px]">-</span>';
         if (Array.isArray(r.boxes) && r.boxes.length > 0) {
           boxesHtml = `<div class="flex flex-wrap items-center justify-end gap-1.5">` + r.boxes.map(b => getBoxBadgeHtml(b)).join('') + `</div>`;
+          if (Array.isArray(r.opened_items) && r.opened_items.length > 0) {
+            boxesHtml += `<div class="text-[10px] text-purple-700 font-medium text-right mt-0.5" title="${r.opened_items.join(', ')}">🎁 ${r.opened_items.join(', ')}</div>`;
+          }
         } else if (r.box_count > 0 || (typeof r.boxes === 'number' && r.boxes > 0)) {
           boxesHtml = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-xl border border-purple-200 bg-purple-50 text-purple-700 text-[11px] font-bold shadow-xs">
             <img src="/templates/MYSTERY_BOX_1.png" alt="กล่องปริศนา" class="w-5 h-5 object-contain inline-block drop-shadow-xs">
             <span>${r.box_count || r.boxes} กล่อง</span>
           </span>`;
+          if (Array.isArray(r.opened_items) && r.opened_items.length > 0) {
+            boxesHtml += `<div class="text-[10px] text-purple-700 font-medium text-right mt-0.5" title="${r.opened_items.join(', ')}">🎁 ${r.opened_items.join(', ')}</div>`;
+          }
         }
 
         return `

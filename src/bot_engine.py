@@ -61,6 +61,7 @@ from adb import (
     clear_system_memory,
 )
 from config import (
+    ACCEPT_MYSTERY_BOX_BUTTON,
     BOOST_17P_BASE_SPEED_TEMPLATE,
     BOOST_15P_SCORE_BONUS_TEMPLATE,
     BOOST_20P_HP_FROM_POTIONS_TEMPLATE,
@@ -81,6 +82,7 @@ from detection import (
     detect_ingame_box_count,
     detect_result_screen_mystery_box,
     detect_mystery_box_grades,
+    detect_opened_box_items,
     detect_stage,
     extract_item_stock,
     extract_result_coins,
@@ -567,6 +569,7 @@ class BotEngine:
                     duration_sec=p.get("duration_sec", 0),
                     session_rounds=p.get("session_rounds", self.session_rounds_played),
                     session_boxes=p.get("session_boxes") or dict(self.session_box_counts),
+                    opened_items=p.get("opened_items") or [],
                 )
             except Exception as e:
                 self.log(f" ไม่สามารถส่งสรุปผลรอบ Discord: {e}", "warning")
@@ -1665,11 +1668,44 @@ class BotEngine:
 
                     self.log(f" ได้รับกล่องปริศนา: [{grade_str}] (รวมทั้งหมด: {self.mystery_boxes} กล่อง)", "success")
 
-                    # ส่งการแจ้งเตือนสรุปผลรอบเข้า Discord โดยใช้เกรดกล่องจริงและภาพหน้าเปิดกล่อง Mystery Box
+                    # 1. แตะเปิดกล่องทั้งหมด (Open All)
+                    self.log(" กำลังกดเปิดกล่องปริศนาทั้งหมด (Open All)...", "info")
+                    device_tap(target, self.device_port, ACCEPT_MYSTERY_BOX_BUTTON[0], ACCEPT_MYSTERY_BOX_BUTTON[1])
+
+                    # 2. รอแอนิเมชันเปิดกล่องและของรางวัลปรากฏ
+                    time.sleep(random.uniform(1.3, 1.8))
+                    opened_screen = device_capture_screen(target, self.device_port)
+
+                    # 3. ตรวจจับของรางวัล/ไอเทมที่ได้รับจากกล่องด้วย OCR
+                    opened_items = detect_opened_box_items(opened_screen)
+                    if opened_items:
+                        items_str = ", ".join(opened_items)
+                        self.log(f"🎁 เปิดกล่องปริศนาได้รับ: {items_str}", "success")
+                    else:
+                        self.log("🎁 เปิดกล่องปริศนาสำเร็จ", "info")
+
+                    # บันทึก opened_items ลงในประวัติรอบ
+                    if self.round_history and self.round_history[0].get("round") == self.rounds_played:
+                        self.round_history[0]["opened_items"] = list(opened_items)
+                        if self.session_round_history and self.session_round_history[0].get("round") == self.rounds_played:
+                            self.session_round_history[0]["opened_items"] = list(opened_items)
+                        save_round_history_to_file(self.device_serial, list(self.round_history), new_entry=self.round_history[0])
+
+                    # อัปเดตภาพสกรีนช็อตของรอบเป็นหน้าของรางวัลที่เปิดได้
+                    final_screen = opened_screen if opened_screen is not None else device_screen
+                    if final_screen is not None:
+                        try:
+                            _, buf = cv2.imencode(".jpg", final_screen, [cv2.IMWRITE_JPEG_QUALITY, 80])
+                            self.round_screenshots[self.rounds_played] = buf.tobytes()
+                        except Exception:
+                            pass
+
+                    # 4. ส่งการแจ้งเตือนสรุปผลรอบเข้า Discord โดยระบุชื่อของรางวัลที่เปิดได้และภาพหน้าของรางวัล
                     if self.pending_round_summary:
                         self.pending_round_summary["boxes"] = list(detected_grades)
-                        if device_screen is not None:
-                            self.pending_round_summary["screen_img"] = device_screen
+                        self.pending_round_summary["opened_items"] = list(opened_items)
+                        if final_screen is not None:
+                            self.pending_round_summary["screen_img"] = final_screen
                         self._flush_pending_round_summary()
                     elif discord_notifier.notify_boxes:
                         discord_notifier.send_box_drop(
@@ -1680,11 +1716,18 @@ class BotEngine:
                             session_coins=self.session_coins_earned,
                             xp_earned=self.last_round_xp,
                             session_xp=self.session_xp_earned,
-                            screen_img=device_screen
+                            opened_items=opened_items,
+                            screen_img=final_screen,
+                            device_name=self.get_device_model_label(),
+                            duration_sec=dur_sec,
+                            duration_str=dur_str,
+                            session_rounds=self.session_rounds_played,
                         )
 
-                    accept_mystery_box()
-                    if self.interruptible_sleep(2.0):
+                    # 5. แตะปุ่ม Confirm เพื่อปิดหน้าจอของรางวัล
+                    self.log(" แตะปุ่ม Confirm เพื่อปิดหน้ารับของรางวัล", "info")
+                    device_tap(target, self.device_port, ACCEPT_MYSTERY_BOX_BUTTON[0], ACCEPT_MYSTERY_BOX_BUTTON[1])
+                    if self.interruptible_sleep(1.5):
                         break
                     detection_group = "POST_GAME"
                     last_stage = None

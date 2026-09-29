@@ -42,6 +42,7 @@ from actions import (
     purchase_cookie_relay,
     purchase_desired_random_boost,
     purchase_fast_start,
+    select_first_combi,
     start_game,
     using_cookie_relay,
     using_fast_start,
@@ -184,6 +185,7 @@ def main():
         last_lives_time = time.time()
         lives_interval = random.uniform(25 * 60, 35 * 60)
         pending_send_friend_life = True
+        pending_select_first_combi = False
 
         while True:
             device_screen = device_capture_screen(DEVICE_IP, DEVICE_PORT)
@@ -206,6 +208,9 @@ def main():
                 # Wait screen refresh
                 print("⏳ Waiting 5 seconds for screen refresh...")
                 time.sleep(5)
+                if pending_select_first_combi:
+                    select_first_combi(DEVICE_IP, DEVICE_PORT)
+                    pending_select_first_combi = False
                 lives_elapsed = time.time() - last_lives_time
                 if pending_send_friend_life or lives_elapsed >= lives_interval:
                     print("💌 Checking and sending friend lives...")
@@ -414,6 +419,7 @@ def main():
                 device_reset_app(DEVICE_IP, DEVICE_PORT)
                 time.sleep(2)
                 close_announcement_dialog()
+                pending_select_first_combi = True
                 session_start_time = time.time()
                 session_reset_interval = random.uniform(*SESSION_RESET_INTERVAL)
                 last_lives_time = time.time()

@@ -47,6 +47,7 @@ from actions import (
     purchase_cookie_relay,
     purchase_desired_random_boost,
     purchase_fast_start,
+    select_first_combi,
     start_game,
     using_cookie_relay,
     using_fast_start,
@@ -413,6 +414,7 @@ class BotEngine:
         self.current_round_screen: Optional[np.ndarray] = None
         self.pending_round_summary: Optional[Dict[str, Any]] = None
         self.captcha_stats: Dict[str, Any] = load_device_captcha_stats(self.device_serial)
+        self.pending_select_first_combi: bool = False
 
         self.lifetime_coins_earned: int = 0
         self.lifetime_xp_earned: int = 0
@@ -1115,6 +1117,13 @@ class BotEngine:
 
                     # ตรวจสอบการตั้งค่าใหม่ก่อนเริ่มรอบ
                     self.check_and_apply_settings_update()
+
+                    if getattr(self, "pending_select_first_combi", False):
+                        self.log(" ตรวจพบหลังเชื่อมต่อหลุด/เปิดเกมใหม่ — กำลังเลือก Combi เซทแรกก่อนเริ่มเกม...", "stage")
+                        select_first_combi(self.device_ip, self.device_port, log_fn=lambda m: self.log(m, "stage"))
+                        self.pending_select_first_combi = False
+                        if self.interruptible_sleep(1.0):
+                            break
 
                     if getattr(self, "_trigger_send_lives", False):
                         pending_send_friend_life = True
@@ -1876,7 +1885,8 @@ class BotEngine:
                     self._connection_lost_retries = getattr(self, "_connection_lost_retries", 0) + 1
                     if self._connection_lost_retries <= 3:
                         self.log(f" ตรวจพบหลุดการเชื่อมต่อ (CONNECTION_LOST) — กำลังกดลองใหม่ (Reconnect ครั้งที่ {self._connection_lost_retries}/3)...", "warning")
-                        handle_connection_lost()
+                        handle_connection_lost(self.device_ip, self.device_port, log_fn=lambda m: self.log(m, "stage"))
+                        self.pending_select_first_combi = True
                         last_stage = None
                         if self.interruptible_sleep(2.0):
                             break
@@ -1884,6 +1894,7 @@ class BotEngine:
                         self.log(" หลุดการเชื่อมต่อซ้ำซ้อนเกิน 3 ครั้ง — กำลังรีสตาร์ทแอปเกม...", "error")
                         discord_notifier.send_connection_lost(self.device_ip, self.device_port)
                         device_reset_app(target, self.device_port)
+                        self.pending_select_first_combi = True
                         if self.interruptible_sleep(2.0):
                             break
                         close_announcement_dialog()

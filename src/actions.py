@@ -98,6 +98,10 @@ from config import (
     RELIC_COMPLETE_BUTTON,
     START_BUTTON,
     CONNECTION_LOST_RELOAD_BUTTON,
+    COMBIS_BUTTON,
+    SELECT_FIRST_COMBI_BUTTON,
+    CONFIRM_COMBI_BUTTON,
+    CLOSE_COMBI_BUTTON,
 )
 from detection import detect_templates, detect_anti_bot_odd_cards, detect_stage
 from config import (
@@ -514,10 +518,53 @@ def handle_anti_bot(screen):
     time.sleep(random.uniform(0.8, 1.4))
 
 
-def handle_connection_lost():
-    print("🔌 Handling Connection Lost (Tapping Reload)...")
-    safe_device_tap(*get_device_context(), CONNECTION_LOST_RELOAD_BUTTON[0], CONNECTION_LOST_RELOAD_BUTTON[1])
+def handle_connection_lost(target_ip: Optional[str] = None, target_port: Optional[int] = None, log_fn=None):
+    def _log(msg: str):
+        if log_fn:
+            log_fn(msg)
+        else:
+            print(msg)
+
+    ip, port = (target_ip, target_port) if target_ip else get_device_context()
+    target_str = f"{ip}:{port}"
+    _log(f"🔌 Handling Connection Lost (Tapping Reload) บน {target_str}...")
+    safe_device_tap(ip, port, CONNECTION_LOST_RELOAD_BUTTON[0], CONNECTION_LOST_RELOAD_BUTTON[1])
     time.sleep(random.uniform(3.0, 5.0))
+
+
+def select_first_combi(target_ip: Optional[str] = None, target_port: Optional[int] = None, log_fn=None):
+    """
+    เลือกเซทแรกในหน้าหลัก (Lobby / Main Menu):
+    1. แตะจอที่ COMBIS_BUTTON (795, 427) เลือก combis
+    2. แตะจอที่ SELECT_FIRST_COMBI_BUTTON (1047, 250) เลือก Select เซทแรก
+    3. แตะจอที่ CONFIRM_COMBI_BUTTON (785, 466) กด Confirm
+    """
+    def _log(msg: str):
+        if log_fn:
+            log_fn(msg)
+        else:
+            print(msg)
+
+    ip, port = (target_ip, target_port) if target_ip else get_device_context()
+    target_str = f"{ip}:{port}"
+
+    _log(f"🍪 กำลังเลือก Combi เซทแรก บน {target_str}...")
+    _log(f"👆 แตะจอที่ {COMBIS_BUTTON} บน {target_str} เลือก combis")
+    safe_device_tap(ip, port, COMBIS_BUTTON[0], COMBIS_BUTTON[1])
+    time.sleep(random.uniform(1.2, 1.8))
+
+    _log(f"👆 แตะจอที่ {SELECT_FIRST_COMBI_BUTTON} บน {target_str} เลือก Select เซทแรก")
+    safe_device_tap(ip, port, SELECT_FIRST_COMBI_BUTTON[0], SELECT_FIRST_COMBI_BUTTON[1])
+    time.sleep(random.uniform(1.0, 1.5))
+
+    _log(f"👆 แตะจอที่ {CONFIRM_COMBI_BUTTON} บน {target_str} กด Confirm")
+    safe_device_tap(ip, port, CONFIRM_COMBI_BUTTON[0], CONFIRM_COMBI_BUTTON[1])
+    time.sleep(random.uniform(1.0, 1.5))
+
+    _log(f"👆 แตะจอที่ {CLOSE_COMBI_BUTTON} บน {target_str} ปุ่มกดออกจากหน้าเซท")
+    safe_device_tap(ip, port, CLOSE_COMBI_BUTTON[0], CLOSE_COMBI_BUTTON[1])
+    time.sleep(random.uniform(1.0, 1.5))
+    _log(f"✅ เลือก Combi เซทแรกและออกจากหน้าเซทเรียบร้อย บน {target_str}")
 
 
 def handle_inactive():

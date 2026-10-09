@@ -106,6 +106,7 @@ class ScrcpyDeviceStreamer:
         self._lock = threading.Lock()
 
         self.latest_frame: Optional[np.ndarray] = None
+        self.latest_frame_perf: float = 0.0
         self.latest_jpeg: Optional[bytes] = None
         self.frame_event = threading.Event()
 
@@ -130,6 +131,7 @@ class ScrcpyDeviceStreamer:
                 self.current_fps = round((len(self._frame_times) - 1) / duration, 1)
 
         self.latest_frame = frame
+        self.latest_frame_perf = time.perf_counter()
         # Encode to JPEG with quality 70 for fast transmission over localhost
         try:
             _, buffer = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 70])

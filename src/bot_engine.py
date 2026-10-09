@@ -1371,46 +1371,75 @@ class BotEngine:
                     self._mainmenu_play_fail_count = 0
                     self._purchase_item_fail_count = 0
                     self.log(" Detected Stage: GAME_START", "stage")
-                    if self.use_fast_start:
+
+                    rec = None
+                    try:
+                        from macro_recorder import macro_recorder_manager
+                        rec = macro_recorder_manager.get_recorder(target)
+                    except Exception:
+                        pass
+                    rec_armed = rec is not None and rec.status == "ARMED"
+                    macro_mdata = None
+                    if self.macro_enabled and self.selected_macro_id and not self.macro_player.is_running:
+                        try:
+                            from macro_manager import get_macro
+                            macro_mdata = get_macro(self.selected_macro_id)
+                        except Exception as e:
+                            self.log(f" ไม่สามารถเริ่มมาโคร: {e}", "warning")
+
+                    run_anchor = None
+                    if rec_armed or macro_mdata:
+                        # Same t=0 anchor as the recorder (Fast Start tap + START! banner cleared)
+                        from macro_sync import anchor_run_start
+                        run_anchor = anchor_run_start(target, self.device_port, self)
+                    elif self.use_fast_start:
                         using_fast_start()
                     detection_group = "IN_GAME"
                     self._last_auto_action_time = time.time() + 1.0
 
-                    try:
-                        from macro_recorder import macro_recorder_manager
-                        rec = macro_recorder_manager.get_recorder(target)
-                        if rec.status == "ARMED":
-                            if rec.trigger_in_game_start():
-                                self.log(" [Macro Record] เข้าสู่หน้าเกมวิ่งแล้ว! เริ่มจับเวลาและบันทึกมาโคร (t=0.00s)...", "success")
-                    except Exception:
-                        pass
+                    if rec_armed and rec.trigger_in_game_start(run_anchor):
+                        self.log(" [Macro Record] เข้าสู่หน้าเกมวิ่งแล้ว! เริ่มจับเวลาและบันทึกมาโคร (t=0.00s)...", "success")
 
-                    if self.macro_enabled and self.selected_macro_id and not self.macro_player.is_running:
-                        try:
-                            from macro_manager import get_macro
-                            mdata = get_macro(self.selected_macro_id)
-                            if mdata:
-                                time.sleep(1.0)  # Wait for START! banner to clear so cookie is running
-                                self.log(f"[Macro] เริ่มเล่นตามมาโคร: {mdata.get('name', self.selected_macro_id)}", "info")
-                                self.macro_player.start(mdata)
-                        except Exception as e:
-                            self.log(f" ไม่สามารถเริ่มมาโคร: {e}", "warning")
+                    if macro_mdata:
+                        self.log(f"[Macro] เริ่มเล่นตามมาโคร: {macro_mdata.get('name', self.selected_macro_id)}", "info")
+                        self.macro_player.start(macro_mdata, anchor_perf=run_anchor, log_fn=self.log)
 
                 elif stage == "GAME_RELAY":
                     self.log(" Detected Stage: GAME_RELAY (Cookie Relay Triggered)", "stage")
-                    if self.use_cookie_relay:
+                    rec = None
+                    try:
+                        from macro_recorder import macro_recorder_manager
+                        rec = macro_recorder_manager.get_recorder(target)
+                    except Exception:
+                        pass
+                    rec_recording = rec is not None and rec.status == "RECORDING"
+                    macro_relay = (
+                        self.macro_enabled
+                        and self.selected_macro_id
+                        and self.macro_player.macro_data
+                        and not self.macro_player.relay_started
+                    )
+
+                    from macro_sync import anchor_relay_start
+                    if rec_recording:
+                        # Only the first caller (this loop or the recorder's auto-flow) taps relay and anchors t=0
+                        if rec.end_main_phase():
+                            relay_anchor = anchor_relay_start(target, self.device_port)
+                            rec.begin_relay_phase(relay_anchor)
+                            self.log(" [Macro Record] เริ่มบันทึกท่อนคุกกี้ตัวที่ 2 (Relay Phase) ที่ t=0.00s", "success")
+                    elif macro_relay:
+                        relay_anchor = anchor_relay_start(target, self.device_port, tap=self.use_cookie_relay)
+                        mode = self.macro_player.start_relay(relay_anchor)
+                        if mode == "relay":
+                            self.log(" [Macro] ผลัดคุกกี้ - เล่นท่อนคุกกี้ตัวที่ 2 ตามมาโคร (t=0.00s)", "info")
+                        elif mode == "loop":
+                            self.log(" [Macro] ผลัดคุกกี้ - วนเล่นมาโครซ้ำ (Loop Mode)", "info")
+                        elif mode == "none":
+                            self.log(" [Macro] ผลัดคุกกี้ - มาโครนี้ไม่มีท่อนตัวผลัด", "info")
+                    elif self.use_cookie_relay:
                         using_cookie_relay()
                     detection_group = "IN_GAME"
                     self._last_auto_action_time = time.time() + 1.0
-                    if self.macro_enabled and self.selected_macro_id:
-                        try:
-                            from macro_manager import get_macro
-                            mdata = get_macro(self.selected_macro_id)
-                            if mdata:
-                                self.log(f" [Macro] ผลัดคุกกี้ - เล่นตามมาโครต่อ", "info")
-                                self.macro_player.start(mdata)
-                        except Exception as e:
-                            pass
 
                 elif stage == "GAME_COMPLETE":
                     if hasattr(self, "macro_player") and self.macro_player.is_running:

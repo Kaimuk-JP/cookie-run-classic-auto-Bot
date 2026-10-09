@@ -114,38 +114,34 @@ class DeviceMacroRecorder:
         from adb import device_capture_screen
         from detection import detect_stage, extract_item_stock
         from bot_engine import get_engine_for_device
+        from macro_sync import InRunMonitor, anchor_relay_start, anchor_run_start, grab_frame, warm_up_stream
 
         # CRITICAL: Bind device context for this thread so all actions target this specific emulator
         set_device_context(target, t_port)
         eng = get_engine_for_device(target)
+        warm_up_stream(target)
 
         start_wait_time = time.time()
         last_action_time = 0.0
+        play_tapped_time = 0.0
         items_configured = False
 
         # Step 1: Wait & navigate until in-game (timeout 60s)
         while self.status == "ARMED" and (time.time() - start_wait_time) < 60.0:
             now = time.time()
-            if (now - last_action_time) < 1.2:
-                time.sleep(0.2)
-                continue
+            # Right after an action only look for START!, but keep looking fast so t=0 is never missed
+            throttled = (now - last_action_time) < 1.2
+            is_stream = False
 
             try:
-                screen = None
-                try:
-                    from scrcpy_streamer import stream_manager
-                    streamer = stream_manager.get_streamer(target)
-                    if streamer:
-                        screen = streamer.get_latest_frame()
-                except Exception:
-                    pass
-
-                if screen is None:
-                    screen = device_capture_screen(target, t_port)
+                screen, is_stream = grab_frame(target, t_port)
 
                 if screen is not None:
                     # Filter specifically to pre-game stages to prevent false positive relic/popup detection on lobby
-                    stage = detect_stage(screen, stage_names=["MAINMENU", "PURCHASE_ITEM", "GAME_START"])
+                    stage = detect_stage(screen, stage_names=["GAME_START"] if throttled else ["MAINMENU", "PURCHASE_ITEM", "GAME_START"])
+                    if throttled and stage != "GAME_START":
+                        time.sleep(0.03 if is_stream else 0.2)
+                        continue
 
                     # 1. In Lobby / MainMenu -> Tap Play button to enter item prep
                     if stage == "MAINMENU":
@@ -199,7 +195,7 @@ class DeviceMacroRecorder:
                         log("🎮 [Macro Record] กดปุ่มเริ่มเกมเข้าห้องวิ่ง...", "info")
                         play_game()
                         last_action_time = time.time()
-                        time.sleep(1.2)
+                        play_tapped_time = last_action_time
                         continue
 
                     # 3. Popups (e.g. RELIC_COMPLETE, CONGRATULATIONS, MYSTERY_BOX)
@@ -213,95 +209,38 @@ class DeviceMacroRecorder:
                     # 4. In-Game Start detected! ("START!" graphic / entered game room)
                     elif stage == "GAME_START":
                         log("🏁 [Macro Record] ตรวจพบ START! กำลังซิงค์จังหวะเริ่มวิ่ง...", "info")
-                        from detection import detect_templates
-                        from config import STAGE_GAME_START_TEMPLATE, STAGE_GAME_START_REGION
-                        sw = time.time()
-                        while time.time() - sw < 2.0:
-                            f_screen = device_capture_screen(target, t_port)
-                            if f_screen is not None and not detect_templates(f_screen, STAGE_GAME_START_TEMPLATE, STAGE_GAME_START_REGION):
-                                break
-                            time.sleep(0.04)
-                        if self.trigger_in_game_start():
+                        anchor = anchor_run_start(target, t_port, eng)
+                        if self.trigger_in_game_start(anchor):
                             log("🔴 [Macro Record] เข้าสู่ห้องวิ่งในเกมแล้ว! เริ่มจับเวลาและบันทึกสเต็ปมาโครสดทันที (t=0.00s)", "success")
                         break
 
-                    # 5. If items were configured and stage is None (in-game running)
-                    elif items_configured and stage is None:
+                    # 5. Fallback: START! never seen long after tapping Play (loading screens also read as None)
+                    elif items_configured and stage is None and play_tapped_time and (now - play_tapped_time) >= 10.0:
                         if self.trigger_in_game_start():
-                            log("🔴 [Macro Record] เข้าสู่ห้องวิ่งในเกมแล้ว! เริ่มจับเวลาและบันทึกมาโครสดทันที (t=0.00s)", "success")
+                            log("⚠️ [Macro Record] ไม่พบหน้า START! — เริ่มจับเวลาแบบสำรอง (จังหวะ t=0 อาจไม่ตรงกับตอนเล่น)", "warning")
                         break
 
             except Exception as e:
                 pass
 
-            time.sleep(0.25)
+            time.sleep(0.03 if is_stream else 0.25)
 
         # Step 2: While RECORDING, monitor for GAME_COMPLETE or GAME_RELAY!
-        last_screen_check = 0.0
+        # Same InRunMonitor as playback, so the emulator runs under the same load in both.
+        monitor = InRunMonitor(target, t_port)
         while self.status == "RECORDING":
-            now_t = time.time()
-            elapsed_run = (time.perf_counter() - self.start_perf) if self.start_perf > 0 else 0.0
-
-            # PERFORMANCE: Do not capture screen during the first 30s of run (Zero lag, pure 60 FPS for player!)
-            # Even after 30s, only check once every 2.0s so LDPlayer has 0 micro-stutters!
-            if elapsed_run < 30.0 or (now_t - last_screen_check) < 2.0:
-                time.sleep(0.5)
-                continue
-
-            last_screen_check = now_t
+            time.sleep(0.1)
             try:
-                screen = None
-                try:
-                    from scrcpy_streamer import stream_manager
-                    streamer = stream_manager.get_streamer(target)
-                    if streamer:
-                        screen = streamer.get_latest_frame()
-                except Exception:
-                    pass
-
-                if screen is None:
-                    screen = device_capture_screen(target, t_port)
-
-                if screen is not None:
-                    from detection import detect_templates
-                    from config import STAGE_TEMPLATES, STAGE_REGIONS
-
-                    stage = None
-                    if STAGE_TEMPLATES.get("GAME_RELAY") and detect_templates(screen, STAGE_TEMPLATES["GAME_RELAY"], STAGE_REGIONS.get("GAME_RELAY")):
-                        stage = "GAME_RELAY"
-                    elif STAGE_TEMPLATES.get("GAME_COMPLETE") and detect_templates(screen, STAGE_TEMPLATES["GAME_COMPLETE"], STAGE_REGIONS.get("GAME_COMPLETE")):
-                        stage = "GAME_COMPLETE"
-                    elif STAGE_TEMPLATES.get("MYSTERY_BOX") and detect_templates(screen, STAGE_TEMPLATES["MYSTERY_BOX"], STAGE_REGIONS.get("MYSTERY_BOX")):
-                        stage = "MYSTERY_BOX"
-                    elif STAGE_TEMPLATES.get("CONGRATULATIONS") and detect_templates(screen, STAGE_TEMPLATES["CONGRATULATIONS"], STAGE_REGIONS.get("CONGRATULATIONS")):
-                        stage = "CONGRATULATIONS"
-
+                stage = monitor.poll()
+                if stage is not None:
                     # 1. In-game Cookie Relay trigger! Split phase and record relay starting at t=0.00s
                     if stage == "GAME_RELAY":
-                        log("🍪 [Macro Record] ตรวจพบคุกกี้ผลัด (Cookie Relay)! บันทึกท่อนแรกเสร็จสิ้น...", "info")
-                        with self._lock:
-                            if self.current_phase == "MAIN":
-                                self.main_duration = round(time.perf_counter() - self.main_start_perf, 1) if self.main_start_perf > 0 else 0.0
-                                if self.active_slide_start is not None:
-                                    s_dur = max(0.15, round(time.perf_counter() - self.active_slide_start, 2))
-                                    s_t = round(self.active_slide_start - self.main_start_perf, 2)
-                                    sl_entry = {"t": max(0.0, s_t), "action": "slide", "duration": s_dur}
-                                    self.actions.append(sl_entry)
-                                    self.main_actions.append(sl_entry)
-                                    self.active_slide_start = None
-                                log(f"💾 [Macro Record] ท่อนคุกกี้ตัวแรก (Main Phase): {len(self.main_actions)} แอ็กชัน ({self.main_duration}s)", "success")
-
-                        from actions import using_cookie_relay
-                        using_cookie_relay()
-                        time.sleep(1.2)
-
-                        with self._lock:
-                            self.current_phase = "RELAY"
-                            self.relay_start_perf = time.perf_counter()
-                            self.last_jump_t = None
-                            self.last_jump_index = None
-                            self.active_slide_start = None
-                        log("🔴 [Macro Record] เริ่มบันทึกท่อนคุกกี้ตัวที่ 2 (Relay Phase) ที่ t=0.00s ทันที!", "success")
+                        if self.end_main_phase():
+                            log(f"💾 [Macro Record] ท่อนคุกกี้ตัวแรก (Main Phase): {len(self.main_actions)} แอ็กชัน ({self.main_duration}s)", "success")
+                            log("🍪 [Macro Record] ตรวจพบคุกกี้ผลัด (Cookie Relay)! กำลังกดผลัดและซิงค์จังหวะ...", "info")
+                            anchor = anchor_relay_start(target, t_port)
+                            if self.begin_relay_phase(anchor):
+                                log("🔴 [Macro Record] เริ่มบันทึกท่อนคุกกี้ตัวที่ 2 (Relay Phase) ที่ t=0.00s ทันที!", "success")
                         continue
 
                     # 2. Game finished -> Stop, save, tap OK on Result, and open Mystery Boxes!
@@ -380,16 +319,14 @@ class DeviceMacroRecorder:
             except Exception:
                 pass
 
-            time.sleep(0.5)
-
-    def trigger_in_game_start(self) -> bool:
-        """Called by BotEngine as soon as the in-game running screen is detected."""
+    def trigger_in_game_start(self, anchor_perf: Optional[float] = None) -> bool:
+        """Start recording. `anchor_perf` is the t=0 moment from macro_sync.anchor_run_start()."""
         with self._lock:
             if self.status != "ARMED":
                 return False
             self.status = "RECORDING"
             self.current_phase = "MAIN"
-            self.start_perf = time.perf_counter()
+            self.start_perf = anchor_perf or time.perf_counter()
             self.main_start_perf = self.start_perf
             self.relay_start_perf = 0.0
             self.actions = []
@@ -403,6 +340,38 @@ class DeviceMacroRecorder:
         # Start OS-level global keyboard listener thread (LDPlayer capture)
         self._start_key_listener()
         return True
+
+    def end_main_phase(self) -> bool:
+        """Close the main-cookie phase when the relay banner appears. Returns False if already done."""
+        with self._lock:
+            if self.status != "RECORDING" or self.current_phase != "MAIN":
+                return False
+            now_perf = time.perf_counter()
+            self.main_duration = round(now_perf - self.main_start_perf, 1) if self.main_start_perf > 0 else 0.0
+            if self.active_slide_start is not None:
+                s_dur = max(0.15, round(now_perf - self.active_slide_start, 2))
+                s_t = round(self.active_slide_start - self.main_start_perf, 2)
+                sl_entry = {"t": max(0.0, s_t), "action": "slide", "duration": s_dur}
+                self.actions.append(sl_entry)
+                self.main_actions.append(sl_entry)
+                self.active_slide_start = None
+            # Ignore key presses until the relay anchor is known
+            self.current_phase = "SWITCHING"
+            self.last_jump_t = None
+            self.last_jump_index = None
+            return True
+
+    def begin_relay_phase(self, anchor_perf: float) -> bool:
+        """Start the relay-cookie phase at t=0 = `anchor_perf` (from macro_sync.anchor_relay_start())."""
+        with self._lock:
+            if self.status != "RECORDING" or self.current_phase != "SWITCHING":
+                return False
+            self.current_phase = "RELAY"
+            self.relay_start_perf = anchor_perf
+            self.last_jump_t = None
+            self.last_jump_index = None
+            self.active_slide_start = None
+            return True
 
     def _start_key_listener(self):
         """
@@ -499,7 +468,7 @@ class DeviceMacroRecorder:
 
     def record_jump(self) -> Dict[str, Any]:
         with self._lock:
-            if self.status != "RECORDING":
+            if self.status != "RECORDING" or self.current_phase == "SWITCHING":
                 return {}
 
             now_perf = time.perf_counter()
@@ -525,7 +494,7 @@ class DeviceMacroRecorder:
                 prev_act["action"] = "double_jump"
                 # CookieRun engine takeoff lock is ~0.14-0.16s.
                 # If pressed rapidly (< 0.16s), clamp air_time to 0.16s so the 2nd jump actually triggers in-game!
-                prev_act["air_time"] = max(0.16, min(0.48, air_time))
+                prev_act["air_time"] = max(0.16, air_time)
                 self.last_jump_t = None
                 self.last_jump_index = None
                 return prev_act
@@ -539,7 +508,7 @@ class DeviceMacroRecorder:
 
     def record_slide_down(self):
         with self._lock:
-            if self.status != "RECORDING":
+            if self.status != "RECORDING" or self.current_phase == "SWITCHING":
                 return
             if self.active_slide_start is None:
                 self.active_slide_start = time.perf_counter()
@@ -560,7 +529,7 @@ class DeviceMacroRecorder:
             if start_t < 0:
                 start_t = 0.0
             duration = round(now_perf - down_perf, 2)
-            duration = max(0.15, min(2.5, duration))
+            duration = max(0.15, duration)
 
             entry = {"t": start_t, "action": "slide", "duration": duration}
             self.actions.append(entry)
@@ -572,7 +541,7 @@ class DeviceMacroRecorder:
     def record_slide_instant(self, duration: float = 0.4) -> Dict[str, Any]:
         """Record a single slide action with known duration."""
         with self._lock:
-            if self.status != "RECORDING":
+            if self.status != "RECORDING" or self.current_phase == "SWITCHING":
                 return {}
             phase_start = self.relay_start_perf if self.current_phase == "RELAY" else self.main_start_perf
             if phase_start <= 0:

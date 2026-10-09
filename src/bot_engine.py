@@ -511,6 +511,16 @@ class BotEngine:
             time.sleep(0.1)
         return False
 
+    def _macro_timing_active(self, target: str) -> bool:
+        """True when a macro is selected for playback or being recorded, so in-run timing must match recording."""
+        if self.macro_enabled and self.selected_macro_id:
+            return True
+        try:
+            from macro_recorder import macro_recorder_manager
+            return macro_recorder_manager.get_recorder(target).status in ("ARMED", "RECORDING")
+        except Exception:
+            return False
+
     def update_frame(self, screen_bgr: np.ndarray):
         if screen_bgr is not None:
             try:
@@ -989,7 +999,22 @@ class BotEngine:
                 # 1. SCREEN CAPTURE (ADB)
                 # -------------------------------------------------------------
                 try:
-                    device_screen = device_capture_screen(target, self.device_port)
+                    if detection_group == "IN_GAME" and self._macro_timing_active(target):
+                        # Run with the same emulator load as during macro recording: free scrcpy frames,
+                        # checked at InRunMonitor's cadence once the timeline is playing (no ADB screencap spam).
+                        from macro_sync import MONITOR_INTERVAL_ADB, MONITOR_INTERVAL_STREAM, grab_frame
+                        device_screen, is_stream = grab_frame(target, self.device_port, adb_fallback=False)
+                        if self.macro_player.is_running:
+                            interval = MONITOR_INTERVAL_STREAM if is_stream else MONITOR_INTERVAL_ADB
+                            if time.perf_counter() - in_game_last_stage_check < interval:
+                                if self.interruptible_sleep(0.05):
+                                    break
+                                continue
+                        in_game_last_stage_check = time.perf_counter()
+                        if device_screen is None:
+                            device_screen = device_capture_screen(target, self.device_port)
+                    else:
+                        device_screen = device_capture_screen(target, self.device_port)
                     self.update_frame(device_screen)
                 except Exception as e:
                     self.log(f" Screen capture error: {e}", "error")
@@ -1249,7 +1274,9 @@ class BotEngine:
                                 "warning",
                             )
                             try:
-                                from actions import safe_device_tap, get_device_context, close_party_run_mode, close_game_settings
+                                # close_party_run_mode / close_game_settings come from the module-level import;
+                                # re-importing them here would make them locals of _run_loop (UnboundLocalError elsewhere)
+                                from actions import safe_device_tap, get_device_context
                                 from config import CLOSE_ANNOUNCEMENT_DIALOG_BUTTON
                                 safe_device_tap(*get_device_context(), CLOSE_ANNOUNCEMENT_DIALOG_BUTTON[0], CLOSE_ANNOUNCEMENT_DIALOG_BUTTON[1])
                                 time.sleep(0.4)

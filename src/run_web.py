@@ -80,91 +80,6 @@ def get_local_ip():
     except Exception:
         return "127.0.0.1"
 
-_tunnel_process = None
-
-def start_cloudflared_tunnel(port, local_ip="127.0.0.1"):
-    global _tunnel_process
-    from path_utils import get_project_root
-    root_dir = get_project_root()
-    candidates = [
-        os.path.join(root_dir, "bin", "cloudflared.exe"),
-        os.path.join(root_dir, "bin", "cloudflared-windows-amd64.exe"),
-        os.path.join(os.path.expanduser("~"), "Downloads", "cloudflared.exe"),
-        os.path.join(os.path.expanduser("~"), "Downloads", "cloudflared-windows-amd64.exe"),
-    ]
-    exe_path = None
-    for p in candidates:
-        if os.path.exists(p):
-            exe_path = p
-            break
-
-    if not exe_path:
-        return
-
-    import subprocess
-    import re
-    import atexit
-
-    # Terminate any old orphan cloudflared instances
-    try:
-        subprocess.run(["taskkill", "/F", "/IM", "cloudflared.exe"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        subprocess.run(["taskkill", "/F", "/IM", "cloudflared-windows-amd64.exe"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    except Exception:
-        pass
-
-    cmd = [exe_path, "tunnel", "--url", f"http://127.0.0.1:{port}", "--no-autoupdate"]
-    try:
-        proc = subprocess.Popen(
-            cmd,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.PIPE,
-            text=True,
-            encoding="utf-8",
-            errors="replace"
-        )
-        _tunnel_process = proc
-    except Exception:
-        return
-
-    def kill_tunnel():
-        global _tunnel_process
-        if _tunnel_process:
-            try:
-                _tunnel_process.terminate()
-            except Exception:
-                pass
-    atexit.register(kill_tunnel)
-
-    def monitor_tunnel():
-        url_pattern = re.compile(r'https://[a-zA-Z0-9-]+\.trycloudflare\.com')
-        url_sent = False
-        while True:
-            line = proc.stderr.readline()
-            if not line:
-                if proc.poll() is not None:
-                    break
-                time.sleep(0.1)
-                continue
-
-            if not url_sent:
-                m = url_pattern.search(line)
-                if m:
-                    url_sent = True
-                    found_url = m.group(0)
-                    print("\n" + "=" * 65, flush=True)
-                    print("  >>>  ลิงก์สำหรับดูผ่านมือถือ (Cloudflare Tunnel)  <<<", flush=True)
-                    print(f"\n    {found_url}  📱\n", flush=True)
-                    print("  * เปิดดูผ่าน Safari / Chrome บนมือถือได้ทันที (4G/5G/Wi-Fi)", flush=True)
-                    print("=" * 65 + "\n", flush=True)
-                    try:
-                        from discord_notifier import discord_notifier
-                        discord_notifier.send_tunnel_started(found_url, local_ip, port)
-                        print("📢 ส่งลิงก์เข้า Discord เรียบร้อยแล้ว!", flush=True)
-                    except Exception:
-                        pass
-
-    threading.Thread(target=monitor_tunnel, daemon=True).start()
-
 def open_browser(port):
     time.sleep(1.0)
     url = f"http://127.0.0.1:{port}"
@@ -189,7 +104,8 @@ if __name__ == "__main__":
         print(f"🏠 มือถือ (Wi-Fi บ้านเดียวกัน):    http://{local_ip}:{port}")
     print("=" * 65)
 
-    # Start Cloudflare tunnel automatically in background if available
+    # Start Cloudflare tunnel automatically in background if available (link is posted to Discord)
+    from tunnel_manager import start_cloudflared_tunnel
     start_cloudflared_tunnel(port, local_ip)
 
     # Launch browser automatically in background

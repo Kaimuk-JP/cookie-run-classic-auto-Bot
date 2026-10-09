@@ -62,6 +62,7 @@ import auth_manager
 import adb
 from version import CURRENT_VERSION
 import updater
+import tunnel_manager
 
 # Ensure uvicorn and web_server are traced by compilers
 import uvicorn
@@ -88,6 +89,17 @@ def find_free_port(start_port=8000, max_attempts=30):
             except OSError:
                 continue
     return start_port
+
+
+def get_local_ip() -> str:
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return "127.0.0.1"
 
 
 def is_http_ready(port: int, host: str = "127.0.0.1", timeout: float = 0.4) -> bool:
@@ -1001,6 +1013,12 @@ class CookieRunLauncherApp(ctk.CTk):
                         break
 
                 if server_ok:
+                    # Mobile link via Cloudflare tunnel (posted to Discord once the URL is known)
+                    threading.Thread(
+                        target=tunnel_manager.start_cloudflared_tunnel,
+                        args=(_server_port, get_local_ip()),
+                        daemon=True,
+                    ).start()
                     if hasattr(self, "lbl_server_status"):
                         self.after(0, lambda: self.lbl_server_status.configure(
                             text=f"🟢 เซิร์ฟเวอร์พร้อมทำงาน (พอร์ต {_server_port})",

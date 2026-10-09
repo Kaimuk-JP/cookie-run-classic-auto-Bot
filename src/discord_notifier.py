@@ -586,10 +586,11 @@ class DiscordNotifier:
         }
         self._async_send({"username": "CookieRun Bot", "embeds": [embed]})
 
-    def send_tunnel_started(self, tunnel_url: str, local_ip: str = "", port: int = 8000):
+    def send_tunnel_started(self, tunnel_url: str, local_ip: str = "", port: int = 8000) -> bool:
+        """Blocking send (call from a background thread); returns True when Discord accepted it."""
         self.load_config()
         if not self.webhook_url:
-            return
+            return False
 
         embed = {
             "title": "🌐 ลิงก์ดูบอทผ่านมือถือ (Online Dashboard)",
@@ -609,7 +610,7 @@ class DiscordNotifier:
             "content": f"🚀 **บอทเปิดทำงานแล้ว! ลิงก์สำหรับดูผ่านมือถือ:** {tunnel_url}",
             "embeds": [embed]
         }
-        self._async_send(payload)
+        return self._send_payload(payload)
 
 
 discord_notifier = DiscordNotifier()

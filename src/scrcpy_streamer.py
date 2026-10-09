@@ -103,7 +103,9 @@ class ScrcpyDeviceStreamer:
 
         self.client: Optional[scrcpy.Client] = None
         self._thread: Optional[threading.Thread] = None
-        self._lock = threading.Lock()
+        # Re-entrant: get_latest_frame()/add_subscriber() call start() while already holding it.
+        # A plain Lock deadlocked forever once the idle cleaner had stopped the stream.
+        self._lock = threading.RLock()
 
         self.latest_frame: Optional[np.ndarray] = None
         self.latest_frame_perf: float = 0.0
@@ -288,10 +290,13 @@ class ScrcpyStreamManager:
             time.sleep(5)
             now = time.time()
             with self._lock:
-                for dev, streamer in list(self._streamers.items()):
-                    if streamer.is_running and streamer.subscribers <= 0:
-                        if now - streamer.last_access_time > 20.0:
-                            streamer.stop()
+                idle = [
+                    s for s in self._streamers.values()
+                    if s.is_running and s.subscribers <= 0 and now - s.last_access_time > 20.0
+                ]
+            # Stop outside the manager lock so a slow stop never blocks get_streamer() for every device
+            for streamer in idle:
+                streamer.stop()
 
     def stop_all(self):
         with self._lock:

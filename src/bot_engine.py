@@ -1337,6 +1337,11 @@ class BotEngine:
                 elif stage == "PURCHASE_ITEM":
                     self._mainmenu_play_fail_count = 0
                     self.log(" Detected Stage: PURCHASE_ITEM", "stage")
+                    if self._macro_timing_active(target):
+                        # The idle cleaner stops scrcpy between rounds; restart it now so frames are
+                        # live before the START button appears (t=0 anchor)
+                        from macro_sync import warm_up_stream
+                        warm_up_stream(target)
 
                     # ตรวจสอบการตั้งค่าใหม่ก่อนกดซื้อ/เลือกไอเทม
                     self.check_and_apply_settings_update()

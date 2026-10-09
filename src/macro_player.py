@@ -321,7 +321,10 @@ class MacroPlayer:
         from adb import device_capture_screen
         from detection import detect_stage, extract_item_stock
         from bot_engine import get_engine_for_device
-        from macro_sync import InRunMonitor, anchor_relay_start, anchor_run_start, grab_frame, warm_up_stream
+        from macro_sync import (
+            InRunMonitor, anchor_relay_start, anchor_run_start, describe_anchor,
+            grab_frame, wait_run_start_seen, warm_up_stream,
+        )
 
         set_device_context(target, t_port)
         eng = get_engine_for_device(target)
@@ -395,10 +398,18 @@ class MacroPlayer:
                         play_game()
                         last_action_t = time.time()
                         play_tapped_t = last_action_t
+                        # t=0 = first frame showing the START button (same helper as recording)
+                        seen, via_stream = wait_run_start_seen(target, t_port)
+                        if seen is not None:
+                            log(f"🏁 [Macro Play] ตรวจพบ START! — {describe_anchor(seen, via_stream)}", "info")
+                            run_anchor = anchor_run_start(target, t_port, eng, seen)
+                            log(f"▶️ [Macro Play] เข้าห้องวิ่งแล้ว! เริ่มเล่นตามมาโคร {self.macro_data.get('name')} (t=0.00s)...", "success")
+                            break
                         continue
 
                     elif stage == "GAME_START":
-                        log("🏁 [Macro Play] ตรวจพบ START! กำลังซิงค์จังหวะเริ่มวิ่ง...", "info")
+                        # START already on screen (appearance time unknown) -> best effort
+                        log(f"🏁 [Macro Play] ตรวจพบ START! — {describe_anchor(None, False)}", "warning")
                         run_anchor = anchor_run_start(target, t_port, eng)
                         log(f"▶️ [Macro Play] เข้าห้องวิ่งแล้ว! เริ่มเล่นตามมาโคร {self.macro_data.get('name')} (t=0.00s)...", "success")
                         break

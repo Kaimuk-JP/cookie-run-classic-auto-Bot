@@ -114,7 +114,10 @@ class DeviceMacroRecorder:
         from adb import device_capture_screen
         from detection import detect_stage, extract_item_stock
         from bot_engine import get_engine_for_device
-        from macro_sync import InRunMonitor, anchor_relay_start, anchor_run_start, grab_frame, warm_up_stream
+        from macro_sync import (
+            InRunMonitor, anchor_relay_start, anchor_run_start, describe_anchor,
+            grab_frame, wait_run_start_seen, warm_up_stream,
+        )
 
         # CRITICAL: Bind device context for this thread so all actions target this specific emulator
         set_device_context(target, t_port)
@@ -196,6 +199,13 @@ class DeviceMacroRecorder:
                         play_game()
                         last_action_time = time.time()
                         play_tapped_time = last_action_time
+                        # t=0 = first frame showing the START button (same helper as playback)
+                        seen, via_stream = wait_run_start_seen(target, t_port)
+                        if seen is not None:
+                            log(f"🏁 [Macro Record] ตรวจพบ START! — {describe_anchor(seen, via_stream)}", "info")
+                            if self.trigger_in_game_start(anchor_run_start(target, t_port, eng, seen)):
+                                log("🔴 [Macro Record] เข้าสู่ห้องวิ่งในเกมแล้ว! เริ่มจับเวลาและบันทึกสเต็ปมาโครสดทันที (t=0.00s)", "success")
+                            break
                         continue
 
                     # 3. Popups (e.g. RELIC_COMPLETE, CONGRATULATIONS, MYSTERY_BOX)
@@ -208,7 +218,8 @@ class DeviceMacroRecorder:
 
                     # 4. In-Game Start detected! ("START!" graphic / entered game room)
                     elif stage == "GAME_START":
-                        log("🏁 [Macro Record] ตรวจพบ START! กำลังซิงค์จังหวะเริ่มวิ่ง...", "info")
+                        # START already on screen (appearance time unknown) -> best effort
+                        log(f"🏁 [Macro Record] ตรวจพบ START! — {describe_anchor(None, False)}", "warning")
                         anchor = anchor_run_start(target, t_port, eng)
                         if self.trigger_in_game_start(anchor):
                             log("🔴 [Macro Record] เข้าสู่ห้องวิ่งในเกมแล้ว! เริ่มจับเวลาและบันทึกสเต็ปมาโครสดทันที (t=0.00s)", "success")

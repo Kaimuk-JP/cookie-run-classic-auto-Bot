@@ -14,8 +14,9 @@ from typing import Any, Optional, Tuple
 # A scrcpy frame older than this is treated as stale (stream stalled/restarting).
 STREAM_FRESH_SEC = 0.35
 
-# Run-start anchor: wait for the "START!" banner to disappear.
-RUN_START_TIMEOUT = 3.0
+# Run-start anchor: t=0 is the first frame showing the START / Fast Start button (GAME_START template).
+# Its disappearance is NOT usable: without Fast Start nobody taps it and it stays up for several seconds.
+RUN_START_APPEAR_TIMEOUT = 20.0
 
 # Relay anchor: after tapping the relay button, wait for the relay banner to clear.
 RELAY_SETTLE_TIMEOUT = 2.0
@@ -54,6 +55,39 @@ def grab_frame(target: str, port: int, adb_fallback: bool = True) -> Tuple[Optio
     return device_capture_screen(target, port), False
 
 
+def _frame_with_time(target: str, port: int) -> Tuple[Optional[Any], float, bool]:
+    """Return (frame, perf_counter() the frame was captured, is_stream)."""
+    try:
+        from scrcpy_streamer import stream_manager
+        st = stream_manager.get_streamer(target)
+        frame = st.get_latest_frame()
+        frame_t = getattr(st, "latest_frame_perf", 0.0)
+        if frame is not None and st.is_running and (time.perf_counter() - frame_t) <= STREAM_FRESH_SEC:
+            return frame, frame_t, True
+    except Exception:
+        pass
+    from adb import device_capture_screen
+    t0 = time.perf_counter()
+    return device_capture_screen(target, port), t0, False
+
+
+def wait_run_start_seen(target: str, port: int, timeout: float = RUN_START_APPEAR_TIMEOUT) -> Tuple[Optional[float], bool]:
+    """
+    Call right after tapping Play. Polls fast until the START button appears and returns
+    (perf_counter of the first frame showing it, seen_via_scrcpy), or (None, False) on timeout.
+    """
+    from detection import detect_templates
+    from config import STAGE_GAME_START_TEMPLATE, STAGE_GAME_START_REGION
+    warm_up_stream(target)
+    deadline = time.perf_counter() + timeout
+    while time.perf_counter() < deadline:
+        frame, frame_t, is_stream = _frame_with_time(target, port)
+        if frame is not None and detect_templates(frame, STAGE_GAME_START_TEMPLATE, STAGE_GAME_START_REGION):
+            return frame_t, is_stream
+        time.sleep(0.008 if is_stream else 0.02)
+    return None, False
+
+
 def _tap_async(target: str, port: int, x: int, y: int):
     """Fire a tap without blocking: the anchor is the visual result, so polling must start right away."""
     from actions import safe_device_tap
@@ -72,16 +106,24 @@ def wait_template_gone(target: str, port: int, templates, region, timeout: float
     return time.perf_counter()
 
 
-def anchor_run_start(target: str, port: int, eng=None) -> float:
+def anchor_run_start(target: str, port: int, eng=None, seen_perf: Optional[float] = None) -> float:
     """
-    Called right after GAME_START is detected. Uses Fast Start (when enabled) without
-    any random delay, then returns the t=0 anchor: the moment the START! banner clears.
+    Called once GAME_START is on screen. Uses Fast Start (when enabled) without any random
+    delay and returns t=0 = `seen_perf` from wait_run_start_seen() (falls back to now).
     """
-    from config import STAGE_GAME_START_TEMPLATE, STAGE_GAME_START_REGION
     if eng is not None and getattr(eng, "use_fast_start", False):
         from config import FAST_START_USE_BUTTON
         _tap_async(target, port, FAST_START_USE_BUTTON[0], FAST_START_USE_BUTTON[1])
-    return wait_template_gone(target, port, STAGE_GAME_START_TEMPLATE, STAGE_GAME_START_REGION, RUN_START_TIMEOUT)
+    return seen_perf or time.perf_counter()
+
+
+def describe_anchor(seen_perf: Optional[float], via_stream: bool) -> str:
+    """Short Thai label for logs, so users can tell whether t=0 was precise."""
+    if seen_perf is None:
+        return "สำรอง (ไม่เห็นปุ่ม START ทันเวลา — จังหวะอาจคลาด)"
+    if via_stream:
+        return "เห็นปุ่ม START ผ่าน scrcpy (แม่นยำ)"
+    return "เห็นปุ่ม START ผ่าน ADB (scrcpy ยังไม่พร้อม — จังหวะอาจคลาด ~0.3s)"
 
 
 def anchor_relay_start(target: str, port: int, tap: bool = True) -> float:

@@ -1390,7 +1390,15 @@ class BotEngine:
                     self._last_box_check_time = 0.0
                     self._box_target_consecutive_hits = 0
                     self.log(f" Round {self.rounds_played} started!", "success")
-                    if self.interruptible_sleep(0.2):
+                    self._run_start_seen = None
+                    if self._macro_timing_active(target):
+                        # t=0 = first frame showing the START button, caught by fast polling exactly like
+                        # the recorder (the main loop alone can notice it up to a second late)
+                        from macro_sync import describe_anchor, wait_run_start_seen
+                        seen, via_stream = wait_run_start_seen(target, self.device_port)
+                        self._run_start_seen = seen
+                        self.log(f"⏱️ [Macro] จุดเริ่ม t=0: {describe_anchor(seen, via_stream)}", "info" if seen else "warning")
+                    elif self.interruptible_sleep(0.2):
                         break
                     last_stage = None
 
@@ -1416,11 +1424,12 @@ class BotEngine:
 
                     run_anchor = None
                     if rec_armed or macro_mdata:
-                        # Same t=0 anchor as the recorder (Fast Start tap + START! banner cleared)
+                        # Same t=0 anchor as the recorder (first frame showing the START button)
                         from macro_sync import anchor_run_start
-                        run_anchor = anchor_run_start(target, self.device_port, self)
+                        run_anchor = anchor_run_start(target, self.device_port, self, getattr(self, "_run_start_seen", None))
                     elif self.use_fast_start:
                         using_fast_start()
+                    self._run_start_seen = None
                     detection_group = "IN_GAME"
                     self._last_auto_action_time = time.time() + 1.0
 
